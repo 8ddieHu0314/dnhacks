@@ -30,9 +30,45 @@ mobile bridge can initially sample video at 4–10 FPS, encode a JPEG/WebP frame
 and send it over the WebSocket. A later WebRTC/H.264 adapter simply needs to
 emit the same `FrameMetadata + bytes` pair.
 
+## Modular workflows
+
+The service is worker-agnostic. A stream session selects a versioned workflow;
+the selected package supplies the VLM context and is included in every result.
+Worker roles are therefore configuration, not code branches.
+
+Workflow definitions are JSON files in `services/vision_api/workflow_definitions/`.
+Each contains an id, version, instructions, and observable checkpoints:
+
+```json
+{
+  "id": "asset-inspection",
+  "version": "1.0.0",
+  "title": "Asset inspection",
+  "instructions": "Report evidence and uncertainty; do not authorize work.",
+  "checkpoints": [
+    {"id": "identify-asset", "title": "Identify asset", "evidence_prompt": "Read visible labels."}
+  ]
+}
+```
+
+`GET /v1/workflows` lists the available packages. Select one while creating a
+session; omitting it uses `generic-field-support`:
+
+```bash
+curl -X POST http://localhost:8000/v1/sessions \
+  -H 'content-type: application/json' \
+  -d '{"workflow_id":"asset-inspection"}'
+```
+
+Set `WORKFLOW_DEFINITIONS_DIR` to a directory of replacement JSON definitions
+to deploy a different customer, job, or procedure set without changing Python.
+The workflow shapes model context but never turns the model into an authority to
+clear hazardous work or execute a physical action.
+
 ## What is implemented
 
 - `POST /v1/sessions` creates a short-lived stream session.
+- `GET /v1/workflows` exposes versioned workflow packages.
 - `WS /v1/sessions/{session_id}/frames` accepts alternating metadata JSON and
   binary image messages.
 - `POST /v1/sessions/{session_id}/frames` is an HTTP fallback for native bridges.
