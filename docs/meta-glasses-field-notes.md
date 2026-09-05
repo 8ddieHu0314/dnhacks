@@ -212,3 +212,11 @@ Glasses camera -> (Meta AI app / DAT, BT+WiFi) -> iOS app GlassesInspector -> HT
   Readings (relay cap 24): Medium 504x896 14.8 fps, 171 ms, 72 KB; High 720x1280 12.1 fps, 252 ms, 139 KB.
   Bytes*fps ~ 8-13 Mbps => phone->Mac hop is bandwidth/latency bound (looks like Wi-Fi, not cable).
   Added: 3 frames in flight (pipelining), glasses frame-rate picker 15/24/30, relay cap up to 30.
+- 2026-09-05 16:30 Claude -> glasses audio loop built. Mac: analyze() streams Claude (AsyncAnthropic, claude-opus-5,
+  server-side fallbacks) on the latest frame, pushes each finished sentence to the phone over the ingest WebSocket
+  as {"type":"speak","text":...} then {"type":"speak_end"}; viewers get live "caption" messages. Endpoints:
+  POST /inspect, POST/GET /narrate {enabled, interval} (continuous loop, "no change" suppressed, previous
+  narration passed as context). INSPECT_FAKE=1 streams canned text without a key. run.sh sources server/.env.
+  Phone: Speaker.swift (AVSpeechSynthesizer, playback/spokenAudio session -> glasses over A2DP), Describe button,
+  caption overlay, settings: speak toggle, continuous narration + interval, test voice. Phone->Mac commands:
+  {"type":"inspect"}, {"type":"narrate"}. Verified fake round trip: first sentence at 0.7 s, speak_end at 2.6 s.

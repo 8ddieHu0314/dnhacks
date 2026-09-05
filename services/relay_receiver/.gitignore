@@ -1,0 +1,5 @@
+.env
+.venv/
+frames/
+report.jsonl
+server.log

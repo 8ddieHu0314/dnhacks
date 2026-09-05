@@ -9,6 +9,7 @@ import asyncio
 import base64
 import json
 import os
+import re
 import struct
 import subprocess
 import time
@@ -18,7 +19,8 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 MODEL = os.environ.get("INSPECT_MODEL", "claude-opus-5")
-SPEAK = os.environ.get("SPEAK", "0") == "1"
+SPEAK = os.environ.get("SPEAK", "0") == "1"           # also say results on the Mac speaker
+FAKE = os.environ.get("INSPECT_FAKE", "0") == "1"      # stream canned text (no API key needed) to test the audio path
 REPORT_PATH = Path(__file__).with_name("report.jsonl")
 FRAMES_DIR = Path(__file__).with_name("frames")
 FRAMES_DIR.mkdir(exist_ok=True)
@@ -30,6 +32,11 @@ Given a single camera frame, do the following, briefly and in plain language sui
 3. Flag any hazards you can see: missing PPE, exposed conductors, open panels, leaks, corrosion, damage, unsafe positioning.
 4. Give one recommended next action.
 Keep it under 80 words. If the frame is unclear, say what is needed (closer, more light, hold still)."""
+
+NARRATION_PROMPT = """You are a live narrator speaking into a technician's smart glasses as they walk an energy or industrial site.
+You receive one camera frame every few seconds. Speak as if to the wearer, in one or two short sentences, in plain language that sounds natural read aloud.
+Name what is in view, read any labels, gauges, or warnings, and call out hazards first. Mention only what is new or changed compared with your previous narration.
+If nothing meaningful changed, reply with exactly: no change"""
 
 app = FastAPI()
 
@@ -102,6 +109,10 @@ state = {
     "report": [],
 }
 viewers: set[asyncio.Queue] = set()
+viewer_sockets: set[WebSocket] = set()   # for text (stats/caption) pushes
+phones: set[WebSocket] = set()           # ingest sockets: frames in, speech text out
+caption = {"text": "", "final": True}
+narration = {"enabled": False, "interval": 8.0, "busy": False, "last": "", "task": None}
 
 if REPORT_PATH.exists():
     state["report"] = [json.loads(l) for l in REPORT_PATH.read_text().splitlines() if l.strip()]
@@ -135,7 +146,142 @@ def _stats():
             "phone_to_mac_ms": None if lat is None else round(lat),
             "last_frame_age_s": None if age is None else round(age, 2),
             "frame_kb": round(len(state["latest"]) / 1024, 1) if state["latest"] else 0,
-            "viewers": len(viewers), "model": MODEL, "inspections": len(state["report"])}
+            "viewers": len(viewers), "phones": len(phones), "model": "fake" if FAKE else MODEL,
+            "inspections": len(state["report"]), "narration": narration["enabled"], "interval": narration["interval"]}
+
+
+async def _send_all(sockets: set[WebSocket], msg: dict):
+    text = json.dumps(msg)
+    for ws in list(sockets):
+        try:
+            await ws.send_text(text)
+        except Exception:
+            sockets.discard(ws)
+
+
+async def _caption(text: str, final: bool):
+    caption["text"], caption["final"] = text, final
+    await _send_all(viewer_sockets, {"type": "caption", "text": text, "final": final})
+
+
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+async def _fake_stream(question: str):
+    for chunk in ["Looking at a laptop and a phone on a table. ", "The phone screen shows a camera preview. ",
+                  "No hazards visible. ", "Next: hold the frame steady for a closer read."]:
+        for word in chunk.split(" "):
+            yield word + " "
+            await asyncio.sleep(0.08)
+
+
+async def _claude_stream(question: str, system: str, b64: str):
+    import anthropic
+    aclient = anthropic.AsyncAnthropic()
+    async with aclient.beta.messages.stream(
+        model=MODEL, max_tokens=400, system=system,
+        betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+        messages=[{"role": "user", "content": [
+            {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
+            {"type": "text", "text": question}]}],
+    ) as stream:
+        async for text in stream.text_stream:
+            yield text
+        final = await stream.get_final_message()
+        if final.stop_reason == "refusal":
+            yield " The model declined to analyze this frame."
+
+
+async def analyze(question: str, *, narrate: bool = False, speak: bool = True) -> dict | None:
+    """Run Claude on the latest frame, streaming sentences to the phone (spoken) and viewers (caption)."""
+    data = state["latest"]
+    if not data:
+        return None
+    if not FAKE and not os.environ.get("ANTHROPIC_API_KEY"):
+        raise RuntimeError("ANTHROPIC_API_KEY not set on the server; restart with the key exported (or INSPECT_FAKE=1).")
+    ts = time.time()
+    frame_path = FRAMES_DIR / f"{int(ts)}.jpg"
+    frame_path.write_bytes(data)
+    b64 = base64.standard_b64encode(data).decode()
+    system = NARRATION_PROMPT if narrate else SYSTEM_PROMPT
+    q = question
+    if narrate and narration["last"]:
+        q = f"Previous narration: {narration['last']}\n\n{question}"
+    await _caption("", final=False)
+    full, pending = "", ""
+    gen = _fake_stream(q) if FAKE else _claude_stream(q, system, b64)
+    async for piece in gen:
+        full += piece
+        pending += piece
+        await _caption(full, final=False)
+        # flush complete sentences to the phone as they land so speech starts early
+        parts = _SENTENCE_END.split(pending)
+        if len(parts) > 1:
+            for sentence in parts[:-1]:
+                sentence = sentence.strip()
+                if sentence and speak and sentence.lower() != "no change":
+                    await _send_all(phones, {"type": "speak", "text": sentence})
+            pending = parts[-1]
+    tail = pending.strip()
+    if tail and speak and tail.lower() != "no change":
+        await _send_all(phones, {"type": "speak", "text": tail})
+    await _send_all(phones, {"type": "speak_end"})
+    text = full.strip()
+    await _caption(text, final=True)
+    if narrate:
+        if text.lower() != "no change":
+            narration["last"] = text
+        if text.lower() == "no change":
+            return None
+    entry = {"ts": ts, "question": question, "result": text, "frame": frame_path.name,
+             "model": "fake" if FAKE else MODEL, "narration": narrate}
+    state["report"].append(entry)
+    with REPORT_PATH.open("a") as f:
+        f.write(json.dumps(entry) + "\n")
+    if SPEAK and text.lower() != "no change":
+        subprocess.Popen(["say", text])
+    return entry
+
+
+async def _narration_loop():
+    while narration["enabled"]:
+        fresh = state["latest"] and (time.time() - state["latest_ts"]) < 3
+        if fresh and not narration["busy"]:
+            narration["busy"] = True
+            try:
+                await analyze("Narrate what the wearer is looking at now.", narrate=True)
+            except Exception as e:
+                await _caption(f"narration error: {e}", final=True)
+            finally:
+                narration["busy"] = False
+        await asyncio.sleep(narration["interval"])
+
+
+def set_narration(enabled: bool, interval: float | None = None):
+    if interval:
+        narration["interval"] = max(3.0, float(interval))
+    narration["enabled"] = bool(enabled)
+    t = narration.get("task")
+    if enabled and (t is None or t.done()):
+        narration["last"] = ""
+        narration["task"] = asyncio.create_task(_narration_loop())
+
+
+async def handle_phone_command(msg: dict):
+    kind = msg.get("type")
+    if kind == "inspect":
+        if not narration["busy"]:
+            narration["busy"] = True
+            try:
+                await analyze(msg.get("question") or "Inspect this frame.")
+            except Exception as e:
+                await _send_all(phones, {"type": "speak", "text": f"Inspection failed: {e}"})
+                await _send_all(phones, {"type": "speak_end"})
+            finally:
+                narration["busy"] = False
+    elif kind == "narrate":
+        set_narration(msg.get("enabled", False), msg.get("interval"))
+        await _send_all(phones, {"type": "narration", "enabled": narration["enabled"], "interval": narration["interval"]})
 
 
 @app.websocket("/")
@@ -146,16 +292,28 @@ async def ws_ingest_root(ws: WebSocket):
 @app.websocket("/ws/ingest")
 async def ws_ingest(ws: WebSocket):
     await ws.accept()
+    phones.add(ws)
+    await ws.send_text(json.dumps({"type": "narration", "enabled": narration["enabled"], "interval": narration["interval"]}))
     try:
         while True:
-            msg = await ws.receive_bytes()
-            if len(msg) > 8 and msg[:2] != b"\xff\xd8":
-                ts_ms = struct.unpack(">Q", msg[:8])[0]
-                _ingest(msg[8:], ts_ms / 1000.0)
-            else:
-                _ingest(msg, None)
+            message = await ws.receive()
+            if message.get("type") == "websocket.disconnect":
+                break
+            if (data := message.get("bytes")) is not None:
+                if len(data) > 8 and data[:2] != b"\xff\xd8":
+                    ts_ms = struct.unpack(">Q", data[:8])[0]
+                    _ingest(data[8:], ts_ms / 1000.0)
+                else:
+                    _ingest(data, None)
+            elif (text := message.get("text")) is not None:
+                try:
+                    asyncio.create_task(handle_phone_command(json.loads(text)))
+                except Exception:
+                    pass
     except WebSocketDisconnect:
         pass
+    finally:
+        phones.discard(ws)
 
 
 @app.websocket("/ws/view")
@@ -163,8 +321,10 @@ async def ws_view(ws: WebSocket):
     await ws.accept()
     q: asyncio.Queue = asyncio.Queue(maxsize=1)
     viewers.add(q)
+    viewer_sockets.add(ws)
     if state["latest"]:
         q.put_nowait(state["latest"])
+    await ws.send_text(json.dumps({"type": "caption", "text": caption["text"], "final": caption["final"]}))
     last_stats = 0.0
     try:
         while True:
@@ -175,11 +335,12 @@ async def ws_view(ws: WebSocket):
                 pass
             if time.time() - last_stats > 0.5:
                 last_stats = time.time()
-                await ws.send_text(json.dumps(_stats()))
+                await ws.send_text(json.dumps({"type": "stats", **_stats()}))
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
         viewers.discard(q)
+        viewer_sockets.discard(ws)
 
 
 @app.post("/frame")
@@ -205,40 +366,36 @@ def health():
 
 @app.post("/inspect")
 async def inspect(request: Request):
-    import anthropic
     try:
         body = await request.json()
     except Exception:
         body = {}
     question = (body or {}).get("question") or "Inspect this frame."
-    data = state["latest"]
-    if not data:
+    if not state["latest"]:
         return JSONResponse({"error": "no frame yet"}, status_code=409)
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return JSONResponse({"error": "ANTHROPIC_API_KEY not set on the server; restart with the key exported."}, status_code=503)
+    if narration["busy"]:
+        return JSONResponse({"error": "analysis already running"}, status_code=429)
+    narration["busy"] = True
+    try:
+        entry = await analyze(question)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=503)
+    finally:
+        narration["busy"] = False
+    return entry or {"result": caption["text"]}
 
-    ts = time.time()
-    frame_path = FRAMES_DIR / f"{int(ts)}.jpg"
-    frame_path.write_bytes(data)
-    b64 = base64.standard_b64encode(data).decode()
-    client = anthropic.Anthropic()
-    response = await asyncio.to_thread(lambda: client.beta.messages.create(
-        model=MODEL, max_tokens=1024, system=SYSTEM_PROMPT,
-        betas=["server-side-fallback-2026-07-01"], fallbacks="default",
-        messages=[{"role": "user", "content": [
-            {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
-            {"type": "text", "text": question}]}]))
-    if response.stop_reason == "refusal":
-        text = "The model declined to analyze this frame."
-    else:
-        text = "".join(b.text for b in response.content if b.type == "text").strip()
-    entry = {"ts": ts, "question": question, "result": text, "frame": frame_path.name, "model": response.model}
-    state["report"].append(entry)
-    with REPORT_PATH.open("a") as f:
-        f.write(json.dumps(entry) + "\n")
-    if SPEAK:
-        subprocess.Popen(["say", text])
-    return entry
+
+@app.post("/narrate")
+async def narrate(request: Request):
+    body = await request.json()
+    set_narration(body.get("enabled", False), body.get("interval"))
+    await _send_all(phones, {"type": "narration", "enabled": narration["enabled"], "interval": narration["interval"]})
+    return {"enabled": narration["enabled"], "interval": narration["interval"]}
+
+
+@app.get("/narrate")
+def narrate_status():
+    return {"enabled": narration["enabled"], "interval": narration["interval"], "last": narration["last"]}
 
 
 @app.get("/report")
@@ -276,6 +433,10 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 <aside>
 <input id=q placeholder="Question (optional)">
 <button class=primary onclick="inspect()">Inspect this frame</button>
+<div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+  <label style="font-size:14px"><input type=checkbox id=narr onchange="narrate()"> Narrate continuously</label>
+  <input id=interval type=number min=3 step=1 value=8 style="width:70px;margin:0" onchange="narrate()"> s
+</div>
 <div id=out></div>
 <h3>Report</h3><div id=rep></div></aside>
 <script>
@@ -295,19 +456,22 @@ function connect(){
   const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/view');
   ws.binaryType='blob';
   ws.onmessage=async e=>{
-    if(typeof e.data==='string'){stats=JSON.parse(e.data);renderHud();return;}
+    if(typeof e.data==='string'){const m=JSON.parse(e.data);
+      if(m.type==='caption'){const out=document.getElementById('out');out.textContent=m.text||(m.final?'':'thinking…');out.style.opacity=m.final?1:0.7;if(m.final&&m.text)loadReport();return;}
+      stats=m;renderHud();document.getElementById('narr').checked=!!m.narration;return;}
     try{const b=await createImageBitmap(e.data);if(bmp)bmp.close();bmp=b;draw();
       shown++;const now=performance.now();if(now-lastShown>1000){dispFps=shown*1000/(now-lastShown);shown=0;lastShown=now;}}catch(err){}
   };
   ws.onclose=()=>{hud.textContent='disconnected, retrying…';setTimeout(connect,1000)};
 }
 function renderHud(){
-  hud.textContent=`${bmp?bmp.width+'×'+bmp.height:'no frame'} · relay ${stats.fps??'-'} fps · shown ${dispFps.toFixed(1)} fps\\nphone→mac ${stats.phone_to_mac_ms??'-'} ms · ${stats.frame_kb??'-'} KB/frame · frames ${stats.frames??0}`;
+  hud.textContent=`${bmp?bmp.width+'×'+bmp.height:'no frame'} · relay ${stats.fps??'-'} fps · shown ${dispFps.toFixed(1)} fps\\nphone→mac ${stats.phone_to_mac_ms??'-'} ms · ${stats.frame_kb??'-'} KB/frame · frames ${stats.frames??0} · phones ${stats.phones??0} · ${stats.model??''}`;
 }
 window.addEventListener('resize',draw);
 async function inspect(){const out=document.getElementById('out');out.textContent='thinking…';
  const r=await fetch('/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:document.getElementById('q').value||undefined})});
- const j=await r.json();out.textContent=j.result||j.error;loadReport();}
+ const j=await r.json();if(j.error)out.textContent=j.error;loadReport();}
+async function narrate(){await fetch('/narrate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:document.getElementById('narr').checked,interval:+document.getElementById('interval').value})});}
 async function loadReport(){const rep=await (await fetch('/report')).json();
  document.getElementById('rep').innerHTML=rep.map(e=>`<div class=e><small>${new Date(e.ts*1000).toLocaleTimeString()} · ${e.model}</small><div>${e.result}</div><img src="/frames/${e.frame}"></div>`).join('');}
 loadReport();connect();

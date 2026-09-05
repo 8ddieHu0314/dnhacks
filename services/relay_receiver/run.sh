@@ -1,6 +1,8 @@
 #!/bin/sh
 # Start the Glasses Inspector receiver. Needs ANTHROPIC_API_KEY in the environment for /inspect.
 cd "$(dirname "$0")"
+# Optional secrets/config: server/.env with lines like ANTHROPIC_API_KEY=sk-ant-...
+[ -f .env ] && set -a && . ./.env && set +a
 [ -d .venv ] || python3 -m venv .venv
 ./.venv/bin/pip install -q -r requirements.txt
 echo "Mac LAN address: $(ipconfig getifaddr en0)  -> set this in the iOS app relay URL as http://$(ipconfig getifaddr en0):8787"

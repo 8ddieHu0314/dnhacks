@@ -65,6 +65,10 @@ actor RelaySocket {
   private var lastFailure: String?
   private let queue = DispatchQueue(label: "glassesinspector.relay")
 
+  /// Called with each text (JSON) message from the receiver.
+  private var textHandler: (@Sendable (String) -> Void)?
+  func setTextHandler(_ h: @escaping @Sendable (String) -> Void) { textHandler = h }
+
   /// Human-readable description of the path in use.
   private(set) var pathDescription: String = "not connected"
   /// Recent events for the in-app diagnostics panel.
@@ -246,8 +250,13 @@ actor RelaySocket {
 
   /// Drain incoming messages so pings and close frames are handled promptly.
   private func receiveNext(_ box: ConnectionBox) {
-    box.c.receiveMessage { [weak self] _, _, _, error in
+    box.c.receiveMessage { [weak self] content, context, _, error in
       if error == nil {
+        if let content,
+          let meta = context?.protocolMetadata(definition: NWProtocolWebSocket.definition) as? NWProtocolWebSocket.Metadata,
+          meta.opcode == .text, let text = String(data: content, encoding: .utf8) {
+          Task { await self?.deliverText(text) }
+        }
         Task { await self?.receiveNext(box) }
       } else {
         Task { await self?.stateChanged(.failed(error?.localizedDescription ?? "receive failed"), id: box.id, cableAttempt: false) }
@@ -278,6 +287,21 @@ actor RelaySocket {
         throw NSError(domain: "Relay", code: 2, userInfo: [NSLocalizedDescriptionKey: "\(which) connect timed out"])
       }
       try await Task.sleep(for: .milliseconds(40))
+    }
+  }
+
+  private func deliverText(_ text: String) { textHandler?(text) }
+
+  /// Sends a small JSON/text message to the receiver (commands such as "inspect").
+  func sendText(_ text: String) async throws {
+    try await ensureReady(timeout: 3)
+    guard let box = connection else { throw RelayError.disconnected }
+    try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+      let meta = NWProtocolWebSocket.Metadata(opcode: .text)
+      let ctx = NWConnection.ContentContext(identifier: "cmd", metadata: [meta])
+      box.c.send(content: Data(text.utf8), contentContext: ctx, isComplete: true, completion: .contentProcessed { err in
+        if let err { cont.resume(throwing: err) } else { cont.resume() }
+      })
     }
   }
 
@@ -424,6 +448,62 @@ final class FrameRelay {
 
   var diagnostics: [String] { (browser.events.suffix(4) + socketEvents.suffix(14)) }
 
+  // MARK: Claude analysis -> speech
+  let speaker = Speaker()
+  /// Speak analysis sentences from the Mac through the glasses.
+  var speakEnabled: Bool {
+    didSet { UserDefaults.standard.set(speakEnabled, forKey: "relaySpeak") }
+  }
+  /// Live text of the current/last analysis (for the on-screen caption).
+  private(set) var caption: String = ""
+  private(set) var captionFinal: Bool = true
+  /// Server-side continuous narration state, as reported by the receiver.
+  private(set) var narrationEnabled: Bool = false
+  private(set) var narrationInterval: Double = 8
+  private(set) var lastCommandError: String?
+
+  /// Ask the Mac to analyze the current frame; the answer comes back as speech.
+  func requestInspect(question: String? = nil) {
+    caption = ""
+    captionFinal = false
+    var msg: [String: Any] = ["type": "inspect"]
+    if let question, !question.isEmpty { msg["question"] = question }
+    sendCommand(msg)
+  }
+
+  func setNarration(enabled: Bool, interval: Double) {
+    sendCommand(["type": "narrate", "enabled": enabled, "interval": interval])
+  }
+
+  private func sendCommand(_ msg: [String: Any]) {
+    guard let data = try? JSONSerialization.data(withJSONObject: msg), let text = String(data: data, encoding: .utf8) else { return }
+    Task { [socket] in
+      do { try await socket.sendText(text); await MainActor.run { self.lastCommandError = nil } }
+      catch { await MainActor.run { self.lastCommandError = error.localizedDescription } }
+    }
+  }
+
+  private func handleServerText(_ text: String) {
+    guard let data = text.data(using: .utf8),
+      let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+      let kind = obj["type"] as? String else { return }
+    switch kind {
+    case "speak":
+      if let t = obj["text"] as? String {
+        caption = caption.isEmpty ? t : caption + " " + t
+        captionFinal = false
+        if speakEnabled { speaker.speak(t) }
+      }
+    case "speak_end":
+      captionFinal = true
+    case "narration":
+      narrationEnabled = obj["enabled"] as? Bool ?? false
+      narrationInterval = obj["interval"] as? Double ?? narrationInterval
+    default:
+      break
+    }
+  }
+
   var activeTargetDescription: String {
     if useManualURL { return "\(manualURL) via \(pathDescription)" }
     if let name = serviceName.isEmpty ? browser.found.first?.name : serviceName {
@@ -456,9 +536,15 @@ final class FrameRelay {
     preferCable = d.object(forKey: Self.preferCableKey) as? Bool ?? true
     targetFPS = d.object(forKey: Self.fpsKey) as? Double ?? 24
     jpegQuality = d.object(forKey: Self.qualityKey) as? Double ?? 0.7
+    speakEnabled = d.object(forKey: "relaySpeak") as? Bool ?? true
     browser.onUpdate = { [weak self] in self?.applyTarget() }
     browser.start()
     applyTarget()
+    Task { [socket] in
+      await socket.setTextHandler { [weak self] text in
+        Task { @MainActor [weak self] in self?.handleServerText(text) }
+      }
+    }
   }
 
   private func applyTarget() {

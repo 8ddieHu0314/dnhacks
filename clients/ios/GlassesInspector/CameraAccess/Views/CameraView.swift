@@ -268,6 +268,31 @@ struct CameraView: View {
       if isUpdateRequired {
         updateControls
       } else {
+        // Glasses Inspector: live caption of Claude's analysis + Describe trigger.
+        if !viewModel.frameRelay.caption.isEmpty || !viewModel.frameRelay.captionFinal {
+          Text(viewModel.frameRelay.caption.isEmpty ? "Analyzing…" : viewModel.frameRelay.caption)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(.white)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.black.opacity(0.55))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .opacity(viewModel.frameRelay.captionFinal ? 1 : 0.8)
+        }
+        if let err = viewModel.frameRelay.lastCommandError {
+          Text("Mac: \(err)").font(.system(size: 11)).foregroundStyle(.yellow)
+        }
+        HStack(spacing: 10) {
+          CustomButton(title: viewModel.frameRelay.narrationEnabled ? "Narrating…" : "Describe", style: .primary, isDisabled: !viewModel.isStreaming) {
+            viewModel.frameRelay.requestInspect()
+          }
+          if viewModel.frameRelay.speaker.isSpeaking {
+            CustomButton(title: "Hush", style: .destructive, isDisabled: false) {
+              viewModel.frameRelay.speaker.stop()
+            }
+            .frame(width: 90)
+          }
+        }
         // Reserved capture-row space + a single persistent button hold the button at
         // a fixed Y across every state.
         captureRow
@@ -592,6 +617,7 @@ struct RelaySettingsView: View {
   @Bindable var wearablesVM: WearablesViewModel
   @AppStorage("streamResolution") private var streamResolution: String = "medium"
   @AppStorage("streamFPS") private var streamFPS: Int = 24
+  @State private var narrationInterval: Double = 8
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
@@ -654,6 +680,22 @@ struct RelaySettingsView: View {
             Text("JPEG quality \(Int(relay.jpegQuality * 100))").frame(width: 130, alignment: .leading)
             Slider(value: $relay.jpegQuality, in: 0.3...0.95, step: 0.05)
           }
+        }
+        Section("Claude narration") {
+          Toggle("Speak results through glasses", isOn: $relay.speakEnabled)
+          Toggle("Continuous narration (Mac)", isOn: Binding(
+            get: { relay.narrationEnabled },
+            set: { relay.setNarration(enabled: $0, interval: narrationInterval) }))
+          HStack {
+            Text("Every \(Int(narrationInterval)) s").frame(width: 100, alignment: .leading)
+            Slider(value: $narrationInterval, in: 3...30, step: 1) { editing in
+              if !editing && relay.narrationEnabled { relay.setNarration(enabled: true, interval: narrationInterval) }
+            }
+          }
+          Button("Test voice on glasses") { relay.speaker.speak("Glasses audio link is live. Claude will speak here.") }
+          Button("Stop speaking") { relay.speaker.stop() }
+          Text("Narration runs on the Mac; needs ANTHROPIC_API_KEY there, or INSPECT_FAKE=1 to test the audio path.")
+            .font(.caption).foregroundStyle(.secondary)
         }
         Section("Diagnostics") {
           if relay.diagnostics.isEmpty {

@@ -1,30 +1,55 @@
-# Glasses Inspector (iOS)
+# Camera Access App
 
-Companion app that pulls the live camera stream from Ray-Ban Meta glasses via Meta's
-Device Access Toolkit (DAT 0.9.0) and relays JPEG frames to a receiver on the LAN.
-Forked from Meta's `samples/CameraAccess` in
-[facebook/meta-wearables-dat-ios](https://github.com/facebook/meta-wearables-dat-ios);
-the toolkit is pulled in by Swift Package Manager on first build.
+A sample iOS application demonstrating integration with Meta Wearables Device Access Toolkit. This app walks the SDK's camera lifecycle as explicit steps — start a session, start the preview, capture or record, stop the preview, end the session — on a single full-bleed camera screen.
 
-## Requirements
-- Xcode 26.4+, iOS 17.2+ phone, glasses firmware >= v126, Meta AI app >= v282, Developer Mode on.
-- Free personal Apple team is enough. See "Signing on a personal team" below.
+## Features
 
-## Build
-Open `CameraAccess.xcodeproj`, pick your team under Signing & Capabilities, run on the phone.
-In the app: Connect (approve in Meta AI) -> Start Session -> Preview. Gear icon = relay settings.
+- Connect to Meta AI glasses
+- Explicit camera lifecycle: start/end a device session and start/stop the live preview
+- Stream the camera feed from the device
+- Capture photos
+- Record video, with optional sound-in-video
+- Backgrounding the app ends the active preview session and returns the sample to a clean idle state
+- Preview and share captured photos and recorded videos
+- Open the firmware update flow when required
 
-## Signing on a personal team (important)
-Meta's sample carries two Wi-Fi entitlements (Hotspot Configuration, Access Wi-Fi Information)
-that only paid teams can sign. They are removed here. Without them the toolkit cannot use its
-Wi-Fi video path, so this app declares `UISupportedExternalAccessoryProtocols = [com.meta.ar.wearable]`
-in Info.plist, which enables the toolkit's Bluetooth Classic video path instead. Streaming works
-at 360p/504p/720p, ~24 fps at the phone; "compat=Undefined" in the status line is harmless.
+## Prerequisites
 
-## Relay
-- `Media/FrameRelay.swift`: WebSocket push (8-byte capture timestamp + JPEG) over Network.framework.
-  Finds the receiver via Bonjour (`_glassesrelay._tcp`), prefers the USB cable when the phone has a
-  169.254.x.x interface, falls back to Wi-Fi automatically. Latest-frame slot, up to 3 in flight.
-- Receiver: `services/relay_receiver` in this repo (dashboard + `/ws/ingest`).
-- To target the vision API instead, point the relay at `WS /v1/sessions/{id}/frames` and send the
-  `FrameMetadata` JSON before each JPEG (see repo README).
+- iOS 17.2+
+- Xcode 26.4+
+- Swift 6.3+
+- Meta Wearables Device Access Toolkit (included as a dependency)
+- A Meta AI glasses device for testing (optional for development)
+
+## Building the app
+
+### Using Xcode
+
+1. Clone this repository
+1. Open the project in Xcode
+1. Select your target device
+1. Click the "Build" button or press `Cmd+B` to build the project
+1. To run the app, click the "Run" button (▶️) or press `Cmd+R`
+
+## Running the app
+
+1. Turn 'Developer Mode' on in the Meta AI app.
+1. Launch the app.
+1. Press the "Connect" button to complete app registration.
+1. Tap "Start Session" to connect to your glasses, then "Preview" to begin the live camera feed.
+1. Use the on-screen controls to:
+   - Capture photos
+   - Record video, toggling the microphone for sound-in-video
+   - Preview and share captured photos and recorded videos
+   - Stop the preview, end the session, or disconnect from the device
+1. If the app backgrounds while previewing or recording, CameraAccess ends the active session; when you return, start again from "Start Session".
+1. If a firmware update is required, tap "Update firmware".
+1. If session start reports that the app on the glasses is outdated, tap "Update app on glasses".
+
+## Troubleshooting
+
+For issues related to the Meta Wearables Device Access Toolkit, please refer to the [developer documentation](https://wearables.developer.meta.com/docs/develop/) or visit our [discussions forum](https://github.com/facebook/meta-wearables-dat-ios/discussions)
+
+## License
+
+This source code is licensed under the license found in the LICENSE file in the root directory of this source tree.
