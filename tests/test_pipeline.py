@@ -26,3 +26,21 @@ class VisionPipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(results[0].frame_id, "frame-1")
         self.assertEqual(results[0].backend, "mock")
         self.assertEqual(results[0].regions[0].label, "mock-region")
+
+    async def test_records_a_model_failure_without_stopping_the_worker(self) -> None:
+        class FailingEngine:
+            name = "failing"
+
+            async def analyze(self, _frame):
+                raise RuntimeError("model unavailable")
+
+        pipeline = VisionPipeline(FailingEngine(), queue_capacity=1, result_history=1)
+        await pipeline.start()
+        try:
+            metadata = FrameMetadata(frame_id="failed", width=2, height=2)
+            with self.assertLogs("vision_api.pipeline", level="ERROR"):
+                await pipeline.submit("session", metadata, b"frame")
+                await asyncio.wait_for(pipeline._queue.join(), timeout=1)
+            self.assertEqual(pipeline.metrics_for("session").failed_frames, 1)
+        finally:
+            await pipeline.stop()
