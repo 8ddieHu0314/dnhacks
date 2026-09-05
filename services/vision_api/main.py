@@ -70,3 +70,25 @@ async def create_session() -> SessionCreated:
     session_id = str(uuid4())
     sessions.add(session_id)
     return SessionCreated(session_id=session_id, created_at=utc_now())
+
+
+@app.post("/v1/sessions/{session_id}/frames", response_model=IngestAcknowledgement)
+async def ingest_frame(session_id: str, request: Request) -> IngestAcknowledgement:
+    """HTTP fallback for a native device bridge posting one JPEG/PNG/WebP frame."""
+
+    validate_session(session_id)
+    try:
+        metadata = FrameMetadata.model_validate_json(request.headers["x-frame-metadata"])
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="x-frame-metadata header containing FrameMetadata JSON is required",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid frame metadata: {exc}") from exc
+    image_bytes = await request.body()
+    validate_frame_bytes(image_bytes)
+    dropped = await pipeline.submit(session_id, metadata, image_bytes)
+    return IngestAcknowledgement(
+        session_id=session_id, frame_id=metadata.frame_id, dropped_stale_frames=dropped
+    )
