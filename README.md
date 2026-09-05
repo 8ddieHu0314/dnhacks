@@ -19,7 +19,7 @@ Meta glasses camera
 Video transport adapter (WebRTC/H.264, when SDK details are available)
       │  timestamped JPEG, PNG, or WebP frames
       ▼
-FastAPI ingest service ──► bounded latest-frame queue ──► segmentation engine
+FastAPI ingest service ──► bounded latest-frame queue ──► vision engine
       │                                                        │
       └──────── ACK / metrics ◄──── structured masks ◄─────────┘
 ```
@@ -37,9 +37,10 @@ emit the same `FrameMetadata + bytes` pair.
   binary image messages.
 - `POST /v1/sessions/{session_id}/frames` is an HTTP fallback for native bridges.
 - A bounded queue drops old frames under load, keeping live guidance fresh.
-- A segmentation-engine protocol and deterministic mock backend exercise the
-  end-to-end contract without a GPU or model checkpoint.
-- Result and metrics endpoints expose regions, latency, and dropped-frame counts.
+- The engine interface supports segmentation-only models and VLM/VLA reasoning.
+- The default deterministic mock backend exercises the contract without a GPU.
+- Result and metrics endpoints expose regions, observations, action proposals,
+  latency, and dropped-frame counts.
 
 ## Run locally
 
@@ -71,6 +72,29 @@ Docker is also available after creating `.env`:
 ```bash
 docker compose up --build
 ```
+
+## Bring your VLM/VLA
+
+Set these values in `.env` to use a vision-capable model exposed through an
+OpenAI-compatible `/v1/chat/completions` endpoint:
+
+```bash
+VISION_BACKEND=openai_compatible
+VLM_BASE_URL=https://your-model-host/v1
+VLM_API_KEY=your-secret
+VLM_MODEL=your-vision-model
+```
+
+Each submitted image is sent as a base64 image message. The model must respond
+with JSON matching `VisionOutput`: `regions` plus optional `analysis` containing
+observations, safety alerts, and `proposed_actions`. A model can therefore act as
+a VLM (describe/inspect the frame) or as a VLA planner (propose a next action).
+The service never executes actions; every proposal is marked as requiring human
+confirmation so the mobile client can keep a human in the loop.
+
+To support another provider or an on-device runtime, implement the
+`SegmentationEngine.analyze(frame) -> VisionOutput` contract and register it in
+`build_vision_engine`.
 
 ## First integration steps
 
