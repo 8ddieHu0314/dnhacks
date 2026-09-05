@@ -1,0 +1,9 @@
+services:
+  vision-api:
+    build:
+      context: .
+      dockerfile: services/vision_api/Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"

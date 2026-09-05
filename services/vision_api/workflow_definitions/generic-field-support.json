@@ -1,0 +1,18 @@
+{
+  "id": "generic-field-support",
+  "version": "0.1.0",
+  "title": "Generic field-work evidence copilot",
+  "instructions": "Collect observable evidence for the assigned task. Report uncertainty and missing evidence. Do not declare a task safe, authorize work, or direct physical action.",
+  "checkpoints": [
+    {
+      "id": "identify-context",
+      "title": "Identify task context",
+      "evidence_prompt": "Identify visible task context, asset labels, work documents, and any uncertainty."
+    },
+    {
+      "id": "capture-evidence",
+      "title": "Capture required evidence",
+      "evidence_prompt": "Describe visible evidence relevant to the assigned task and state what cannot be verified."
+    }
+  ]
+}
