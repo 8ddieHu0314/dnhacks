@@ -96,6 +96,24 @@ class RuleResult:
     applicable: bool  # False = could not be judged; report as "unknown", not "pass"
 
 
+def suppress_gloves_on_helmet(detections: list, overlap: float = 0.6) -> list:
+    """Drop a `gloves` box that mostly sits inside a `helmet` box.
+
+    The detector confuses the two in one direction only: a yellow hard hat
+    gets called gloves far more often than a glove gets called helmet. So
+    when both land on the same region, the helmet reading wins. Measured as
+    intersection over the smaller box so a partial helmet box still counts.
+    Pure: filters the list, touches nothing else.
+    """
+    helmets = [d.box for d in detections if _is_class(d, "helmet")]
+    if not helmets:
+        return detections
+    return [
+        d for d in detections
+        if not (_is_class(d, "gloves") and any(_intersection_over_smaller(d.box, h) > overlap for h in helmets))
+    ]
+
+
 def bare_hands(detections: list) -> RuleResult:
     hands = [d for d in detections if _is_class(d, "hands")]
     gloves = [d for d in detections if _is_class(d, "gloves")]

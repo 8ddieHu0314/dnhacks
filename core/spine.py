@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import cv2
 
 from core.detectors import RoboflowDetector, SH17Detector
-from core.rules import RULES, debounce, spoken_sentence
+from core.rules import RULES, debounce, spoken_sentence, suppress_gloves_on_helmet
 
 
 @dataclass
@@ -99,6 +99,10 @@ class Spine:
         for fn, every_n_frames in self.plugins:
             if every_n_frames <= 1 or self.frame_index % every_n_frames == 0:
                 fn(frame_bgr, state)
+
+        # Helmet beats gloves on the same region: the detector's confusion
+        # runs one way only (yellow hard hat called gloves), see rules.py.
+        state.detections = suppress_gloves_on_helmet(state.detections)
 
         rule_results = [rule(state.detections) for rule in RULES]
         fired = debounce(self.timers, rule_results, dt, threshold=self.debounce_seconds)
