@@ -147,3 +147,15 @@ async def ingest_frames_websocket(websocket: WebSocket, session_id: str) -> None
                 await websocket.send_json({"error": exc.detail})
     except WebSocketDisconnect:
         return
+
+
+@app.get("/v1/sessions/{session_id}/results")
+async def get_results(session_id: str) -> JSONResponse:
+    validate_session(session_id)
+    return JSONResponse([result.model_dump(mode="json") for result in pipeline.results_for(session_id)])
+
+
+@app.get("/v1/sessions/{session_id}/metrics", response_model=SessionMetrics)
+async def get_metrics(session_id: str) -> SessionMetrics:
+    validate_session(session_id)
+    return pipeline.metrics_for(session_id)
