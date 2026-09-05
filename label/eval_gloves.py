@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.detectors import Detection  # noqa: E402
 from core.rules import bare_hands, iou  # noqa: E402
-from label.gdino_label import GLOVES_ID, HANDS_ID, SH17_NAMES  # noqa: E402
+from label.gdino_label import GLOVES_ID, HANDS_ID, HELMET_ID, SH17_NAMES  # noqa: E402
 
 
 def read_labels(path, w, h):
@@ -61,7 +61,7 @@ def eval_val(model, data_dir, conf, device):
     img_dir = os.path.join(data_dir, "images", "val")
     lbl_dir = os.path.join(data_dir, "labels", "val")
     names = sorted(os.listdir(img_dir))
-    gt_gloves = found_gloves = hands_on_glove = agree = frames = 0
+    gt_gloves = found_gloves = hands_on_glove = gloves_on_helmet = gt_helmets = agree = frames = 0
     for name in names:
         frame = cv2.imread(os.path.join(img_dir, name))
         if frame is None:
@@ -70,11 +70,16 @@ def eval_val(model, data_dir, conf, device):
         gt = read_labels(os.path.join(lbl_dir, os.path.splitext(name)[0] + ".txt"), w, h)
         pred = predict(model, frame, conf, device)
         gt_g = [b for c, b in gt if c == GLOVES_ID]
+        gt_hm = [b for c, b in gt if c == HELMET_ID]
         pr_g = [b for c, b in pred if c == GLOVES_ID]
         pr_h = [b for c, b in pred if c == HANDS_ID]
         gt_gloves += len(gt_g)
+        gt_helmets += len(gt_hm)
         found_gloves += sum(1 for g in gt_g if any(iou(g, p) > 0.5 for p in pr_g))
         hands_on_glove += sum(1 for p in pr_h if any(iou(g, p) > 0.5 for g in gt_g))
+        # The v1 failure: a yellow hard hat called gloves. Count predicted
+        # gloves boxes that sit on a labeled helmet.
+        gloves_on_helmet += sum(1 for p in pr_g if any(iou(hm, p) > 0.5 for hm in gt_hm))
         rule_gt = bare_hands(to_detections(gt)).active
         rule_pr = bare_hands(to_detections(pred)).active
         agree += int(rule_gt == rule_pr)
@@ -84,6 +89,8 @@ def eval_val(model, data_dir, conf, device):
         "gt_gloves": gt_gloves,
         "gloves_recall": round(found_gloves / gt_gloves, 3) if gt_gloves else None,
         "hands_on_glove": hands_on_glove,
+        "gt_helmets": gt_helmets,
+        "gloves_on_helmet": gloves_on_helmet,
         "bare_hands_agree": round(agree / frames, 3) if frames else None,
     }
 
@@ -132,6 +139,7 @@ def main():
     gate = {
         "gloves_recall_ok": (new["gloves_recall"] or 0) >= args.min_recall,
         "hands_on_glove_ok": new["hands_on_glove"] <= args.max_hands_on_glove,
+        "gloves_on_helmet_ok": new["gloves_on_helmet"] == 0,
         "regression_ok": len(changed) == 0,
     }
     report["gate"] = gate
