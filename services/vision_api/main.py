@@ -10,6 +10,8 @@ from fastapi.responses import JSONResponse
 
 from .config import settings
 from .models import (
+    AdvisoryFieldSignal,
+    AdvisoryFieldSignalAcknowledgement,
     FrameMetadata,
     IngestAcknowledgement,
     SessionCreated,
@@ -19,6 +21,7 @@ from .models import (
 )
 from .pipeline import VisionPipeline
 from .segmentation import build_vision_engine
+from .signals import AdvisorySignalStore
 from .workflows import WorkflowRegistry
 
 
@@ -40,6 +43,7 @@ pipeline = VisionPipeline(
 workflow_directory = Path(settings.workflow_definitions_dir or Path(__file__).with_name("workflow_definitions"))
 workflow_registry = WorkflowRegistry.from_directory(workflow_directory)
 sessions: dict[str, str] = {}
+signals = AdvisorySignalStore()
 
 
 @asynccontextmanager
@@ -101,6 +105,20 @@ async def create_session(request: SessionRequest | None = None) -> SessionCreate
         workflow_id=workflow.id,
         workflow_version=workflow.version,
     )
+
+
+@app.post(
+    "/v1/sessions/{session_id}/advisory-field-signals",
+    response_model=AdvisoryFieldSignalAcknowledgement,
+)
+async def ingest_advisory_field_signal(
+    session_id: str, signal: AdvisoryFieldSignal
+) -> AdvisoryFieldSignalAcknowledgement:
+    """Record a non-contact signal that may warn but cannot clear electrical work."""
+
+    validate_session(session_id)
+    accepted = signals.record_field_signal(session_id, signal)
+    return AdvisoryFieldSignalAcknowledgement(session_id=session_id, state=accepted.state)
 
 
 @app.post("/v1/sessions/{session_id}/frames", response_model=IngestAcknowledgement)
