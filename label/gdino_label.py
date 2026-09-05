@@ -390,8 +390,9 @@ def main():
     ap.add_argument("--n-chunks", type=int, default=10)
     ap.add_argument("--device", default="mps" if torch.backends.mps.is_available() else "cpu")
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--drop-class", default=[], nargs="*", metavar="sK:class",
-                    help="ground-truth override, e.g. s0:helmet = clip 0 is known to contain no helmet, drop any such label")
+    ap.add_argument("--drop-class", default=[], nargs="*", metavar="sK:class[:lo-hi]",
+                    help="ground-truth override, e.g. s0:helmet = clip 0 is known to contain no helmet, drop any such "
+                         "label; s2:gloves:0-4069 = only frames 0..4069 of clip 2 (the glove enters the scene later)")
     ap.add_argument("--from-raw", default="",
                     help="skip the detectors: reuse a raw_detections.json from a previous run with the same sessions and sampling")
     ap.add_argument("--stem-offset", type=int, default=0,
@@ -489,6 +490,15 @@ def main():
     def session_of(stem):
         return stem.split("_", 1)[0]
 
+    def frame_of(stem):
+        return int(stem.split("_", 1)[1])
+
+    drop_rules = []  # (session key, class id, first frame, last frame)
+    for d in args.drop_class:
+        parts = d.split(":")
+        lo, hi = (map(int, parts[2].split("-")) if len(parts) > 2 else (0, 10 ** 9))
+        drop_rules.append((parts[0], SH17_NAMES.index(parts[1]), lo, hi))
+
     previews = []
     for i, (path, stem, split) in enumerate(names):
         if cache[i] is None:
@@ -507,7 +517,7 @@ def main():
         # Ground-truth override: a class the human knows is absent from this
         # clip. For helmet that also switches off the veto and the temporal
         # rescue, so the gloves those would have eaten keep their label.
-        dropped_cls = {SH17_NAMES.index(c) for sk, c in (d.split(":") for d in args.drop_class) if sk == session_of(stem)}
+        dropped_cls = {c for sk, c, lo, hi in drop_rules if sk == session_of(stem) and lo <= frame_of(stem) <= hi}
         if HELMET_ID in dropped_cls:
             stats["gate"]["drop_class"] = stats["gate"].get("drop_class", 0) + \
                 sum(1 for b in boxes if b[0] == HELMET_ID) + len(raw["hats"])
