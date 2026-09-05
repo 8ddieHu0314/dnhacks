@@ -3,15 +3,15 @@ from __future__ import annotations
 import hashlib
 from typing import Protocol
 
-from .models import BoundingBox, Frame, SegmentationRegion
+from .models import BoundingBox, Frame, SegmentationRegion, VisionOutput
 
 
 class SegmentationEngine(Protocol):
-    """Contract implemented by a production CV/segmentation model."""
+    """Contract implemented by a segmentation model or multimodal adapter."""
 
     name: str
 
-    async def segment(self, frame: Frame) -> list[SegmentationRegion]: ...
+    async def analyze(self, frame: Frame) -> VisionOutput: ...
 
 
 class MockSegmentationEngine:
@@ -39,6 +39,9 @@ class MockSegmentationEngine:
                 polygon=[x, y, x + width, y, x + width, y + height, x, y + height],
             )
         ]
+
+    async def analyze(self, frame: Frame) -> VisionOutput:
+        return VisionOutput(regions=await self.segment(frame))
 
 
 def build_segmentation_engine(backend: str) -> SegmentationEngine:

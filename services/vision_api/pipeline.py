@@ -92,7 +92,7 @@ class VisionPipeline:
             frame = await self._queue.get()
             started = time.perf_counter()
             try:
-                regions = await self._engine.segment(frame)
+                output = await self._engine.analyze(frame)
                 latency_ms = (time.perf_counter() - started) * 1_000
                 self._results[frame.session_id].append(
                     SegmentationResult(
@@ -100,7 +100,8 @@ class VisionPipeline:
                         frame_id=frame.metadata.frame_id,
                         backend=self._engine.name,
                         latency_ms=latency_ms,
-                        regions=regions,
+                        regions=output.regions,
+                        analysis=output.analysis,
                     )
                 )
                 self._processed[frame.session_id] += 1
