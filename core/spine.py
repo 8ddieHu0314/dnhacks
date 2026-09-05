@@ -127,6 +127,7 @@ _COLOR_SH17 = (0, 255, 0)       # green (BGR)
 _COLOR_ROBOFLOW = (0, 165, 255)  # orange (BGR)
 _COLOR_GLOVES = (255, 0, 0)     # blue (BGR)
 _COLOR_HANDS = (0, 255, 255)    # yellow (BGR)
+_COLOR_HELMET = (0, 140, 255)   # orange (BGR)
 
 
 def annotate(frame_bgr, detections):
@@ -140,6 +141,8 @@ def annotate(frame_bgr, detections):
             color = _COLOR_GLOVES
         elif class_lower == "hands":
             color = _COLOR_HANDS
+        elif class_lower == "helmet":
+            color = _COLOR_HELMET
         elif d.source == "roboflow":
             color = _COLOR_ROBOFLOW
         else:
