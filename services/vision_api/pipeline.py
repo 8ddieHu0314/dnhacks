@@ -86,3 +86,23 @@ class VisionPipeline:
             dropped_stale_frames=self._dropped[session_id],
             queue_depth=self._queue.qsize(),
         )
+
+    async def _run(self) -> None:
+        while not self._stopping.is_set():
+            frame = await self._queue.get()
+            started = time.perf_counter()
+            try:
+                regions = await self._engine.segment(frame)
+                latency_ms = (time.perf_counter() - started) * 1_000
+                self._results[frame.session_id].append(
+                    SegmentationResult(
+                        session_id=frame.session_id,
+                        frame_id=frame.metadata.frame_id,
+                        backend=self._engine.name,
+                        latency_ms=latency_ms,
+                        regions=regions,
+                    )
+                )
+                self._processed[frame.session_id] += 1
+            finally:
+                self._queue.task_done()
