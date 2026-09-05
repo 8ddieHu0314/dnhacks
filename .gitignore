@@ -6,3 +6,13 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 data/
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+# relay receiver runtime output
+services/relay_receiver/frames/
+services/relay_receiver/report.jsonl
+services/relay_receiver/server.log
+
+clients/ios/GlassesInspector/server.log
