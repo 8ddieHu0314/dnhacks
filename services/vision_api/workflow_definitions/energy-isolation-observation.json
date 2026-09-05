@@ -1,0 +1,23 @@
+{
+  "id": "energy-isolation-observation",
+  "version": "0.1.0",
+  "title": "Energy-isolation observation",
+  "instructions": "Collect visual and advisory-sensor observations only. Never declare equipment deenergized, approve entry, or replace a qualified person's certified test procedure.",
+  "checkpoints": [
+    {
+      "id": "ppe-observation",
+      "title": "Observe visible PPE",
+      "evidence_prompt": "Report visible hard hat, high-visibility apparel, gloves, eye protection, and any uncertainty."
+    },
+    {
+      "id": "lockout-tag-observation",
+      "title": "Observe lockout-tag evidence",
+      "evidence_prompt": "Describe any visible lockout tag or isolation-device label; do not infer the device state."
+    },
+    {
+      "id": "qualified-verification-required",
+      "title": "Require qualified-person verification",
+      "evidence_prompt": "State that visual evidence and advisory field readings cannot establish a deenergized condition."
+    }
+  ]
+}
