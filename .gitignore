@@ -1,10 +1,22 @@
+# shared
 .DS_Store
 .env
 .venv/
 __pycache__/
 *.py[cod]
-*.ino.cpp
 *.egg-info/
 .pytest_cache/
+
+# firmware (main)
+*.ino.cpp
 .pio/
 data/
+
+# PPE Sentinel (feat/gabe-dev): models, captures, datasets, training runs
+weights/
+.venv-inf/
+outputs/
+sessions/
+.worktrees
+datasets/
+runs/
