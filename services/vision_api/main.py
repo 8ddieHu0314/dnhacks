@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 from .config import settings
@@ -92,3 +91,20 @@ async def ingest_frame(session_id: str, request: Request) -> IngestAcknowledgeme
     return IngestAcknowledgement(
         session_id=session_id, frame_id=metadata.frame_id, dropped_stale_frames=dropped
     )
+
+
+async def receive_metadata(websocket: WebSocket) -> FrameMetadata | None:
+    """Receive one valid metadata text message, reporting protocol errors inline."""
+
+    message = await websocket.receive()
+    if message["type"] == "websocket.disconnect":
+        raise WebSocketDisconnect()
+    text = message.get("text")
+    if text is None:
+        await websocket.send_json({"error": "Send FrameMetadata before binary frame"})
+        return None
+    try:
+        return FrameMetadata.model_validate_json(text)
+    except ValueError as exc:
+        await websocket.send_json({"error": f"Invalid frame metadata: {exc}"})
+        return None
