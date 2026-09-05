@@ -57,3 +57,20 @@ class VisionPipeline:
             except asyncio.CancelledError:
                 pass
             self._worker = None
+
+    async def submit(
+        self, session_id: str, metadata: FrameMetadata, image_bytes: bytes
+    ) -> int:
+        self._received[session_id] += 1
+        frame = Frame(
+            session_id=session_id,
+            metadata=metadata,
+            image_bytes=image_bytes,
+            received_at=utc_now(),
+        )
+        if self._queue.full():
+            discarded = self._queue.get_nowait()
+            self._queue.task_done()
+            self._dropped[discarded.session_id] += 1
+        self._queue.put_nowait(frame)
+        return self._dropped[session_id]
