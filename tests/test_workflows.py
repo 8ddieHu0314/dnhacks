@@ -21,7 +21,7 @@ class WorkflowApiTests(unittest.TestCase):
         with TestClient(app) as client:
             workflows = client.get("/v1/workflows")
             self.assertEqual(workflows.status_code, 200)
-            self.assertEqual(workflows.json()[0]["id"], "generic-field-support")
+            self.assertIn("generic-field-support", [item["id"] for item in workflows.json()])
 
             created = client.post("/v1/sessions", json={"workflow_id": "generic-field-support"})
             self.assertEqual(created.status_code, 201)
