@@ -11,7 +11,7 @@ same commit.
 ## The one picture
 
 ```
-glasses camera --Bluetooth--> iPhone DAT app --JPEG over Wi-Fi--> server.py POST /frame
+glasses camera --Bluetooth--> iPhone app --JPEG--> server.py POST /frame or /ws/ingest
                                                                         |
                                                             tee at ingest (core/stream.py)
                                                            /                          \
@@ -37,6 +37,28 @@ Two paths, two clocks, on purpose:
 
 The realtime path is latency bound, so there is no batching in it. Batching only
 belongs in offline passes over saved clips after the session.
+
+### Two ingest endpoints, one tee
+
+`server.py` accepts frames two ways, both feeding the same `mailbox`/`recorder`
+tee above:
+
+- `POST /frame` (multipart `frame` field or a raw JPEG body). Simplest path, used
+  by `static/capture.html` and any curl/browser client. The server stamps the
+  frame with its own receipt time.
+- `WS /ws/ingest`. Binary frames: an 8-byte big-endian capture timestamp in
+  milliseconds since epoch, followed by JPEG bytes (a bare JPEG with no prefix,
+  detected by the JPEG SOI marker, is also accepted with the server's receipt
+  time). This is the GlassesInspector iOS app's `FrameRelay` protocol, and the
+  path matches what its own relay_receiver already expects, so pointing
+  `FrameRelay`'s target at this server needs no client-side changes.
+
+A session must use one endpoint or the other, not both at once: `/ws/ingest`
+timestamps come from the phone's own clock, `POST /frame` timestamps come from
+the Mac's. The debounce math in `Spine` only ever needs the *difference*
+between consecutive frames' timestamps, so a single clock domain per session is
+correct; mixing the two would feed `dt` a jump equal to whatever clock offset
+exists between the two devices.
 
 ## Layers
 

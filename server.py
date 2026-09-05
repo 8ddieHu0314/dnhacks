@@ -9,6 +9,7 @@ Launch: .venv/bin/uvicorn server:app --host 0.0.0.0 --port 8000
 import os
 import re
 import shutil
+import struct
 import threading
 import time
 import zipfile
@@ -16,7 +17,7 @@ import zipfile
 import cv2
 import numpy as np
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, File, Form, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -115,6 +116,46 @@ async def post_frame(request: Request):
         recorder.add_frame(frame, ts)
     mailbox.put(frame, ts)
     return {"accepted": True, "dropped": mailbox.dropped}
+
+
+_JPEG_SOI = b"\xff\xd8"
+
+
+@app.websocket("/ws/ingest")
+async def ws_ingest(ws: WebSocket) -> None:
+    """Binary frame ingest for the GlassesInspector iOS app's FrameRelay:
+    each message is either an 8-byte big-endian capture timestamp (ms since
+    epoch) followed by JPEG bytes, or a bare JPEG with no prefix (detected by
+    the JPEG SOI marker), matching the framing relay_receiver's /ws/ingest
+    already accepts. Feeds the same Mailbox/Recorder tee as POST /frame, so
+    no client changes are needed beyond pointing FrameRelay's target at this
+    server's host and port.
+
+    ts here is the phone's own clock, not this Mac's. That is fine for the
+    debounce math in Spine, which only ever looks at dt between consecutive
+    frames from one source, but a session must not mix WebSocket frames and
+    POST /frame frames, or dt would cross clock domains.
+    """
+    await ws.accept()
+    try:
+        while True:
+            msg = await ws.receive_bytes()
+            if len(msg) > 8 and msg[:2] != _JPEG_SOI:
+                capture_ts_ms = struct.unpack(">Q", msg[:8])[0]
+                raw, ts = msg[8:], capture_ts_ms / 1000.0
+            else:
+                raw, ts = msg, time.time()
+
+            arr = np.frombuffer(raw, dtype=np.uint8)
+            frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            if frame is None:
+                continue
+
+            if recorder is not None:
+                recorder.add_frame(frame, ts)
+            mailbox.put(frame, ts)
+    except WebSocketDisconnect:
+        pass
 
 
 @app.get("/latest")
