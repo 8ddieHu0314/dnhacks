@@ -14,6 +14,24 @@ def utc_now() -> datetime:
 ImageEncoding = Literal["jpeg", "png", "webp"]
 
 
+class WorkflowCheckpoint(BaseModel):
+    """One observable stage in a workflow; it never grants operational authority."""
+
+    id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,62}$")
+    title: str = Field(min_length=1, max_length=160)
+    evidence_prompt: str = Field(min_length=1, max_length=1_000)
+
+
+class WorkflowDefinition(BaseModel):
+    """Versioned, worker-agnostic instructions selected for a stream session."""
+
+    id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,62}$")
+    version: str = Field(min_length=1, max_length=32)
+    title: str = Field(min_length=1, max_length=160)
+    instructions: str = Field(min_length=1, max_length=4_000)
+    checkpoints: list[WorkflowCheckpoint] = Field(default_factory=list, max_length=20)
+
+
 class FrameMetadata(BaseModel):
     """Metadata sent before a binary frame on the WebSocket transport."""
 
@@ -31,6 +49,7 @@ class Frame:
     metadata: FrameMetadata
     image_bytes: bytes
     received_at: datetime
+    workflow: WorkflowDefinition | None = None
 
 
 class BoundingBox(BaseModel):
