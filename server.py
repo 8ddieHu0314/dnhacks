@@ -15,10 +15,11 @@ import numpy as np
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from core.detectors import SH17Detector
 from core.spine import Spine, roboflow_tools_plugin
-from core.stream import CachedPlugin, Mailbox, Speaker, StreamRunner
+from core.stream import CachedPlugin, Mailbox, Recorder, Speaker, StreamRunner
 
 load_dotenv()
 
@@ -28,11 +29,30 @@ DEBOUNCE = float(os.environ.get("DEBOUNCE", "2.0"))
 # SPEAK: server-side text-to-speech stand-in (a Mac plays the audio) while a
 # phone client would relay it over A2DP to glasses in a later step.
 SPEAK = os.environ.get("SPEAK", "1") not in ("0", "false", "False")
+# RECORD: keep a ring buffer of raw frames and dump a clip + event on every
+# violation, for the session's audit trail. See docs/ARCHITECTURE.md.
+RECORD = os.environ.get("RECORD", "1") not in ("0", "false", "False")
+BUFFER_SECONDS = float(os.environ.get("BUFFER_SECONDS", "20.0"))
+TAIL_SECONDS = float(os.environ.get("TAIL_SECONDS", "3.0"))
+# RECORD_ALL: also save every ingested frame as a JPEG under
+# sessions/<id>/frames/ for a training data capture. Off by default.
+RECORD_ALL = os.environ.get("RECORD_ALL", "0") not in ("0", "false", "False")
 
 app = FastAPI(title="PPE compliance server (Step 1)")
 
 mailbox = Mailbox()
 speaker = Speaker(enabled=SPEAK)
+recorder = (
+    Recorder(buffer_seconds=BUFFER_SECONDS, tail_seconds=TAIL_SECONDS, record_all=RECORD_ALL)
+    if RECORD
+    else None
+)
+if recorder is not None:
+    # Lets a browser (or an end-of-session report) hit /clips/<file>.mp4 and
+    # /keyframes/<file>.jpg directly. StaticFiles serves HTTP Range requests,
+    # which a <video> tag needs to seek/scrub instead of just downloading.
+    app.mount("/clips", StaticFiles(directory=recorder.clips_dir), name="clips")
+    app.mount("/keyframes", StaticFiles(directory=recorder.keyframes_dir), name="keyframes")
 
 _latest_lock = threading.Lock()
 _latest = {"result": None, "ts": None}
@@ -46,6 +66,8 @@ def _on_result(result, ts, latency_ms, dropped) -> None:
     with _latest_lock:
         _latest["result"] = result
         _latest["ts"] = ts
+    if recorder is not None:
+        recorder.handle_result(result, ts)
     if result.sentence:
         speaker.say(result.sentence)
 
@@ -64,6 +86,8 @@ def _startup() -> None:
 @app.on_event("shutdown")
 def _shutdown() -> None:
     runner.stop()
+    if recorder is not None:
+        recorder.shutdown()
 
 
 @app.post("/frame")
@@ -83,7 +107,10 @@ async def post_frame(request: Request):
     if frame is None:
         return JSONResponse({"accepted": False, "error": "could not decode image"}, status_code=400)
 
-    mailbox.put(frame, time.time())
+    ts = time.time()
+    if recorder is not None:
+        recorder.add_frame(frame, ts)
+    mailbox.put(frame, ts)
     return {"accepted": True, "dropped": mailbox.dropped}
 
 
@@ -113,6 +140,34 @@ def get_latest():
     }
 
 
+@app.get("/events")
+def get_events():
+    """The session's fired-event queue so far, oldest first, each with a
+    clickable clip_url/keyframe_url for an end-of-session report to replay.
+    A clip only finishes encoding once it closes (rule cleared + tail, or
+    the stream stopped), so clip_url may 404 for the most recent event(s)
+    until then.
+    """
+    if recorder is None:
+        return {"recording": False, "events": []}
+
+    events = []
+    for e in recorder.list_events():
+        item = dict(e)
+        if item.get("clip_path"):
+            item["clip_url"] = f"/clips/{os.path.basename(item['clip_path'])}"
+        if item.get("keyframe_path"):
+            item["keyframe_url"] = f"/keyframes/{os.path.basename(item['keyframe_path'])}"
+        events.append(item)
+    return {"recording": True, "session_dir": recorder.session_dir, "events": events}
+
+
 @app.get("/health")
 def get_health():
-    return {"status": "ok", "model": MODEL_NAME}
+    return {
+        "status": "ok",
+        "model": MODEL_NAME,
+        "session_dir": recorder.session_dir if recorder is not None else None,
+        "record_all": bool(recorder is not None and recorder.record_all),
+        "frames_written": recorder.frames_written if recorder is not None else 0,
+    }

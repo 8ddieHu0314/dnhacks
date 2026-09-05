@@ -41,7 +41,7 @@ from dotenv import load_dotenv
 
 from core.detectors import SH17Detector
 from core.spine import Spine, annotate, roboflow_tools_plugin
-from core.stream import CachedPlugin, LatestResult, Mailbox, Speaker, StreamRunner
+from core.stream import CachedPlugin, LatestResult, Mailbox, Recorder, Speaker, StreamRunner
 
 load_dotenv()
 
@@ -151,6 +151,7 @@ def producer_loop(
     stats: dict,
     frame_box: "_FrameBox" = None,
     stop_event: threading.Event = None,
+    recorder: Recorder = None,
 ) -> None:
     period = 1.0 / fps
     start = time.time()
@@ -163,7 +164,10 @@ def producer_loop(
             break
         frame = source.frame_at(elapsed)
         if frame is not None:
-            mailbox.put(frame, time.time())
+            ts = time.time()
+            if recorder is not None:
+                recorder.add_frame(frame, ts)
+            mailbox.put(frame, ts)
             if frame_box is not None:
                 frame_box.set(frame)
             count += 1
@@ -274,7 +278,7 @@ def render_loop(
     stats["show_headless"] = headless
 
 
-def make_on_result(stats: dict, speaker: Speaker, t0: float):
+def make_on_result(stats: dict, speaker: Speaker, t0: float, recorder: Recorder = None):
     def on_result(result, ts, latency_ms, dropped):
         stats["frames_processed"] += 1
         stats["latencies_ms"].append(latency_ms)
@@ -299,6 +303,8 @@ def make_on_result(stats: dict, speaker: Speaker, t0: float):
             line += f' sentence="{result.sentence}"'
         print(line)
 
+        if recorder is not None:
+            recorder.handle_result(result, ts)
         if result.sentence and speaker.say(result.sentence):
             stats["spoken_events"].append((t_rel, result.sentence))
 
@@ -325,6 +331,20 @@ def parse_args():
         default=False,
         help="open a live overlay window (falls back to /tmp/overlay_frames/ if no GUI is available)",
     )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        default=False,
+        help="run the Recorder: buffer raw frames and dump a clip + event to sessions/ on each violation",
+    )
+    parser.add_argument("--buffer-seconds", type=float, default=20.0, help="ring buffer length for --record")
+    parser.add_argument("--tail-seconds", type=float, default=3.0, help="seconds to keep recording after a rule clears")
+    parser.add_argument(
+        "--record-all",
+        action="store_true",
+        default=False,
+        help="with --record: also save every raw frame as a JPEG under sessions/<id>/frames/ for training",
+    )
     return parser.parse_args()
 
 
@@ -347,6 +367,16 @@ def main():
     mailbox = Mailbox()
     speaker = Speaker(enabled=args.speak)
     latest_result = LatestResult()
+    recorder = (
+        Recorder(
+            buffer_seconds=args.buffer_seconds,
+            tail_seconds=args.tail_seconds,
+            fps_hint=args.fps,
+            record_all=args.record_all,
+        )
+        if args.record or args.record_all
+        else None
+    )
 
     stats = {
         "frames_produced": 0,
@@ -359,7 +389,7 @@ def main():
     }
 
     t0 = time.time()
-    on_result = make_on_result(stats, speaker, t0)
+    on_result = make_on_result(stats, speaker, t0, recorder=recorder)
     runner = StreamRunner(spine, mailbox, on_result, latest_result=latest_result)
     runner_thread = threading.Thread(target=runner.run, daemon=True)
     runner_thread.start()
@@ -370,7 +400,7 @@ def main():
     producer_thread = threading.Thread(
         target=producer_loop,
         args=(mailbox, source, args.fps, args.seconds, stats),
-        kwargs={"frame_box": frame_box, "stop_event": stop_event},
+        kwargs={"frame_box": frame_box, "stop_event": stop_event, "recorder": recorder},
     )
     producer_thread.start()
 
@@ -414,6 +444,18 @@ def main():
             print(f'  t=+{t_rel:.2f}s "{sentence}"')
     else:
         print("  (none)")
+
+    if recorder is not None:
+        # Force-close any clip still open (the run ended mid-violation) and
+        # block until every writer thread has flushed, so the counts below
+        # are accurate rather than racing daemon threads killed at exit.
+        recorder.shutdown()
+        n_clips = len(os.listdir(recorder.clips_dir)) if os.path.isdir(recorder.clips_dir) else 0
+        n_events = 0
+        if os.path.isfile(recorder.events_path):
+            with open(recorder.events_path) as f:
+                n_events = sum(1 for _ in f)
+        print(f"recorder:          session_dir={recorder.session_dir} clips={n_clips} events={n_events}")
 
     if args.show:
         displayed = stats["frames_displayed"]
