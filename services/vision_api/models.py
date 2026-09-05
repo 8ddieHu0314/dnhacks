@@ -49,6 +49,32 @@ class SegmentationRegion(BaseModel):
     polygon: list[float] = Field(min_length=6)
 
 
+class ActionProposal(BaseModel):
+    """A VLA recommendation; clients must confirm before any physical action."""
+
+    action: str = Field(min_length=1, max_length=240)
+    target: str | None = Field(default=None, max_length=240)
+    rationale: str = Field(min_length=1, max_length=1_000)
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    requires_confirmation: bool = True
+
+
+class VisionAnalysis(BaseModel):
+    """Grounded VLM observations and VLA-style action proposals for one frame."""
+
+    summary: str = Field(min_length=1, max_length=2_000)
+    observations: list[str] = Field(default_factory=list, max_length=20)
+    safety_alerts: list[str] = Field(default_factory=list, max_length=10)
+    proposed_actions: list[ActionProposal] = Field(default_factory=list, max_length=10)
+
+
+class VisionOutput(BaseModel):
+    """Unified output from a segmentation-only or multimodal vision engine."""
+
+    regions: list[SegmentationRegion] = Field(default_factory=list)
+    analysis: VisionAnalysis | None = None
+
+
 class SegmentationResult(BaseModel):
     session_id: str
     frame_id: str
@@ -56,6 +82,7 @@ class SegmentationResult(BaseModel):
     completed_at: datetime = Field(default_factory=utc_now)
     latency_ms: float = Field(ge=0.0)
     regions: list[SegmentationRegion]
+    analysis: VisionAnalysis | None = None
 
 
 class SessionCreated(BaseModel):
