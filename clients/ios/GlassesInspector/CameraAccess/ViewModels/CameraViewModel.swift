@@ -10,6 +10,7 @@ import AVFoundation
 import MWDATCamera
 import MWDATCore
 import Observation
+import os
 import SwiftUI
 import UIKit
 
@@ -153,6 +154,29 @@ final class CameraViewModel {
   var showsLivePreview: Bool {
     isStreaming
       || ((streamState == .paused || streamState == .stopping) && currentVideoFrame != nil)
+  }
+
+  // MARK: - Glasses Inspector: coalesced preview delivery
+
+  @ObservationIgnored nonisolated private let previewSlot = OSAllocatedUnfairLock<(image: UIImage?, scheduled: Bool)>(initialState: (nil, false))
+
+  private func drainPreviewSlot() {
+    let image = previewSlot.withLock { slot -> UIImage? in
+      let i = slot.image
+      slot.image = nil
+      slot.scheduled = false
+      return i
+    }
+    // Keep the live surface stable while a capture preview is onscreen.
+    if let image, UIApplication.shared.applicationState != .background, activePreview == nil, !isCapturingPhoto {
+      currentVideoFrame = image
+      if !hasReceivedFirstFrame { hasReceivedFirstFrame = true }
+    }
+    // Capture the actual recording start (first written frame) once, so the timer
+    // anchors to the clip's start and matches its duration.
+    if isRecording, recordingStartDate == nil {
+      recordingStartDate = videoRecorder.recordingStartDate
+    }
   }
 
   // MARK: - Private
@@ -510,24 +534,18 @@ final class CameraViewModel {
       // Glasses Inspector: relay off the main actor too (throttle/encode/send in an actor).
       if let previewImage { self.frameRelay.push(previewImage) }
 
-      Task { @MainActor [weak self] in
-        guard let self else { return }
-        // Keep the live surface stable while a capture preview is onscreen.
-        if UIApplication.shared.applicationState != .background,
-          activePreview == nil,
-          !isCapturingPhoto,
-          let image = previewImage
-        {
-          self.currentVideoFrame = image
-          if !self.hasReceivedFirstFrame {
-            self.hasReceivedFirstFrame = true
-          }
-        }
-        // Capture the actual recording start (first written frame) once, so the timer
-        // anchors to the clip's start and matches its duration.
-        if self.isRecording, self.recordingStartDate == nil {
-          self.recordingStartDate = self.videoRecorder.recordingStartDate
-        }
+      // Glasses Inspector: coalesce preview updates. The sample scheduled one main-actor
+      // task per frame; when the main thread fell behind (720p + a sheet animation) the
+      // backlog grew without bound and the UI froze for seconds. Now only the newest
+      // image waits, and at most one main-actor hop is in flight.
+      let schedule = self.previewSlot.withLock { slot -> Bool in
+        slot.image = previewImage
+        if slot.scheduled { return false }
+        slot.scheduled = true
+        return true
+      }
+      if schedule {
+        Task { @MainActor [weak self] in self?.drainPreviewSlot() }
       }
     }.store(in: streamTokenBag)
 

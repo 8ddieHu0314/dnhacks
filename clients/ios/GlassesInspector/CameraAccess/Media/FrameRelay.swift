@@ -615,8 +615,8 @@ final class FrameRelay {
     manualURL = d.string(forKey: Self.manualURLKey) ?? d.string(forKey: "relayURL") ?? "http://Eddies-MacBook-Pro.local:8787"
     useManualURL = d.bool(forKey: Self.useManualKey)
     preferCable = d.object(forKey: Self.preferCableKey) as? Bool ?? true
-    targetFPS = d.object(forKey: Self.fpsKey) as? Double ?? 24
-    jpegQuality = d.object(forKey: Self.qualityKey) as? Double ?? 0.7
+    targetFPS = d.object(forKey: Self.fpsKey) as? Double ?? 15
+    jpegQuality = d.object(forKey: Self.qualityKey) as? Double ?? 0.6
     speakEnabled = d.object(forKey: "relaySpeak") as? Bool ?? true
     browser.onUpdate = { [weak self] in self?.applyTarget() }
     browser.start()
