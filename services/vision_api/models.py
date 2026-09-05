@@ -101,5 +101,6 @@ class SessionMetrics(BaseModel):
     session_id: str
     received_frames: int = Field(ge=0)
     processed_frames: int = Field(ge=0)
+    failed_frames: int = Field(ge=0)
     dropped_stale_frames: int = Field(ge=0)
     queue_depth: int = Field(ge=0)

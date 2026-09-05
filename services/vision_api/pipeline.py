@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 
 from .models import Frame, FrameMetadata, SegmentationResult, SessionMetrics
 from .segmentation import VisionEngine
+
+logger = logging.getLogger(__name__)
 
 
 def utc_now() -> datetime:
@@ -35,6 +38,7 @@ class VisionPipeline:
         )
         self._received: dict[str, int] = defaultdict(int)
         self._processed: dict[str, int] = defaultdict(int)
+        self._failed: dict[str, int] = defaultdict(int)
         self._dropped: dict[str, int] = defaultdict(int)
         self._worker: asyncio.Task[None] | None = None
         self._stopping = asyncio.Event()
@@ -83,6 +87,7 @@ class VisionPipeline:
             session_id=session_id,
             received_frames=self._received[session_id],
             processed_frames=self._processed[session_id],
+            failed_frames=self._failed[session_id],
             dropped_stale_frames=self._dropped[session_id],
             queue_depth=self._queue.qsize(),
         )
@@ -105,5 +110,10 @@ class VisionPipeline:
                     )
                 )
                 self._processed[frame.session_id] += 1
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self._failed[frame.session_id] += 1
+                logger.exception("Vision engine failed for frame %s", frame.metadata.frame_id)
             finally:
                 self._queue.task_done()
