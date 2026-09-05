@@ -86,7 +86,7 @@ declares which viewpoint it needs.
 | Viewpoint | Examples | Needs a tracker | Status |
 |---|---|---|---|
 | `self` | bare hands, tool in bare hand, ESD wrist strap, sleeves, shoes | No. All boxes in frame belong to the wearer | Built |
-| `other` | coworker without helmet, vest, safety glasses, face mask | Yes. Boxes must be grouped by person so a rule fires once per person | Slot documented in `core/spine.py`, not built |
+| `other` | coworker without helmet, vest, safety glasses, face mask | Yes, to fire once per person. Boxes must be grouped by person | `NO_HELMET` built without a tracker: it fires once per frame when any head or face has no helmet on it. Tracker slot documented in `core/spine.py`, not built |
 | `environment` | open floor tile, ladder, cable across walkway, hot aisle zone | Usually no | Needs new models |
 
 Do not promise a wearer-self helmet or vest rule. It is only possible as a mirror check
