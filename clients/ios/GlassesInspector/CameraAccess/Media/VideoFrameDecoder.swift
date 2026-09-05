@@ -33,7 +33,8 @@ final class VideoFrameDecoder: Sendable {
 
   init() {
     self.state = OSAllocatedUnfairLock(uncheckedState: State())
-    self.ciContext = CIContext()
+    // A GPU-backed context; skip the extra color-management work on each render.
+    self.ciContext = CIContext(options: [.useSoftwareRenderer: false, .highQualityDownsample: false])
   }
 
   /// Decodes an HEVC sample buffer into a `UIImage`. Creates the decompression session
@@ -73,16 +74,13 @@ final class VideoFrameDecoder: Sendable {
         state.awaitingKeyframe = true
       }
 
-      // Force software decoding so the session survives backgrounding. iOS tears down
-      // hardware sessions when backgrounded, and a fresh one stalls until the next
-      // keyframe — visible stutter.
-      var decoderSpec: CFDictionary?
-      if #available(iOS 17.0, *) {
-        decoderSpec =
-          [
-            kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder as String: false
-          ] as CFDictionary
-      }
+      // Prefer hardware decoding: software HEVC decode at 720p/24fps is the dominant CPU
+      // cost and makes the live preview lag. iOS may tear the hardware session down on
+      // backgrounding; the consecutive-failure path below rebuilds it on the next frame.
+      let decoderSpec =
+        [
+          kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder as String: true
+        ] as CFDictionary
 
       let outputAttrs: [CFString: Any] = [
         kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA

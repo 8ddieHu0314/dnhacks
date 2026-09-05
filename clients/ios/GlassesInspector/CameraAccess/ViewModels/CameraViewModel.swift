@@ -310,7 +310,7 @@ final class CameraViewModel {
     // Glasses Inspector: resolution is user-selectable (gear menu); the toolkit's
     // bandwidth ladder may step it down over Bluetooth Classic.
     let resolution: StreamingResolution = {
-      switch UserDefaults.standard.string(forKey: "streamResolution") ?? "medium" {
+      switch UserDefaults.standard.string(forKey: "streamResolution") ?? "low" {
       case "high": return .high
       case "low": return .low
       default: return .medium

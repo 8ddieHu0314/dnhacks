@@ -615,7 +615,7 @@ struct UpdateRequiredMessage: View {
 struct RelaySettingsView: View {
   @Bindable var relay: FrameRelay
   @Bindable var wearablesVM: WearablesViewModel
-  @AppStorage("streamResolution") private var streamResolution: String = "medium"
+  @AppStorage("streamResolution") private var streamResolution: String = "low"
   @AppStorage("streamFPS") private var streamFPS: Int = 24
   @State private var narrationInterval: Double = 8
   @Environment(\.dismiss) private var dismiss
