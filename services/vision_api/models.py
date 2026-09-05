@@ -31,3 +31,28 @@ class Frame:
     metadata: FrameMetadata
     image_bytes: bytes
     received_at: datetime
+
+
+class BoundingBox(BaseModel):
+    x: Annotated[float, Field(ge=0.0, le=1.0)]
+    y: Annotated[float, Field(ge=0.0, le=1.0)]
+    width: Annotated[float, Field(gt=0.0, le=1.0)]
+    height: Annotated[float, Field(gt=0.0, le=1.0)]
+
+
+class SegmentationRegion(BaseModel):
+    label: str
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    bounding_box: BoundingBox
+    # Normalized polygon points: [x0, y0, x1, y1, ...]. Keeping this compact
+    # makes it friendly to a mobile client and is replaceable by an RLE mask later.
+    polygon: list[float] = Field(min_length=6)
+
+
+class SegmentationResult(BaseModel):
+    session_id: str
+    frame_id: str
+    backend: str
+    completed_at: datetime = Field(default_factory=utc_now)
+    latency_ms: float = Field(ge=0.0)
+    regions: list[SegmentationRegion]
