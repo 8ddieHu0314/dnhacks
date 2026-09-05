@@ -98,6 +98,7 @@ class SegmentationResult(BaseModel):
     session_id: str
     frame_id: str
     backend: str
+    workflow_id: str | None = None
     completed_at: datetime = Field(default_factory=utc_now)
     latency_ms: float = Field(ge=0.0)
     regions: list[SegmentationRegion]

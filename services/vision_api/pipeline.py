@@ -109,6 +109,7 @@ class VisionPipeline:
                         session_id=frame.session_id,
                         frame_id=frame.metadata.frame_id,
                         backend=self._engine.name,
+                        workflow_id=frame.workflow.id if frame.workflow else None,
                         latency_ms=latency_ms,
                         regions=output.regions,
                         analysis=output.analysis,
