@@ -27,5 +27,11 @@ class WorkflowApiTests(unittest.TestCase):
             self.assertEqual(created.status_code, 201)
             self.assertEqual(created.json()["workflow_version"], "0.1.0")
 
+            signal = client.post(
+                f"/v1/sessions/{created.json()['session_id']}/advisory-field-signals",
+                json={"level": 8.5, "state": "field_detected"},
+            )
+            self.assertEqual(signal.json()["state"], "field_detected")
+
             unknown = client.post("/v1/sessions", json={"workflow_id": "not-a-workflow"})
             self.assertEqual(unknown.status_code, 422)
