@@ -4,6 +4,7 @@ import hashlib
 from typing import Protocol
 
 from .models import BoundingBox, Frame, SegmentationRegion, VisionOutput
+from .vlm import OpenAICompatibleVLM
 
 
 class SegmentationEngine(Protocol):
@@ -51,3 +52,18 @@ def build_segmentation_engine(backend: str) -> SegmentationEngine:
         f"Unsupported SEGMENTATION_BACKEND={backend!r}. "
         "Implement the SegmentationEngine protocol and register it here."
     )
+
+
+def build_vision_engine(
+    *, base_url: str | None, api_key: str | None, backend: str, model: str, timeout_seconds: float
+) -> SegmentationEngine:
+    if backend == "mock":
+        return MockSegmentationEngine()
+    if backend == "openai_compatible":
+        return OpenAICompatibleVLM(
+            base_url=base_url,
+            api_key=api_key,
+            model=model,
+            timeout_seconds=timeout_seconds,
+        )
+    raise ValueError(f"Unsupported VISION_BACKEND={backend!r}")

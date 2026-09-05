@@ -15,7 +15,7 @@ from .models import (
     SessionMetrics,
 )
 from .pipeline import VisionPipeline
-from .segmentation import build_segmentation_engine
+from .segmentation import build_vision_engine
 
 
 def utc_now() -> datetime:
@@ -23,7 +23,13 @@ def utc_now() -> datetime:
 
 
 pipeline = VisionPipeline(
-    build_segmentation_engine(settings.segmentation_backend),
+    build_vision_engine(
+        backend=settings.vision_backend,
+        base_url=settings.vlm_base_url,
+        api_key=settings.vlm_api_key,
+        model=settings.vlm_model,
+        timeout_seconds=settings.vlm_timeout_seconds,
+    ),
     queue_capacity=settings.vision_frame_queue_capacity,
     result_history=settings.vision_result_history,
 )
