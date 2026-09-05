@@ -15,6 +15,7 @@ from .models import (
     SessionCreated,
     SessionMetrics,
     SessionRequest,
+    WorkflowDefinition,
 )
 from .pipeline import VisionPipeline
 from .segmentation import build_vision_engine
@@ -58,9 +59,15 @@ app = FastAPI(
 )
 
 
-def validate_session(session_id: str) -> None:
-    if session_id not in sessions:
+def workflow_for_session(session_id: str) -> WorkflowDefinition:
+    try:
+        return workflow_registry.get(sessions[session_id])
+    except (KeyError, LookupError) as exc:
         raise HTTPException(status_code=404, detail="Unknown session")
+
+
+def validate_session(session_id: str) -> None:
+    workflow_for_session(session_id)
 
 
 def validate_frame_bytes(image_bytes: bytes) -> None:
@@ -75,11 +82,25 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "segmentation_backend": pipeline.backend_name}
 
 
+@app.get("/v1/workflows", response_model=list[WorkflowDefinition])
+async def list_workflows() -> list[WorkflowDefinition]:
+    return workflow_registry.list()
+
+
 @app.post("/v1/sessions", response_model=SessionCreated, status_code=201)
-async def create_session() -> SessionCreated:
+async def create_session(request: SessionRequest) -> SessionCreated:
+    try:
+        workflow = workflow_registry.get(request.workflow_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=422, detail="Unknown workflow_id") from exc
     session_id = str(uuid4())
-    sessions.add(session_id)
-    return SessionCreated(session_id=session_id, created_at=utc_now())
+    sessions[session_id] = workflow.id
+    return SessionCreated(
+        session_id=session_id,
+        created_at=utc_now(),
+        workflow_id=workflow.id,
+        workflow_version=workflow.version,
+    )
 
 
 @app.post("/v1/sessions/{session_id}/frames", response_model=IngestAcknowledgement)
