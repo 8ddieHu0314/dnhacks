@@ -104,9 +104,15 @@ class SegmentationResult(BaseModel):
     analysis: VisionAnalysis | None = None
 
 
+class SessionRequest(BaseModel):
+    workflow_id: str = Field(default="generic-field-support", min_length=1, max_length=63)
+
+
 class SessionCreated(BaseModel):
     session_id: str
     created_at: datetime
+    workflow_id: str
+    workflow_version: str
 
 
 class IngestAcknowledgement(BaseModel):
