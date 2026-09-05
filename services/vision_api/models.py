@@ -1,0 +1,33 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, Field
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+ImageEncoding = Literal["jpeg", "png", "webp"]
+
+
+class FrameMetadata(BaseModel):
+    """Metadata sent before a binary frame on the WebSocket transport."""
+
+    frame_id: str = Field(min_length=1, max_length=128)
+    captured_at: datetime = Field(default_factory=utc_now)
+    width: int = Field(gt=0, le=8_192)
+    height: int = Field(gt=0, le=8_192)
+    encoding: ImageEncoding = "jpeg"
+    rotation_degrees: Literal[0, 90, 180, 270] = 0
+
+
+@dataclass(frozen=True, slots=True)
+class Frame:
+    session_id: str
+    metadata: FrameMetadata
+    image_bytes: bytes
+    received_at: datetime
