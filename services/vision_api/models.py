@@ -123,6 +123,20 @@ class IngestAcknowledgement(BaseModel):
     dropped_stale_frames: int = Field(ge=0)
 
 
+class AdvisoryFieldSignal(BaseModel):
+    """Non-contact field observation; never evidence that equipment is deenergized."""
+
+    level: float = Field(ge=0.0)
+    state: Literal["ambient", "field_detected", "unknown"] = "unknown"
+    observed_at: datetime = Field(default_factory=utc_now)
+
+
+class AdvisoryFieldSignalAcknowledgement(BaseModel):
+    session_id: str
+    state: Literal["ambient", "field_detected", "unknown"]
+    accepted: bool = True
+
+
 class SessionMetrics(BaseModel):
     session_id: str
     received_frames: int = Field(ge=0)
