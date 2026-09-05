@@ -68,8 +68,18 @@ async def _advertise():
                            addresses=[socket.inet_aton(ip) for ip in ips], port=8787,
                            properties={"urls": urls},
                            server=f"{host}.local.")   # SRV target must be a plain hostname for iOS to resolve it
-        _zc.register_service(info)
-        print(f"Bonjour: advertising _glassesrelay._tcp with {urls}")
+        # A just-killed instance's record can linger and look like a name conflict; retry until it expires.
+        for attempt in range(30):
+            try:
+                await asyncio.to_thread(_zc.register_service, info)
+                print(f"Bonjour: advertising _glassesrelay._tcp with {urls}", flush=True)
+                break
+            except Exception as e:
+                print(f"Bonjour register attempt {attempt + 1} failed: {type(e).__name__} {e}", flush=True)
+                await asyncio.sleep(3)
+        else:
+            print("Bonjour: giving up; use the manual URL on the phone", flush=True)
+            return
 
         async def refresh():
             # Addresses change when Wi-Fi hops or the USB cable is replugged; keep the TXT record current.
@@ -90,7 +100,7 @@ async def _advertise():
         global _refresh_task
         _refresh_task = asyncio.create_task(refresh())
     except Exception as e:  # discovery is a convenience, never fatal
-        print("Bonjour advertise failed:", e)
+        print("Bonjour advertise failed:", type(e).__name__, e, flush=True)
 
 
 @app.on_event("shutdown")
