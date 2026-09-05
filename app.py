@@ -17,6 +17,7 @@ from core.spine import Spine, annotate, roboflow_tools_plugin
 
 load_dotenv()
 
+OUTPUT_DIR = os.path.abspath("outputs")
 _SPINE_CACHE = {}
 
 
@@ -158,7 +159,6 @@ def process_video(model_name, conf, roboflow_on, debounce_s, sample_fps, video_p
     and collect the alert events. Returns the annotated video path, an
     event table, and a stats block."""
     import statistics
-    import tempfile
     import time as _time
 
     if not video_path:
@@ -176,7 +176,10 @@ def process_video(model_name, conf, roboflow_on, debounce_s, sample_fps, video_p
     plugins = [(roboflow_tools_plugin(conf=conf), 1)] if roboflow_on else []
     spine = Spine(sh17=sh17, plugins=plugins, debounce_seconds=float(debounce_s))
 
-    out_path = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+    # Gradio only serves files from declared paths, so write under ./outputs
+    # (declared via allowed_paths in launch) rather than the system temp dir.
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    out_path = os.path.join(OUTPUT_DIR, f"annotated_{int(_time.time())}.mp4")
     writer = None
     events, open_events = [], {}
     latencies, spoken = [], []
@@ -248,12 +251,14 @@ def process_video(model_name, conf, roboflow_on, debounce_s, sample_fps, video_p
         f"<td style='padding:4px 8px;color:#111'>{e['end'] - e['start']:.1f} s</td></tr>"
         for e in sorted(events, key=lambda e: e["start"])
     ) or "<tr><td colspan='4' style='padding:4px 8px;color:#111'>no alerts fired</td></tr>"
-    said = "".join(f"<li>t={t:.1f} s: {s}</li>" for t, s in spoken) or "<li>(silent)</li>"
+    said = "".join(f"<li style='color:#111'>t={t:.1f} s: {s}</li>" for t, s in spoken) or "<li style='color:#111'>(silent)</li>"
     table = (
-        "<table style='border-collapse:collapse;background:#fff'>"
+        "<div style='background:#fff;color:#111;padding:8px'>"
+        "<table style='border-collapse:collapse'>"
         "<tr><th style='text-align:left;padding:4px 8px;color:#111'>Rule</th><th style='color:#111'>Start</th>"
         "<th style='color:#111'>End</th><th style='color:#111'>Duration</th></tr>"
-        f"{rows}</table><p style='color:#111;background:#fff;padding:6px'><b>Glasses would say</b><ul>{said}</ul></p>"
+        f"{rows}</table>"
+        f"<div style='margin-top:10px;color:#111'><b>Glasses would say</b><ul>{said}</ul></div></div>"
     )
     med = statistics.median(latencies) if latencies else 0.0
     p95 = sorted(latencies)[int(0.95 * (len(latencies) - 1))] if latencies else 0.0
@@ -320,4 +325,5 @@ with gr.Blocks(title="PPE Compliance Check") as demo:
 if __name__ == "__main__":
     url = "http://127.0.0.1:7860"
     print(f"Launching Gradio app at {url}")
-    demo.launch(server_name="127.0.0.1", server_port=7860, share=False)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    demo.launch(server_name="127.0.0.1", server_port=7860, share=False, allowed_paths=[OUTPUT_DIR])
