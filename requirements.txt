@@ -1,0 +1,9 @@
+ultralytics
+gradio
+opencv-python
+pillow
+onnxruntime
+fastapi
+uvicorn
+python-dotenv
+requests
