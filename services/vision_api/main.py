@@ -88,9 +88,9 @@ async def list_workflows() -> list[WorkflowDefinition]:
 
 
 @app.post("/v1/sessions", response_model=SessionCreated, status_code=201)
-async def create_session(request: SessionRequest) -> SessionCreated:
+async def create_session(request: SessionRequest | None = None) -> SessionCreated:
     try:
-        workflow = workflow_registry.get(request.workflow_id)
+        workflow = workflow_registry.get((request or SessionRequest()).workflow_id)
     except LookupError as exc:
         raise HTTPException(status_code=422, detail="Unknown workflow_id") from exc
     session_id = str(uuid4())
