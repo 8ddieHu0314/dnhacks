@@ -108,3 +108,42 @@ async def receive_metadata(websocket: WebSocket) -> FrameMetadata | None:
     except ValueError as exc:
         await websocket.send_json({"error": f"Invalid frame metadata: {exc}"})
         return None
+
+
+@app.websocket("/v1/sessions/{session_id}/frames")
+async def ingest_frames_websocket(websocket: WebSocket, session_id: str) -> None:
+    """Accept alternating metadata JSON and decoded-image binary messages.
+
+    WebRTC/H.264 decoding belongs in a transport adapter before this endpoint; the
+    vision service only consumes timestamped JPEG, PNG, or WebP frames.
+    """
+
+    if session_id not in sessions:
+        await websocket.close(code=4404, reason="Unknown session")
+        return
+    await websocket.accept()
+    try:
+        while True:
+            metadata = await receive_metadata(websocket)
+            if metadata is None:
+                continue
+            message = await websocket.receive()
+            if message["type"] == "websocket.disconnect":
+                break
+            image_bytes = message.get("bytes")
+            if image_bytes is None:
+                await websocket.send_json({"error": "Send binary frame after metadata"})
+                continue
+            try:
+                validate_frame_bytes(image_bytes)
+                dropped = await pipeline.submit(session_id, metadata, image_bytes)
+                acknowledgement = IngestAcknowledgement(
+                    session_id=session_id,
+                    frame_id=metadata.frame_id,
+                    dropped_stale_frames=dropped,
+                )
+                await websocket.send_text(acknowledgement.model_dump_json())
+            except HTTPException as exc:
+                await websocket.send_json({"error": exc.detail})
+    except WebSocketDisconnect:
+        return
