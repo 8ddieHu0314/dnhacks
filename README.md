@@ -65,6 +65,25 @@ to deploy a different customer, job, or procedure set without changing Python.
 The workflow shapes model context but never turns the model into an authority to
 clear hazardous work or execute a physical action.
 
+## Advisory external signals
+
+An Arduino or other companion device can record a non-contact field observation:
+
+```bash
+curl -X POST http://localhost:8000/v1/sessions/SESSION_ID/advisory-field-signals \
+  -H 'content-type: application/json' \
+  -d '{"level":8.5,"state":"field_detected"}'
+```
+
+This signal is deliberately named *advisory*: it can drive a warning or enrich
+the session log, but it cannot pass an isolation step or establish that equipment
+is deenergized. A visual lock/tag, VLM result, and non-contact sensor all remain
+observations. OSHA requires a qualified person to use test equipment before
+electrical equipment can be considered deenergized; its guidance also says an LED
+indicator alone is insufficient for isolation verification. See
+[29 CFR 1910.333](https://www.osha.gov/laws-regs/regulations/standardnumber/1910/1910.333)
+and [OSHA's LED interpretation](https://www.osha.gov/laws-regs/standardinterpretations/2012-12-12).
+
 ## What is implemented
 
 - `POST /v1/sessions` creates a short-lived stream session.
