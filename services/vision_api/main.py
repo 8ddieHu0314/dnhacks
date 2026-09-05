@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -13,9 +14,11 @@ from .models import (
     IngestAcknowledgement,
     SessionCreated,
     SessionMetrics,
+    SessionRequest,
 )
 from .pipeline import VisionPipeline
 from .segmentation import build_vision_engine
+from .workflows import WorkflowRegistry
 
 
 def utc_now() -> datetime:
@@ -33,7 +36,9 @@ pipeline = VisionPipeline(
     queue_capacity=settings.vision_frame_queue_capacity,
     result_history=settings.vision_result_history,
 )
-sessions: set[str] = set()
+workflow_directory = Path(settings.workflow_definitions_dir or Path(__file__).with_name("workflow_definitions"))
+workflow_registry = WorkflowRegistry.from_directory(workflow_directory)
+sessions: dict[str, str] = {}
 
 
 @asynccontextmanager
