@@ -21,6 +21,23 @@ DEFAULT_INSTRUCTION = (
 )
 
 
+def instruction_for(frame: Frame) -> str:
+    """Merge the generic safety boundary with the session's workflow package."""
+
+    if frame.workflow is None:
+        return DEFAULT_INSTRUCTION
+    checkpoints = "\n".join(
+        f"- {checkpoint.title}: {checkpoint.evidence_prompt}"
+        for checkpoint in frame.workflow.checkpoints
+    )
+    return (
+        f"{DEFAULT_INSTRUCTION}\n\n"
+        f"Selected workflow ({frame.workflow.id} v{frame.workflow.version}): "
+        f"{frame.workflow.title}\n{frame.workflow.instructions}\n\n"
+        f"Workflow checkpoints:\n{checkpoints}"
+    )
+
+
 def encoded_image_url(frame: Frame) -> str:
     """Return a data URL accepted by OpenAI-compatible image message formats."""
 
@@ -72,7 +89,7 @@ class OpenAICompatibleVLM:
             "temperature": 0,
             "response_format": {"type": "json_object"},
             "messages": [
-                {"role": "system", "content": DEFAULT_INSTRUCTION},
+                {"role": "system", "content": instruction_for(frame)},
                 {
                     "role": "user",
                     "content": [
