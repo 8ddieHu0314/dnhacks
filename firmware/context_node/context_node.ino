@@ -4,7 +4,7 @@ const byte TILT_PIN = 3;
 const byte BUZZER_PIN = 8;
 const byte TRIG_PIN = 9;
 const byte ECHO_PIN = 10;
-const int SIGNAL_DETECTED_THRESHOLD = 500;
+const int SIGNAL_DETECTED_THRESHOLD = 850;
 const int ZONE_DISTANCE_CM = 80;
 
 long distanceCm() {
