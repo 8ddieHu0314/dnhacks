@@ -38,15 +38,21 @@ class SH17Detector:
         self.names = self.model.names
 
     def detect(self, frame_bgr: np.ndarray) -> list:
+        # Predict down to the helmet-witness floor so weak helmet boxes reach
+        # the Spine's helmet-beats-gloves correction; every other class is
+        # still filtered at self.conf below. See core/rules.py.
+        from core.rules import HELMET_WITNESS_CONF
+
+        floor = min(self.conf, HELMET_WITNESS_CONF)
         try:
             results = self.model.predict(
-                frame_bgr, conf=self.conf, device=self.device, verbose=False
+                frame_bgr, conf=floor, device=self.device, verbose=False
             )
         except Exception:
             # mps can raise on some ops/hardware; fall back to cpu.
             self.device = "cpu"
             results = self.model.predict(
-                frame_bgr, conf=self.conf, device=self.device, verbose=False
+                frame_bgr, conf=floor, device=self.device, verbose=False
             )
 
         detections = []
@@ -61,6 +67,8 @@ class SH17Detector:
             conf = float(box.conf[0])
             x1, y1, x2, y2 = [float(v) for v in box.xyxy[0]]
             class_name = self.names.get(cls_id, str(cls_id)) if isinstance(self.names, dict) else self.names[cls_id]
+            if conf < self.conf and class_name.lower() != "helmet":
+                continue
             detections.append(
                 Detection(
                     class_name=class_name,

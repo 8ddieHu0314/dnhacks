@@ -96,6 +96,22 @@ class RuleResult:
     applicable: bool  # False = could not be judged; report as "unknown", not "pass"
 
 
+# A helmet box only has to be weakly present to veto a gloves box on the same
+# region, because the confusion runs one way. The detector keeps helmet boxes
+# down to this confidence as witnesses; correct_detections drops the weak ones
+# again after the veto so they never reach the rules or the overlay.
+HELMET_WITNESS_CONF = 0.2
+
+
+def correct_detections(detections: list, conf: float) -> list:
+    """Detection-level corrections the Spine applies before the rules:
+    helmet beats gloves on the same region (using any helmet box, including
+    weak witnesses below `conf`), then everything below `conf` is dropped.
+    Pure."""
+    kept = suppress_gloves_on_helmet(detections)
+    return [d for d in kept if d.conf >= conf]
+
+
 def suppress_gloves_on_helmet(detections: list, overlap: float = 0.6) -> list:
     """Drop a `gloves` box that mostly sits inside a `helmet` box.
 

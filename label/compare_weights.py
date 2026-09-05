@@ -16,12 +16,15 @@ import cv2
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.detectors import Detection  # noqa: E402
-from core.rules import bare_hands  # noqa: E402
+from core.rules import HELMET_WITNESS_CONF, bare_hands, correct_detections  # noqa: E402
 from label.gdino_label import GLOVES_ID, HANDS_ID, SH17_NAMES  # noqa: E402
 
 
 def annotate(model, frame, conf, device, title):
-    res = model.predict(frame, conf=conf, device=device, verbose=False)[0]
+    # Same path as the Spine: predict down to the helmet-witness floor, let a
+    # helmet box (even a weak one) veto a gloves box on the same region, then
+    # drop everything below the production confidence.
+    res = model.predict(frame, conf=min(conf, HELMET_WITNESS_CONF), device=device, verbose=False)[0]
     out = frame.copy()
     dets = []
     for b in res.boxes:
@@ -29,6 +32,11 @@ def annotate(model, frame, conf, device, title):
         x1, y1, x2, y2 = [int(v) for v in b.xyxy[0].tolist()]
         score = float(b.conf[0])
         dets.append(Detection(class_name=SH17_NAMES[cls], conf=score, box=(x1, y1, x2, y2), source="sh17"))
+    dets = correct_detections(dets, conf)
+    for d in dets:
+        cls = SH17_NAMES.index(d.class_name)
+        x1, y1, x2, y2 = d.box
+        score = d.conf
         if cls == GLOVES_ID:
             color, thick = (0, 200, 255), 3
         elif cls == HANDS_ID:
