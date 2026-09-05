@@ -71,3 +71,31 @@ Docker is also available after creating `.env`:
 ```bash
 docker compose up --build
 ```
+
+## First integration steps
+
+1. **Mobile transport adapter:** In the iOS/Android app, request the applicable
+   camera permission and obtain frames through the Device Access Toolkit. For the
+   first demo, downscale to a fixed working size (for example 640px wide), sample
+   at 4–10 FPS, attach capture timestamps and rotation, then use this WebSocket.
+2. **Validate the latency budget:** Record capture-to-acknowledgement, queue wait,
+   model inference, and overlay-render times. The queue must remain small; stale
+   visual guidance is actively unsafe in a field setting.
+3. **Replace `MockSegmentationEngine`:** Add a SAM 2, YOLO-seg, or purpose-built
+   model adapter implementing `SegmentationEngine`. Return masks as normalized
+   polygons now; move to RLE masks only if fine boundaries demand it.
+4. **Send results back to the companion app:** Overlay the most recent result on
+   the source frame only when its timestamp is still recent enough. Never present
+   an old mask as live guidance.
+5. **Harden before a real field test:** require authenticated sessions, expire
+   sessions, use TLS, rate-limit ingest, avoid raw-frame persistence by default,
+   surface capture/recording state visibly, and obtain consent for every test.
+
+## Deliberate next decisions
+
+- Confirm the toolkit’s actual video-frame API and its supported encode/transport
+  options before implementing a WebRTC or H.264 decoder.
+- Pick the first segmentation target (workers/PPE, equipment, crop disease,
+  hazards, etc.) before selecting a model and collecting evaluation data.
+- Decide whether inference belongs on the phone, an edge gateway, or a GPU service
+  after measuring end-to-end latency and connectivity in the intended setting.
