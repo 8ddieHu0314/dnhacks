@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     vision_result_history: int = 30
     vision_max_frame_bytes: int = 6_000_000
     segmentation_backend: str = "mock"
+    vision_backend: str = "mock"
+    vlm_base_url: str | None = None
+    vlm_api_key: str | None = None
+    vlm_model: str = ""
+    vlm_timeout_seconds: float = 15.0
 
 
 settings = Settings()
