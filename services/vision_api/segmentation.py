@@ -7,7 +7,7 @@ from .models import BoundingBox, Frame, SegmentationRegion, VisionOutput
 from .vlm import OpenAICompatibleVLM
 
 
-class SegmentationEngine(Protocol):
+class VisionEngine(Protocol):
     """Contract implemented by a segmentation model or multimodal adapter."""
 
     name: str
@@ -45,18 +45,9 @@ class MockSegmentationEngine:
         return VisionOutput(regions=await self.segment(frame))
 
 
-def build_segmentation_engine(backend: str) -> SegmentationEngine:
-    if backend == "mock":
-        return MockSegmentationEngine()
-    raise ValueError(
-        f"Unsupported SEGMENTATION_BACKEND={backend!r}. "
-        "Implement the SegmentationEngine protocol and register it here."
-    )
-
-
 def build_vision_engine(
     *, base_url: str | None, api_key: str | None, backend: str, model: str, timeout_seconds: float
-) -> SegmentationEngine:
+) -> VisionEngine:
     if backend == "mock":
         return MockSegmentationEngine()
     if backend == "openai_compatible":

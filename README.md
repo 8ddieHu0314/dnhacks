@@ -93,7 +93,7 @@ The service never executes actions; every proposal is marked as requiring human
 confirmation so the mobile client can keep a human in the loop.
 
 To support another provider or an on-device runtime, implement the
-`SegmentationEngine.analyze(frame) -> VisionOutput` contract and register it in
+`VisionEngine.analyze(frame) -> VisionOutput` contract and register it in
 `build_vision_engine`.
 
 ## First integration steps
@@ -106,7 +106,7 @@ To support another provider or an on-device runtime, implement the
    model inference, and overlay-render times. The queue must remain small; stale
    visual guidance is actively unsafe in a field setting.
 3. **Replace `MockSegmentationEngine`:** Add a SAM 2, YOLO-seg, or purpose-built
-   model adapter implementing `SegmentationEngine`. Return masks as normalized
+   model adapter implementing `VisionEngine`. Return masks as normalized
    polygons now; move to RLE masks only if fine boundaries demand it.
 4. **Send results back to the companion app:** Overlay the most recent result on
    the source frame only when its timestamp is still recent enough. Never present

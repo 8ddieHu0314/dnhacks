@@ -6,7 +6,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 
 from .models import Frame, FrameMetadata, SegmentationResult, SessionMetrics
-from .segmentation import SegmentationEngine
+from .segmentation import VisionEngine
 
 
 def utc_now() -> datetime:
@@ -23,7 +23,7 @@ class VisionPipeline:
 
     def __init__(
         self,
-        engine: SegmentationEngine,
+        engine: VisionEngine,
         *,
         queue_capacity: int,
         result_history: int,
