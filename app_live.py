@@ -238,7 +238,7 @@ with gr.Blocks(title="PPE Compliance Check") as demo:
     gr.Markdown("# PPE Compliance Check")
 
     with gr.Row():
-        model_dd = gr.Dropdown(["yolo8s", "yolo8s-gloves", "yolo8s-gloves-v2", "yolo8m"], value="yolo8s-gloves-v2", label="Model")
+        model_dd = gr.Dropdown(["yolo8s", "yolo8s-gloves", "yolo8s-gloves-v2", "yolo8s-gloves-v4", "yolo8m"], value="yolo8s-gloves-v4", label="Model")
         conf_slider = gr.Slider(0.1, 0.9, value=0.40, step=0.05, label="Confidence")
         roboflow_cb = gr.Checkbox(value=True, label="Use Roboflow tools model")
 
