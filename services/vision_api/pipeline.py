@@ -6,7 +6,7 @@ import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 
-from .models import Frame, FrameMetadata, SegmentationResult, SessionMetrics
+from .models import Frame, FrameMetadata, SegmentationResult, SessionMetrics, WorkflowDefinition
 from .segmentation import VisionEngine
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,11 @@ class VisionPipeline:
             self._worker = None
 
     async def submit(
-        self, session_id: str, metadata: FrameMetadata, image_bytes: bytes
+        self,
+        session_id: str,
+        metadata: FrameMetadata,
+        image_bytes: bytes,
+        workflow: WorkflowDefinition | None = None,
     ) -> int:
         self._received[session_id] += 1
         frame = Frame(
@@ -71,6 +75,7 @@ class VisionPipeline:
             metadata=metadata,
             image_bytes=image_bytes,
             received_at=utc_now(),
+            workflow=workflow,
         )
         if self._queue.full():
             discarded = self._queue.get_nowait()
