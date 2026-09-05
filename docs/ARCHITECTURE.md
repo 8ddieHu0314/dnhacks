@@ -47,7 +47,8 @@ belongs in offline passes over saved clips after the session.
 | Rules | `core/rules.py` | Pure functions over detections and attributes | No model imports, no numpy, no I/O. Must be unit-testable with hand-built inputs |
 | Spine | `core/spine.py` | Runs detectors, plugins, rules, debounce for one frame | Holds the per-rule timers across frames |
 | Stream | `core/stream.py` | Mailbox, StreamRunner, LatestResult, Speaker, Recorder | Detector-agnostic and rule-agnostic |
-| Surfaces | `app.py`, `stream_demo.py`, `server.py` | Gradio playground, local demo, phone endpoint | Thin. No rule logic lives here |
+| Live session | `core/live.py` | EventTracker (fired-rule start/end), HUD drawing, LiveSession (one Spine plus tracker across streamed frames) | Model-agnostic and Gradio-agnostic. Shared by the Video tab (offline) and the Live tab (webcam) |
+| Surfaces | `app.py`, `stream_demo.py`, `server.py` | Gradio playground (Image, Video, Live tabs), local demo, phone endpoint | Thin. No rule logic lives here. `app.py` wires detectors in one function, `build_spine` |
 
 ## Canonical vocabulary
 
@@ -85,7 +86,7 @@ declares which viewpoint it needs.
 | Viewpoint | Examples | Needs a tracker | Status |
 |---|---|---|---|
 | `self` | bare hands, tool in bare hand, ESD wrist strap, sleeves, shoes | No. All boxes in frame belong to the wearer | Built |
-| `other` | coworker without helmet, vest, safety glasses, face mask | Yes. Boxes must be grouped by person so a rule fires once per person | Slot documented in `core/spine.py`, not built |
+| `other` | coworker without helmet, vest, safety glasses, face mask | Yes, to fire once per person. Boxes must be grouped by person | `NO_HELMET` built without a tracker: it fires once per frame when any head or face has no helmet on it. Tracker slot documented in `core/spine.py`, not built |
 | `environment` | open floor tile, ladder, cable across walkway, hot aisle zone | Usually no | Needs new models |
 
 Do not promise a wearer-self helmet or vest rule. It is only possible as a mirror check
@@ -120,7 +121,17 @@ spine passes `dt` and owns the timers.
 4. If it is slower than about 30 ms, do not add it to the per-frame path. Wrap it as a
    plugin with `CachedPlugin(every_n_frames=N, ttl_seconds=1.0)` in `core/stream.py`
    so it runs on a cadence in the background and its last result is merged in.
-5. Register it in `Spine` (primary detector) or via `spine.register_plugin`.
+5. Register it in `Spine` (primary detector) or via `spine.register_plugin`. There are
+   three places that build a Spine, and a new detector goes into each of them once:
+   `build_spine` in `app.py` (every playground tab, including the Live webcam tab, goes
+   through this one function, so the Live tab needs no extra wiring), the module-level
+   setup in `server.py`, and `stream_demo.py`. In `build_spine`, add the plugin behind
+   `CachedPlugin` when `cached_tools` is true (the live and server path) and inline
+   otherwise (offline passes where latency does not matter).
+6. Prove it live before trusting it: open the Live tab in `app.py`, point a webcam at the
+   thing the detector should see, and watch the HUD line for its rule and the stats line
+   (judge ms and effective fps). If the judge latency climbs past about 100 ms, the
+   detector is on the per-frame path and needs to move behind `CachedPlugin`.
 
 ### A new attribute plugin (not boxes: pose, zone, depth)
 
@@ -241,6 +252,14 @@ persisted to JSON and an interactive web view. Move to Neo4j only if queries out
 
 The demo overlay draws the last known boxes on every incoming frame, so the screen
 runs at feed rate while the judge loop runs at 10 to 15 fps.
+
+The Live tab in `app.py` is a stand-in for the phone stream: the browser's webcam posts
+frames to Gradio, which calls the spine once per frame with the real wall-clock `dt`,
+the real debounce, and the tools model behind `CachedPlugin` on the same cadence as
+`server.py`. Its stats line reports judge latency and the effective fps actually
+achieved. Expect that fps to be well below the offline Video tab's judge rate, because
+each frame makes a browser round trip. The judge latency number is the one that has to
+stay under budget; the fps number tells you how much the browser transport costs.
 
 ## Non-goals right now
 

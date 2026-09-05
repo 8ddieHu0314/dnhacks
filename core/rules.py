@@ -159,7 +159,48 @@ def tool_in_bare_hand(detections: list) -> RuleResult:
     )
 
 
-RULES = [bare_hands, tool_in_bare_hand]
+def _helmet_covers(head_box: tuple, helmet_box: tuple) -> bool:
+    # A helmet sits on top of the head, so it overlaps a head box a lot and a
+    # face box only a little (or not at all). Accept any overlap with a
+    # generously expanded head or face box.
+    if _intersection_over_smaller(helmet_box, head_box) > 0.1:
+        return True
+    return _intersection_over_smaller(helmet_box, _expand_box(head_box, 0.8)) > 0.0
+
+
+def no_helmet(detections: list) -> RuleResult:
+    """Viewpoint `other`: a head or face in frame with no helmet on it.
+    Without a tracker this fires once per frame, not once per person, so
+    with several people in view it means "someone here has no helmet".
+    The wearer's own head is never in their camera, so this rule is about
+    whoever is in front of the camera (a coworker, or the wearer in a mirror
+    or at a laptop webcam).
+    """
+    heads = [d for d in detections if _is_class(d, "head") or _is_class(d, "face")]
+    helmets = [d for d in detections if _is_class(d, "helmet")]
+
+    if not heads and not helmets:
+        return RuleResult(
+            rule="NO_HELMET",
+            active=False,
+            severity="high",
+            detail="No head visible",
+            applicable=False,
+        )
+
+    uncovered = [h for h in heads if not any(_helmet_covers(h.box, m.box) for m in helmets)]
+    active = bool(uncovered)
+    detail = "Head without a helmet" if active else "Helmet on every visible head"
+    return RuleResult(
+        rule="NO_HELMET",
+        active=active,
+        severity="high",
+        detail=detail,
+        applicable=True,
+    )
+
+
+RULES = [bare_hands, tool_in_bare_hand, no_helmet]
 
 
 def debounce(timers: dict, results: list, dt: float, threshold: float = 2.0) -> list:
@@ -190,6 +231,8 @@ def spoken_sentence(fired: list):
     rules_fired = {f["rule"] for f in fired}
     if "TOOL_IN_BARE_HAND" in rules_fired:
         return "Put gloves on before using that tool."
+    if "NO_HELMET" in rules_fired:
+        return "Put your helmet on."
     if "BARE_HANDS" in rules_fired:
         return "You aren't wearing gloves."
     return None

@@ -1,9 +1,12 @@
-"""Gradio app for Step 0 PPE compliance checking.
+"""Gradio app for the PPE compliance playground.
 
-Two tabs:
+Three tabs:
 - Image: single image -> annotated output, detections JSON, compliance panel,
   and the sentence the glasses would speak.
-- Batch: multiple images -> gallery of annotated images + results table.
+- Video: uploaded clip -> offline pass with real debounce, a HUD overlay, and
+  an alert events table.
+- Live: browser webcam -> streamed frames through the real Spine (real
+  debounce, tools model behind CachedPlugin), same HUD and events table, live.
 """
 
 import os
@@ -13,7 +16,9 @@ import gradio as gr
 from dotenv import load_dotenv
 
 from core.detectors import SH17Detector
+from core.live import EventTracker, LiveSession, draw_hud, events_table_html
 from core.spine import Spine, annotate, roboflow_tools_plugin
+from core.stream import CachedPlugin
 
 load_dotenv()
 
@@ -21,23 +26,36 @@ OUTPUT_DIR = os.path.abspath("outputs")
 _SPINE_CACHE = {}
 
 
-def get_spine(model_name: str, conf: float, roboflow_on: bool) -> Spine:
-    key = (model_name, round(float(conf), 3), bool(roboflow_on))
-    if key in _SPINE_CACHE:
-        return _SPINE_CACHE[key]
+def build_spine(model_name: str, conf: float, roboflow_on: bool, debounce_s: float, cached_tools: bool) -> Spine:
+    """The only place the playground wires detectors into a Spine.
 
+    cached_tools=True mirrors server.py: the tools model runs behind
+    CachedPlugin(every_n_frames=5, ttl_seconds=1.0). cached_tools=False runs
+    it inline every frame (offline passes where latency does not matter).
+    """
     weights_path = f"weights/{model_name}.pt"
     sh17 = SH17Detector(weights_path, device="mps", conf=conf)
 
     plugins = []
     if roboflow_on:
         plugin = roboflow_tools_plugin(conf=conf)
+        if cached_tools:
+            plugin = CachedPlugin(plugin, every_n_frames=5, ttl_seconds=1.0)
         plugins.append((plugin, 1))
 
-    # debounce_seconds=0: this app only ever feeds one frame at a time
-    # (single image, or one image per batch row), so violations should
-    # fire immediately rather than waiting for sustained activity.
-    spine = Spine(sh17=sh17, plugins=plugins, debounce_seconds=0.0)
+    return Spine(sh17=sh17, plugins=plugins, debounce_seconds=float(debounce_s))
+
+
+def get_spine(model_name: str, conf: float, roboflow_on: bool) -> Spine:
+    key = (model_name, round(float(conf), 3), bool(roboflow_on))
+    if key in _SPINE_CACHE:
+        return _SPINE_CACHE[key]
+
+    # debounce_seconds=0: this app only ever feeds one frame at a time (a
+    # single image), so violations should fire immediately rather than
+    # waiting for sustained activity. cached_tools=False: no benefit to a
+    # background cadence when there is only ever one frame to judge.
+    spine = build_spine(model_name, conf, roboflow_on, debounce_s=0.0, cached_tools=False)
     _SPINE_CACHE[key] = spine
     return spine
 
@@ -107,51 +125,6 @@ def process_image(model_name, conf, roboflow_on, image):
     return annotated_rgb, detections_json, html, sentence
 
 
-def process_batch(model_name, conf, roboflow_on, files):
-    if not files:
-        return [], "<p>Upload one or more images first.</p>"
-
-    spine = get_spine(model_name, conf, roboflow_on)
-
-    gallery = []
-    rows = []
-    for f in files:
-        path = f.name if hasattr(f, "name") else f
-        filename = os.path.basename(path)
-        frame_bgr = cv2.imread(path)
-        if frame_bgr is None:
-            rows.append(
-                f"<tr><td style='padding:4px 8px'>{filename}</td>"
-                "<td style='padding:4px 8px' colspan='2'>could not read image</td></tr>"
-            )
-            continue
-
-        spine.reset()
-        result = spine.process(frame_bgr, dt=1.0)
-
-        annotated_bgr = annotate(frame_bgr, result.detections)
-        annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
-        gallery.append((annotated_rgb, filename))
-
-        fired_names = ", ".join(f["rule"] for f in result.fired) or "(none)"
-        sentence = result.sentence or "(silent)"
-        rows.append(
-            f"<tr><td style='padding:4px 8px'>{filename}</td>"
-            f"<td style='padding:4px 8px'>{fired_names}</td>"
-            f"<td style='padding:4px 8px'>{sentence}</td></tr>"
-        )
-
-    html = (
-        "<table style='width:100%;border-collapse:collapse'>"
-        "<tr><th style='text-align:left;padding:4px 8px'>Filename</th>"
-        "<th style='text-align:left;padding:4px 8px'>Fired rules</th>"
-        "<th style='text-align:left;padding:4px 8px'>Sentence</th></tr>"
-        + "".join(rows)
-        + "</table>"
-    )
-    return gallery, html
-
-
 def process_video(model_name, conf, roboflow_on, debounce_s, sample_fps, video_path):
     """Offline pass over an uploaded video. Every frame is available, so
     there is no mailbox here: sample the video at `sample_fps`, feed the
@@ -172,16 +145,16 @@ def process_video(model_name, conf, roboflow_on, debounce_s, sample_fps, video_p
     step = max(1, int(round(src_fps / float(sample_fps))))
     dt = step / src_fps
 
-    sh17 = SH17Detector(f"weights/{model_name}.pt", device="mps", conf=conf)
-    plugins = [(roboflow_tools_plugin(conf=conf), 1)] if roboflow_on else []
-    spine = Spine(sh17=sh17, plugins=plugins, debounce_seconds=float(debounce_s))
+    # No CachedPlugin here: every sampled frame is judged synchronously in
+    # this offline pass, so there is no benefit to a background cadence.
+    spine = build_spine(model_name, conf, roboflow_on, debounce_s, cached_tools=False)
 
     # Gradio only serves files from declared paths, so write under ./outputs
     # (declared via allowed_paths in launch) rather than the system temp dir.
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     out_path = os.path.join(OUTPUT_DIR, f"annotated_{int(_time.time())}.mp4")
     writer = None
-    events, open_events = [], {}
+    tracker = EventTracker()
     latencies, spoken = [], []
     idx = processed = 0
     t_video = 0.0
@@ -201,32 +174,13 @@ def process_video(model_name, conf, roboflow_on, debounce_s, sample_fps, video_p
         processed += 1
 
         fired_now = {f["rule"] for f in result.fired}
-        for rule in fired_now:
-            if rule not in open_events:
-                open_events[rule] = {"rule": rule, "start": t_video}
-        for rule in list(open_events):
-            if rule not in fired_now:
-                ev = open_events.pop(rule)
-                ev["end"] = t_video
-                events.append(ev)
+        tracker.update(fired_now, t_video)
         if result.sentence and result.sentence != last_sentence:
             spoken.append((t_video, result.sentence))
         last_sentence = result.sentence
 
         out = annotate(frame, result.detections)
-        hud = [f"t={t_video:5.1f}s  judge {result.latency_ms:.0f} ms"]
-        for r in result.rule_results:
-            timer = result.timers.get(r.rule, 0.0)
-            state = "FIRED" if r.rule in fired_now else ("active" if r.active else ("pass" if r.applicable else "unknown"))
-            hud.append(f"{r.rule}: {state} {timer:.1f}s")
-        if result.sentence:
-            hud.append(f'SAY: "{result.sentence}"')
-        y = 22
-        for i, line in enumerate(hud):
-            color = (0, 0, 255) if (i == len(hud) - 1 and result.sentence) else (255, 255, 255)
-            cv2.putText(out, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 3, cv2.LINE_AA)
-            cv2.putText(out, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 1, cv2.LINE_AA)
-            y += 22
+        draw_hud(out, result, fired_now, f"t={t_video:5.1f}s")
 
         if writer is None:
             h, w = out.shape[:2]
@@ -236,38 +190,48 @@ def process_video(model_name, conf, roboflow_on, debounce_s, sample_fps, video_p
         writer.write(out)
         idx += 1
 
-    for rule, ev in open_events.items():
-        ev["end"] = t_video
-        events.append(ev)
+    tracker.close_all(t_video)
     cap.release()
     if writer is not None:
         writer.release()
     wall = _time.perf_counter() - t_start
 
-    rows = "".join(
-        f"<tr><td style='padding:4px 8px;color:#111'>{e['rule']}</td>"
-        f"<td style='padding:4px 8px;color:#111'>{e['start']:.1f} s</td>"
-        f"<td style='padding:4px 8px;color:#111'>{e['end']:.1f} s</td>"
-        f"<td style='padding:4px 8px;color:#111'>{e['end'] - e['start']:.1f} s</td></tr>"
-        for e in sorted(events, key=lambda e: e["start"])
-    ) or "<tr><td colspan='4' style='padding:4px 8px;color:#111'>no alerts fired</td></tr>"
     said = "".join(f"<li style='color:#111'>t={t:.1f} s: {s}</li>" for t, s in spoken) or "<li style='color:#111'>(silent)</li>"
-    table = (
+    table = events_table_html(tracker.rows(t_video)) + (
         "<div style='background:#fff;color:#111;padding:8px'>"
-        "<table style='border-collapse:collapse'>"
-        "<tr><th style='text-align:left;padding:4px 8px;color:#111'>Rule</th><th style='color:#111'>Start</th>"
-        "<th style='color:#111'>End</th><th style='color:#111'>Duration</th></tr>"
-        f"{rows}</table>"
-        f"<div style='margin-top:10px;color:#111'><b>Glasses would say</b><ul>{said}</ul></div></div>"
+        f"<b>Glasses would say</b><ul>{said}</ul></div>"
     )
     med = statistics.median(latencies) if latencies else 0.0
     p95 = sorted(latencies)[int(0.95 * (len(latencies) - 1))] if latencies else 0.0
     stats = (
         f"source: {src_fps:.1f} fps, {total} frames | sampled every {step} frame(s) at {float(sample_fps):.1f} fps -> {processed} judged\n"
         f"judge latency: median {med:.1f} ms, p95 {p95:.1f} ms | wall time {wall:.1f} s | debounce {float(debounce_s):.1f} s\n"
-        f"alerts: {len(events)} | sentences spoken: {len(spoken)}"
+        f"alerts: {len(tracker.events)} | sentences spoken: {len(spoken)}"
     )
     return out_path, table, stats
+
+
+def live_step(model_name, conf, roboflow_on, debounce_s, frame_rgb, session, request: gr.Request):
+    """Handler for the Live tab's streamed webcam frames. `request` is built
+    once per Start..Stop event and reused for every chunk in it, so its
+    identity marks the session boundary: a new id means the user clicked
+    Start again and needs a fresh Spine and events table.
+    """
+    if frame_rgb is None:
+        return gr.skip(), gr.skip(), gr.skip(), gr.skip()
+
+    # Hold the request object itself, not id(request): CPython reuses a freed
+    # object's address, so the next run's request could get the same id.
+    params = (model_name, round(float(conf), 3), bool(roboflow_on), float(debounce_s))
+    if session is None or session.request is not request or session.key != params:
+        spine = build_spine(model_name, conf, roboflow_on, debounce_s, cached_tools=True)
+        session = LiveSession(spine, params)
+        session.request = request
+
+    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+    annotated_bgr, rows, stats = session.step(frame_bgr)
+    annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
+    return annotated_rgb, events_table_html(rows), stats, session
 
 
 with gr.Blocks(title="PPE Compliance Check") as demo:
@@ -292,18 +256,6 @@ with gr.Blocks(title="PPE Compliance Check") as demo:
             outputs=[img_out, json_out, html_out, sentence_out],
         )
 
-    with gr.Tab("Batch"):
-        files_in = gr.File(label="Upload images", file_count="multiple")
-        batch_btn = gr.Button("Run batch")
-        gallery_out = gr.Gallery(label="Annotated images")
-        table_out = gr.HTML(label="Results")
-
-        batch_btn.click(
-            process_batch,
-            inputs=[model_dd, conf_slider, roboflow_cb, files_in],
-            outputs=[gallery_out, table_out],
-        )
-
     with gr.Tab("Video"):
         gr.Markdown("Upload a clip. Frames are sampled at the chosen rate, run through the spine with the real time between frames, and alerts must hold for the debounce window before they fire, same as live.")
         with gr.Row():
@@ -319,6 +271,24 @@ with gr.Blocks(title="PPE Compliance Check") as demo:
             process_video,
             inputs=[model_dd, conf_slider, roboflow_cb, debounce_in, sample_fps_in, video_in],
             outputs=[video_out, events_out, stats_out],
+        )
+
+    with gr.Tab("Live", elem_id="live-tab"):
+        gr.Markdown("Point a webcam (phone or laptop) at your hands and press the record button. Frames go through the real spine: real debounce and the tools model on its background cadence, exactly like server.py.")
+        live_debounce = gr.Slider(0.0, 5.0, value=2.0, step=0.5, label="Debounce seconds", elem_id="live-debounce")
+        with gr.Row():
+            live_in = gr.Image(sources=["webcam"], streaming=True, type="numpy", label="Webcam", elem_id="live-webcam")
+            live_out = gr.Image(label="Annotated with HUD", streaming=True, elem_id="live-annotated")
+        live_events = gr.HTML(label="Alert events", value=events_table_html([]), elem_id="live-events")
+        live_stats = gr.Textbox(label="Live stats", lines=1, interactive=False, elem_id="live-stats")
+        live_state = gr.State(None)
+        live_in.stream(
+            live_step,
+            inputs=[model_dd, conf_slider, roboflow_cb, live_debounce, live_in, live_state],
+            outputs=[live_out, live_events, live_stats, live_state],
+            stream_every=0.1,
+            concurrency_limit=1,
+            show_progress="hidden",
         )
 
 

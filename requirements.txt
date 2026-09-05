@@ -7,3 +7,8 @@ fastapi
 uvicorn
 python-dotenv
 requests
+
+# test and e2e (not needed at runtime)
+pytest
+playwright
+pytest-playwright

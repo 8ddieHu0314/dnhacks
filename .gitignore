@@ -7,3 +7,5 @@ __pycache__/
 *.egg-info/
 .venv-inf/
 outputs/
+tests/e2e/fixtures/*.y4m
+tests/e2e/screenshots/
