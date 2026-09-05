@@ -180,19 +180,28 @@ tooling in `label/`, nothing here runs on the frame path:
   are not unlearned as background). Grounding DINO labels gloves and hands from a text
   prompt, with a yellow-pixel gate as tiebreaker, a separate hard-hat prompt as a hard
   negative, and a temporal rule (a confident helmet in a neighboring frame) for
-  helmets that win the glove label. Time-based train/val split per clip.
+  helmets that win the glove label. A third prompt does the same for the hi-vis vest,
+  which is the glove's yellow: a vest is labeled only with a second witness (the base
+  model agrees, or the glove prompt fires on the same yellow box), a glove box that
+  coincides with a vest hit is the vest and is dropped, and every glove kept on top
+  of a vest gets an audit preview. Time-based train/val split per clip.
+- `label/augment_flip.py` adds upside-down and rotated copies of the helmet frames to
+  the train split only, for orientations the capture clip never showed.
 - `label/eval_gloves.py` is the gate: gloves recall, bare-hand boxes on gloves, gloves
-  boxes on helmets, BARE_HANDS frame agreement, and a verdict regression over
-  `test_images/`. Exit 0 only on pass; swap weights only after it passes.
+  boxes on helmets and on vests, BARE_HANDS frame agreement, and a verdict regression
+  over `test_images/`. Exit 0 only on pass; swap weights only after it passes.
 - `label/compare_weights.py` draws old vs new side by side with the rule verdict.
 
 Train from `weights/yolo8s.pt` with the backbone frozen and augmentation on (hue
 jitter matters: with it off, v1 learned "yellow blob = gloves" and called a hard hat
 gloves 0.88). Output keeps the 17 class names, so it is a drop-in `MODEL_NAME`.
 
-The spine also applies one detection-level correction before the rules:
-`suppress_gloves_on_helmet` in `core/rules.py` drops a gloves box that mostly sits
-inside a helmet box, because the detector's confusion runs one way only.
+The spine also applies two detection-level corrections before the rules, both in
+`core/rules.py`: `suppress_gloves_on_helmet` drops a gloves box that mostly sits inside
+a helmet box, and `suppress_gloves_on_vest` drops a gloves box that coincides (IoU)
+with a safety-vest box. The vest one is IoU on purpose: a real glove held in front of
+the chest sits mostly inside the vest box and must survive. The detector keeps both
+witness classes down to `HELMET_WITNESS_CONF` so a weak helmet or vest can still veto.
 
 ## Recording and the session record
 

@@ -63,6 +63,21 @@ YELLOW_HAND_MAX = 0.10
 # pseudo-labels are the second source, so a high bar here is safe.
 HELMET_MIN_SCORE = 0.60
 HELMET_WEAK_SCORE = 0.35   # weak hat hits only count as the first witness for the temporal rule
+# Vests get a third pass. The hi-vis vest is the same yellow as the glove, so
+# the color tiebreaker cannot tell them apart, and the glove prompt fires on
+# the whole vest at 0.5-0.85 (probed on 30 frames of the vest clip). That is
+# the label that taught v2 "vest = gloves". What does separate them: the
+# glove box on a vest coincides with the vest box (IoU 0.9+), while a real
+# glove held in front of the vest only partly overlaps it (IoU 0.35-0.55).
+# The vest prompt alone is not a witness either: it scored 0.64-0.74 on a
+# plain maroon t-shirt. A vest is only labeled when the base SH17 model
+# agrees (it does on worn vests, never on held ones) or when the glove prompt
+# fires on the same yellow region, which the t-shirt cannot satisfy.
+VEST_ID = SH17_NAMES.index("safety-vest")
+VEST_PROMPT = "a high visibility safety vest."
+VEST_MIN_SCORE = 0.50
+VEST_WEAK_SCORE = 0.35   # weak vest hits only veto glove boxes that coincide with them
+VEST_COINCIDE_IOU = 0.60  # a glove box this close to a vest box is the vest
 
 
 def yellow_fraction(frame_bgr, box, exclude=()) -> float:
@@ -142,7 +157,9 @@ def gdino_raw(processor, model, device, frame_bgr, box_thr: float, text_thr: flo
     min_area = 0.01 * w * h
     hats = [(score, clipped) for _label, score, clipped in detect(HELMET_PROMPT, HELMET_WEAK_SCORE, text_thr)
             if (clipped[2] - clipped[0]) * (clipped[3] - clipped[1]) >= min_area]
-    return {"hats": hats, "items": detect(PROMPT, box_thr, text_thr)}
+    vests = [(score, clipped) for _label, score, clipped in detect(VEST_PROMPT, VEST_WEAK_SCORE, text_thr)
+             if (clipped[2] - clipped[0]) * (clipped[3] - clipped[1]) >= min_area]
+    return {"hats": hats, "vests": vests, "items": detect(PROMPT, box_thr, text_thr)}
 
 
 def strong_helmets(raw: dict, sh17_helmets=()) -> list:
@@ -157,20 +174,55 @@ def strong_helmets(raw: dict, sh17_helmets=()) -> list:
             if score >= HELMET_MIN_SCORE and any(iou(box, h) > 0.3 for h in sh17_helmets)]
 
 
-def classify(frame_bgr, raw: dict, known_helmets=(), neighbor_helmets=()) -> tuple:
+def strong_vests(frame_bgr, raw: dict, sh17_vests=()) -> list:
+    """Vest boxes with a second witness: a Grounding DINO vest hit at
+    VEST_MIN_SCORE or above that either overlaps an SH17 safety-vest
+    pseudo-label, or coincides with a yellow box the glove prompt also fired
+    on (a big yellow garment that reads as both vest and glove is the vest;
+    the t-shirt the vest prompt likes is not yellow, so it cannot pass)."""
+    out = []
+    for score, box in raw.get("vests", []):
+        if score < VEST_MIN_SCORE:
+            continue
+        agreed = any(iou(box, v) > 0.3 for v in sh17_vests)
+        coincident = any("glove" in label and iou(box, gb) > VEST_COINCIDE_IOU
+                         and (yellow_fraction(frame_bgr, gb) or 0.0) >= YELLOW_GLOVE_MIN
+                         for label, _s, gb in raw["items"])
+        if agreed or coincident:
+            out.append(tuple(box))
+    return out
+
+
+def classify(frame_bgr, raw: dict, known_helmets=(), neighbor_helmets=(), known_vests=(), neighbor_vests=()) -> tuple:
     """Turn one frame's raw detections into (cls, score, x1, y1, x2, y2) boxes
-    for gloves, hands and helmets. Returns (boxes, counters).
+    for gloves, hands, helmets and vests. Returns (boxes, counters).
 
     known_helmets: helmet boxes from the SH17 pseudo-labels for this frame.
     neighbor_helmets: confident helmet boxes from frames half a second either
     side. An object cannot be a helmet in one frame and a glove in the next,
     so a weak hat hit here plus a confident helmet nearby means helmet.
     Helmets veto glove boxes, are masked out of the yellow measurement, and
-    the SH17 ones are not returned (the caller already has them)."""
+    the SH17 ones are not returned (the caller already has them).
+    known_vests / neighbor_vests: the same two things for safety vests."""
     out = []
     counters = {"color_gloves": 0, "color_hands": 0, "text_fallback": 0, "ambiguous_dropped": 0,
-                "helmets": 0, "helmet_veto": 0, "temporal_to_helmet": 0}
+                "helmets": 0, "helmet_veto": 0, "temporal_to_helmet": 0,
+                "vests": 0, "vest_veto": 0, "temporal_to_vest": 0, "vest_overlap_audit": 0}
     hat_candidates = raw["hats"]
+    vest_candidates = raw.get("vests", [])
+    # Vests: agreed in this frame, or a weak hit here plus agreed vests at the
+    # same place in at least two neighboring frames (same rule as helmets).
+    vests = [(VEST_ID, score, *box) for score, box in vest_candidates
+             if tuple(box) in set(strong_vests(frame_bgr, raw, known_vests))]
+    counters["vests"] = len(vests)
+    for score, box in vest_candidates:
+        if any(iou(box, v[2:]) > 0.5 for v in vests):
+            continue
+        support = sum(1 for frame_vests in neighbor_vests if any(iou(box, nb) > 0.3 for nb in frame_vests))
+        if support >= 2:
+            vests.append((VEST_ID, score, *box))
+            counters["temporal_to_vest"] += 1
+    vest_boxes = [v[2:] for v in vests] + [tuple(b) for b in known_vests]
 
     def glove_outscores_hat(box):
         # Both detectors still agreed on "helmet" for 6 of 601 glove-only
@@ -192,6 +244,11 @@ def classify(frame_bgr, raw: dict, known_helmets=(), neighbor_helmets=()) -> tup
     still = []
     rescues = []  # (kind, label, score, box) so a human can audit every rescue
     for label, score, clipped in raw["items"]:
+        # A glove or hand box that coincides with a vest hit, even a weak one,
+        # is the vest. Real gloves in front of the vest only partly overlap.
+        if any(iou(clipped, vb) > VEST_COINCIDE_IOU for _s, vb in vest_candidates):
+            counters["vest_veto"] += 1
+            continue
         weak_hat = any(iou(clipped, hb) > 0.5 for _s, hb in hat_candidates)
         support = sum(1 for frame_helmets in neighbor_helmets
                       if any(iou(clipped, nb) > 0.3 for nb in frame_helmets))
@@ -207,7 +264,7 @@ def classify(frame_bgr, raw: dict, known_helmets=(), neighbor_helmets=()) -> tup
     # yellow measurement so a bare hand holding a yellow hard hat stays a hand.
     helmet_boxes = [hm[2:] for hm in helmets] + [tuple(b) for b in known_helmets]
     for label, score, clipped in items:
-        yf = yellow_fraction(frame_bgr, clipped, exclude=helmet_boxes)
+        yf = yellow_fraction(frame_bgr, clipped, exclude=helmet_boxes + vest_boxes)
         has_glove, has_hand = "glove" in label, "hand" in label
         if yf is not None and yf >= YELLOW_GLOVE_MIN:
             cls = GLOVES_ID
@@ -233,8 +290,14 @@ def classify(frame_bgr, raw: dict, known_helmets=(), neighbor_helmets=()) -> tup
         if any(_ios(b[2:], hb) > limit for hb in helmet_boxes):
             counters["helmet_veto"] += 1
             continue
+        # A glove kept on top of a vest is the hard case (real glove in front
+        # of the vest, or a vest fragment the veto missed). Kept, but every
+        # one gets a preview so a human can audit it.
+        if b[0] == GLOVES_ID and any(_ios(b[2:], vb) > 0.6 for vb in vest_boxes):
+            counters["vest_overlap_audit"] += 1
+            rescues.append(("vest_overlap", "glove", b[1], b[2:]))
         kept.append(b)
-    return kept + helmets, counters
+    return kept + helmets + vests, counters
 
 
 def _ios(a, b) -> float:
@@ -285,6 +348,8 @@ def draw(frame_bgr, boxes):
             color = (0, 0, 255)  # red for bare hands
         elif cls == HELMET_ID:
             color = (255, 0, 0)  # blue for helmets
+        elif cls == VEST_ID:
+            color = (255, 0, 255)  # magenta for vests
         else:
             color = (0, 255, 0)
         cv2.rectangle(out, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
@@ -329,6 +394,8 @@ def main():
                     help="ground-truth override, e.g. s0:helmet = clip 0 is known to contain no helmet, drop any such label")
     ap.add_argument("--from-raw", default="",
                     help="skip the detectors: reuse a raw_detections.json from a previous run with the same sessions and sampling")
+    ap.add_argument("--stem-offset", type=int, default=0,
+                    help="first session index used in stems (s<k>_), so a dataset labeled separately can be merged into another")
     args = ap.parse_args()
 
     random.seed(args.seed)
@@ -349,7 +416,7 @@ def main():
         chunk_size = max(1, (len(names) + n_chunks - 1) // n_chunks)
         for i, name in enumerate(names):
             split = "val" if (i // chunk_size) % args.val_chunks == args.val_chunks - 1 else "train"
-            entries.append((os.path.join(frames_dir, name), f"s{k}_{os.path.splitext(name)[0]}", split))
+            entries.append((os.path.join(frames_dir, name), f"s{k + args.stem_offset}_{os.path.splitext(name)[0]}", split))
         print(f"{len(names)} frames selected from {frames_dir} (every {every})")
     names = entries
 
@@ -363,6 +430,7 @@ def main():
             sys.exit("--from-raw file does not match the sessions/sampling given; re-run without it")
         raw_cache = [None if r is None else ([tuple(b) for b in r["sh17"]],
                                             {"hats": [(s, tuple(b)) for s, b in r["hats"]],
+                                             "vests": [(s, tuple(b)) for s, b in r.get("vests", [])],
                                              "items": [(l, s, tuple(b)) for l, s, b in r["items"]]})
                      for r in loaded]
         print(f"reusing raw detections for {len(names)} frames from {args.from_raw}")
@@ -378,9 +446,11 @@ def main():
         "frames": 0, "train": 0, "val": 0, "conflicts_dropped": 0,
         "per_class": {n: 0 for n in SH17_NAMES}, "frames_no_hand_or_glove": 0,
         "gate": {"color_gloves": 0, "color_hands": 0, "text_fallback": 0, "ambiguous_dropped": 0,
-                 "helmets": 0, "helmet_veto": 0, "temporal_to_helmet": 0},
+                 "helmets": 0, "helmet_veto": 0, "temporal_to_helmet": 0,
+                 "vests": 0, "vest_veto": 0, "temporal_to_vest": 0, "vest_overlap_audit": 0},
         "rescues": [],
-        "prompt": PROMPT, "yellow_glove_min": YELLOW_GLOVE_MIN, "yellow_hand_max": YELLOW_HAND_MAX,
+        "prompt": PROMPT, "helmet_prompt": HELMET_PROMPT, "vest_prompt": VEST_PROMPT,
+        "yellow_glove_min": YELLOW_GLOVE_MIN, "yellow_hand_max": YELLOW_HAND_MAX,
         "gdino_seconds": 0.0, "session": args.session, "every": args.every,
         "gdino_model": args.gdino, "box_thr": args.box_thr, "text_thr": args.text_thr,
     }
@@ -411,7 +481,8 @@ def main():
     # Raw detections on disk, so pass B can be re-run or audited without
     # paying for the detectors again.
     with open(os.path.join(args.out, "raw_detections.json"), "w") as f:
-        json.dump([None if c is None else {"stem": names[i][1], "sh17": c[0], "hats": c[1]["hats"], "items": c[1]["items"]}
+        json.dump([None if c is None else {"stem": names[i][1], "sh17": c[0], "hats": c[1]["hats"],
+                                           "vests": c[1].get("vests", []), "items": c[1]["items"]}
                    for i, c in enumerate(cache)], f)
 
     # Pass B: classify each frame with its neighbors' confident helmets.
@@ -441,15 +512,26 @@ def main():
             stats["gate"]["drop_class"] = stats["gate"].get("drop_class", 0) + \
                 sum(1 for b in boxes if b[0] == HELMET_ID) + len(raw["hats"])
             boxes = [b for b in boxes if b[0] != HELMET_ID]
-            raw = {"hats": [], "items": raw["items"]}
+            raw = {**raw, "hats": []}
+        if VEST_ID in dropped_cls:
+            stats["gate"]["drop_class"] = stats["gate"].get("drop_class", 0) + \
+                sum(1 for b in boxes if b[0] == VEST_ID) + len(raw.get("vests", []))
+            boxes = [b for b in boxes if b[0] != VEST_ID]
+            raw = {**raw, "vests": []}
         sh17_helmets = [b[2:] for b in boxes if b[0] == HELMET_ID]
+        sh17_vests = [b[2:] for b in boxes if b[0] == VEST_ID]
         neighbors = []  # one list of agreed helmet boxes per neighboring frame
+        vest_neighbors = []
         for j in range(max(0, i - 2), min(len(names), i + 3)):
             if j == i or cache[j] is None or session_of(names[j][1]) != session_of(stem):
                 continue
             j_sh17_helmets = [b[2:] for b in cache[j][0] if b[0] == HELMET_ID]
             neighbors.append(strong_helmets(cache[j][1], j_sh17_helmets))
-        gd, counters = classify(frame, raw, known_helmets=sh17_helmets, neighbor_helmets=neighbors)
+            j_frame = cv2.imread(names[j][0])
+            j_sh17_vests = [b[2:] for b in cache[j][0] if b[0] == VEST_ID]
+            vest_neighbors.append(strong_vests(j_frame, cache[j][1], j_sh17_vests) if j_frame is not None else [])
+        gd, counters = classify(frame, raw, known_helmets=sh17_helmets, neighbor_helmets=neighbors,
+                                known_vests=sh17_vests, neighbor_vests=vest_neighbors)
         for k, v in counters.items():
             stats["gate"][k] += v
         for kind, label, score, box in classify.last_rescues:
@@ -465,12 +547,12 @@ def main():
         # the same helmet overlap far less than NMS's IoU bar, so use
         # intersection over the smaller box), then one NMS pass.
         boxes.extend(gd)
-        helmets_sorted = sorted((b for b in boxes if b[0] == HELMET_ID), key=lambda b: -b[1])
         merged = []
-        for hm in helmets_sorted:
-            if not any(_ios(hm[2:], k[2:]) > 0.7 for k in merged):
-                merged.append(hm)
-        boxes = [b for b in boxes if b[0] != HELMET_ID] + merged
+        for cls_id in (HELMET_ID, VEST_ID):
+            for hm in sorted((b for b in boxes if b[0] == cls_id), key=lambda b: -b[1]):
+                if not any(k[0] == cls_id and _ios(hm[2:], k[2:]) > 0.7 for k in merged):
+                    merged.append(hm)
+        boxes = [b for b in boxes if b[0] not in (HELMET_ID, VEST_ID)] + merged
         boxes = nms(boxes, 0.6)
         if dropped_cls:
             stats["gate"]["drop_class"] = stats["gate"].get("drop_class", 0) + sum(1 for b in boxes if b[0] in dropped_cls)

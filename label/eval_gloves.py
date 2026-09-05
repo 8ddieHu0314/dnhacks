@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.detectors import Detection  # noqa: E402
 from core.rules import HELMET_WITNESS_CONF, bare_hands, correct_detections, iou  # noqa: E402
-from label.gdino_label import GLOVES_ID, HANDS_ID, HELMET_ID, SH17_NAMES  # noqa: E402
+from label.gdino_label import GLOVES_ID, HANDS_ID, HELMET_ID, SH17_NAMES, VEST_ID  # noqa: E402
 
 
 def read_labels(path, w, h):
@@ -73,6 +73,7 @@ def eval_val(model, data_dir, conf, device):
     lbl_dir = os.path.join(data_dir, "labels", "val")
     names = sorted(os.listdir(img_dir))
     gt_gloves = found_gloves = hands_on_glove = gloves_on_helmet = gloves_on_helmet_raw = gt_helmets = agree = frames = 0
+    gt_vests = found_vests = gloves_on_vest = gloves_on_vest_raw = 0
     for name in names:
         frame = cv2.imread(os.path.join(img_dir, name))
         if frame is None:
@@ -95,6 +96,14 @@ def eval_val(model, data_dir, conf, device):
         raw_g = [b for c, b in raw if c == GLOVES_ID]
         gloves_on_helmet_raw += sum(1 for p in raw_g if any(iou(hm, p) > 0.5 for hm in gt_hm))
         gloves_on_helmet += sum(1 for p in pr_g if any(iou(hm, p) > 0.5 for hm in gt_hm))
+        # The v2 failure: the hi-vis vest called gloves. Same two counts on
+        # labeled vests, plus whether the vest itself is found as a vest.
+        gt_v = [b for c, b in gt if c == VEST_ID]
+        pr_v = [b for c, b in pred if c == VEST_ID]
+        gt_vests += len(gt_v)
+        found_vests += sum(1 for v in gt_v if any(iou(v, p) > 0.5 for p in pr_v))
+        gloves_on_vest_raw += sum(1 for p in raw_g if any(iou(v, p) > 0.5 for v in gt_v))
+        gloves_on_vest += sum(1 for p in pr_g if any(iou(v, p) > 0.5 for v in gt_v))
         rule_gt = bare_hands(to_detections(gt)).active
         rule_pr = bare_hands(to_detections(pred)).active
         agree += int(rule_gt == rule_pr)
@@ -107,6 +116,10 @@ def eval_val(model, data_dir, conf, device):
         "gt_helmets": gt_helmets,
         "gloves_on_helmet_raw": gloves_on_helmet_raw,
         "gloves_on_helmet": gloves_on_helmet,
+        "gt_vests": gt_vests,
+        "vest_recall": round(found_vests / gt_vests, 3) if gt_vests else None,
+        "gloves_on_vest_raw": gloves_on_vest_raw,
+        "gloves_on_vest": gloves_on_vest,
         "bare_hands_agree": round(agree / frames, 3) if frames else None,
     }
 
@@ -156,6 +169,7 @@ def main():
         "gloves_recall_ok": (new["gloves_recall"] or 0) >= args.min_recall,
         "hands_on_glove_ok": new["hands_on_glove"] <= args.max_hands_on_glove,
         "gloves_on_helmet_ok": new["gloves_on_helmet"] == 0,
+        "gloves_on_vest_ok": new["gloves_on_vest"] == 0,
         "regression_ok": len(changed) == 0,
     }
     report["gate"] = gate

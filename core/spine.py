@@ -100,8 +100,9 @@ class Spine:
             if every_n_frames <= 1 or self.frame_index % every_n_frames == 0:
                 fn(frame_bgr, state)
 
-        # Helmet beats gloves on the same region (the detector's confusion runs
-        # one way only, yellow hard hat called gloves), then weak helmet
+        # Helmet beats gloves on the same region and vest beats gloves on the
+        # same box (the detector's confusion runs one way only: yellow hard
+        # hat or hi-vis vest called gloves), then weak witness
         # witnesses the detector let through are dropped. See rules.py.
         state.detections = correct_detections(state.detections, self.sh17.conf)
 
@@ -128,6 +129,7 @@ _COLOR_ROBOFLOW = (0, 165, 255)  # orange (BGR)
 _COLOR_GLOVES = (255, 0, 0)     # blue (BGR)
 _COLOR_HANDS = (0, 255, 255)    # yellow (BGR)
 _COLOR_HELMET = (0, 140, 255)   # orange (BGR)
+_COLOR_VEST = (255, 0, 255)     # magenta (BGR)
 
 
 def annotate(frame_bgr, detections):
@@ -143,6 +145,8 @@ def annotate(frame_bgr, detections):
             color = _COLOR_HANDS
         elif class_lower == "helmet":
             color = _COLOR_HELMET
+        elif class_lower == "safety-vest":
+            color = _COLOR_VEST
         elif d.source == "roboflow":
             color = _COLOR_ROBOFLOW
         else:

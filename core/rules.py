@@ -96,19 +96,21 @@ class RuleResult:
     applicable: bool  # False = could not be judged; report as "unknown", not "pass"
 
 
-# A helmet box only has to be weakly present to veto a gloves box on the same
-# region, because the confusion runs one way. The detector keeps helmet boxes
-# down to this confidence as witnesses; correct_detections drops the weak ones
-# again after the veto so they never reach the rules or the overlay.
+# A helmet or vest box only has to be weakly present to veto a gloves box on
+# the same region, because the confusion runs one way. The detector keeps
+# these witness classes down to this confidence; correct_detections drops the
+# weak ones again after the veto so they never reach the rules or the overlay.
 HELMET_WITNESS_CONF = 0.2
+WITNESS_CLASSES = ("helmet", "safety-vest")
 
 
 def correct_detections(detections: list, conf: float) -> list:
     """Detection-level corrections the Spine applies before the rules:
-    helmet beats gloves on the same region (using any helmet box, including
-    weak witnesses below `conf`), then everything below `conf` is dropped.
-    Pure."""
+    helmet beats gloves on the same region, vest beats gloves on the same
+    box (both using any witness box, including weak ones below `conf`), then
+    everything below `conf` is dropped. Pure."""
     kept = suppress_gloves_on_helmet(detections)
+    kept = suppress_gloves_on_vest(kept)
     return [d for d in kept if d.conf >= conf]
 
 
@@ -127,6 +129,24 @@ def suppress_gloves_on_helmet(detections: list, overlap: float = 0.6) -> list:
     return [
         d for d in detections
         if not (_is_class(d, "gloves") and any(_intersection_over_smaller(d.box, h) > overlap for h in helmets))
+    ]
+
+
+def suppress_gloves_on_vest(detections: list, overlap: float = 0.6) -> list:
+    """Drop a `gloves` box that coincides with a `safety-vest` box.
+
+    Same one-way confusion as the helmet: the hi-vis vest is the glove's
+    yellow, so the whole vest gets called gloves. Measured as IoU, not
+    intersection over the smaller box, on purpose: a real glove held in
+    front of the chest sits mostly inside the vest box and must survive.
+    Only a gloves box that is the vest box gets dropped. Pure.
+    """
+    vests = [d.box for d in detections if _is_class(d, "safety-vest")]
+    if not vests:
+        return detections
+    return [
+        d for d in detections
+        if not (_is_class(d, "gloves") and any(iou(d.box, v) > overlap for v in vests))
     ]
 
 
