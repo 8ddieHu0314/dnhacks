@@ -220,10 +220,13 @@ def live_step(model_name, conf, roboflow_on, debounce_s, frame_rgb, session, req
     if frame_rgb is None:
         return gr.skip(), gr.skip(), gr.skip(), gr.skip()
 
-    key = (id(request), model_name, round(float(conf), 3), bool(roboflow_on), float(debounce_s))
-    if session is None or session.key != key:
+    # Hold the request object itself, not id(request): CPython reuses a freed
+    # object's address, so the next run's request could get the same id.
+    params = (model_name, round(float(conf), 3), bool(roboflow_on), float(debounce_s))
+    if session is None or session.request is not request or session.key != params:
         spine = build_spine(model_name, conf, roboflow_on, debounce_s, cached_tools=True)
-        session = LiveSession(spine, key)
+        session = LiveSession(spine, params)
+        session.request = request
 
     frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
     annotated_bgr, rows, stats = session.step(frame_bgr)
