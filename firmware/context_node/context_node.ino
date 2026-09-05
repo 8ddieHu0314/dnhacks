@@ -39,9 +39,6 @@ void setup() {
 
 void loop() {
   int capacitiveLevel = analogRead(ANTENNA_PIN);
-  bool tilted = digitalRead(TILT_PIN) == LOW;
-  long distance = distanceCm();
-  if (distance > 0 && distance <= ZONE_DISTANCE_CM) tone(BUZZER_PIN, 2000, 80);
-  printReading(capacitiveLevel, tilted, distance);
-  delay(250);
+  printReading(capacitiveLevel, false, -1);
+  delay(500);
 }
