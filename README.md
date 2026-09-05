@@ -40,3 +40,34 @@ emit the same `FrameMetadata + bytes` pair.
 - A segmentation-engine protocol and deterministic mock backend exercise the
   end-to-end contract without a GPU or model checkpoint.
 - Result and metrics endpoints expose regions, latency, and dropped-frame counts.
+
+## Run locally
+
+```bash
+cp .env.example .env
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+PYTHONPATH=services .venv/bin/uvicorn vision_api.main:app --reload
+```
+
+Create a session:
+
+```bash
+curl -X POST http://localhost:8000/v1/sessions
+```
+
+Then open a WebSocket to the returned session’s `/frames` URL. Send one
+`FrameMetadata` JSON message, then the matching JPEG/PNG/WebP bytes. The server
+responds with an acknowledgement; read `/results` for segmentation output.
+
+Run the initial test:
+
+```bash
+PYTHONPATH=services .venv/bin/python -m unittest discover -s tests -v
+```
+
+Docker is also available after creating `.env`:
+
+```bash
+docker compose up --build
+```
