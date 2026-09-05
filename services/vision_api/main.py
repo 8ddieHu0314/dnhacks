@@ -107,7 +107,7 @@ async def create_session(request: SessionRequest | None = None) -> SessionCreate
 async def ingest_frame(session_id: str, request: Request) -> IngestAcknowledgement:
     """HTTP fallback for a native device bridge posting one JPEG/PNG/WebP frame."""
 
-    validate_session(session_id)
+    workflow = workflow_for_session(session_id)
     try:
         metadata = FrameMetadata.model_validate_json(request.headers["x-frame-metadata"])
     except KeyError as exc:
@@ -119,7 +119,7 @@ async def ingest_frame(session_id: str, request: Request) -> IngestAcknowledgeme
         raise HTTPException(status_code=422, detail=f"Invalid frame metadata: {exc}") from exc
     image_bytes = await request.body()
     validate_frame_bytes(image_bytes)
-    dropped = await pipeline.submit(session_id, metadata, image_bytes)
+    dropped = await pipeline.submit(session_id, metadata, image_bytes, workflow)
     return IngestAcknowledgement(
         session_id=session_id, frame_id=metadata.frame_id, dropped_stale_frames=dropped
     )
@@ -154,6 +154,7 @@ async def ingest_frames_websocket(websocket: WebSocket, session_id: str) -> None
         await websocket.close(code=4404, reason="Unknown session")
         return
     await websocket.accept()
+    workflow = workflow_for_session(session_id)
     try:
         while True:
             metadata = await receive_metadata(websocket)
@@ -168,7 +169,7 @@ async def ingest_frames_websocket(websocket: WebSocket, session_id: str) -> None
                 continue
             try:
                 validate_frame_bytes(image_bytes)
-                dropped = await pipeline.submit(session_id, metadata, image_bytes)
+                dropped = await pipeline.submit(session_id, metadata, image_bytes, workflow)
                 acknowledgement = IngestAcknowledgement(
                     session_id=session_id,
                     frame_id=metadata.frame_id,
