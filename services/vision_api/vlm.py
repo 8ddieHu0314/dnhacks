@@ -82,3 +82,21 @@ class OpenAICompatibleVLM:
                 },
             ],
         }
+
+    async def analyze(self, frame: Frame) -> VisionOutput:
+        headers = {"content-type": "application/json"}
+        if self._api_key:
+            headers["authorization"] = f"Bearer {self._api_key}"
+        try:
+            async with httpx.AsyncClient(
+                timeout=self._timeout_seconds, transport=self._transport
+            ) as client:
+                response = await client.post(
+                    f"{self._base_url}/chat/completions",
+                    headers=headers,
+                    json=self._request_body(frame),
+                )
+                response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise VisionModelError(f"VLM request failed: {exc}") from exc
+        return completion_to_output(response.json())
