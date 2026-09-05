@@ -42,3 +42,18 @@ class VisionPipeline:
     @property
     def backend_name(self) -> str:
         return self._engine.name
+
+    async def start(self) -> None:
+        if self._worker is None:
+            self._stopping.clear()
+            self._worker = asyncio.create_task(self._run(), name="segmentation-worker")
+
+    async def stop(self) -> None:
+        self._stopping.set()
+        if self._worker is not None:
+            self._worker.cancel()
+            try:
+                await self._worker
+            except asyncio.CancelledError:
+                pass
+            self._worker = None
