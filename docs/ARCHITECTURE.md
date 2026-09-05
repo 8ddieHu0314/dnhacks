@@ -169,6 +169,31 @@ Label a few hundred frames from real glasses footage in Roboflow, train there,
 download or cache the weights, and run them locally like the tools model. Map the new
 class into the vocabulary table above.
 
+### Fine-tuning SH17 on a specific object (the `label/` tooling)
+
+When the SH17 model knows the class but not this instance (a yellow work glove it
+called `hands`), fine-tune it on captured footage instead of adding a plugin. Offline
+tooling in `label/`, nothing here runs on the frame path:
+
+- `label/gdino_label.py` turns capture sessions into an Ultralytics dataset. The
+  current SH17 model pseudo-labels every class except gloves/hands (so those classes
+  are not unlearned as background). Grounding DINO labels gloves and hands from a text
+  prompt, with a yellow-pixel gate as tiebreaker, a separate hard-hat prompt as a hard
+  negative, and a temporal rule (a confident helmet in a neighboring frame) for
+  helmets that win the glove label. Time-based train/val split per clip.
+- `label/eval_gloves.py` is the gate: gloves recall, bare-hand boxes on gloves, gloves
+  boxes on helmets, BARE_HANDS frame agreement, and a verdict regression over
+  `test_images/`. Exit 0 only on pass; swap weights only after it passes.
+- `label/compare_weights.py` draws old vs new side by side with the rule verdict.
+
+Train from `weights/yolo8s.pt` with the backbone frozen and augmentation on (hue
+jitter matters: with it off, v1 learned "yellow blob = gloves" and called a hard hat
+gloves 0.88). Output keeps the 17 class names, so it is a drop-in `MODEL_NAME`.
+
+The spine also applies one detection-level correction before the rules:
+`suppress_gloves_on_helmet` in `core/rules.py` drops a gloves box that mostly sits
+inside a helmet box, because the detector's confusion runs one way only.
+
 ## Recording and the session record
 
 Everything the report agent needs is written to disk during the session by code, not
