@@ -169,6 +169,7 @@ class Recorder:
 
         self._clip_lock = threading.Lock()
         self._active_clips = {}  # rule -> _ActiveClip
+        self._all_clips = []  # every _ActiveClip this session has ever created, closed or not
 
         self._events_lock = threading.Lock()
         self._events = []  # ordered queue of every fired event this session, oldest first
@@ -202,6 +203,7 @@ class Recorder:
                         lead_in = list(self._buffer)
                     clip = _ActiveClip(self.clips_dir, rule, ts, lead_in, self.fps_hint)
                     self._active_clips[rule] = clip
+                    self._all_clips.append(clip)
                     new_clips.append(clip)
             for rule in active_rules:
                 clip = self._active_clips.get(rule)
@@ -255,18 +257,24 @@ class Recorder:
             return list(self._events)
 
     def shutdown(self, timeout: float = 5.0) -> None:
-        """Force-close any still-open clips and block until each writer
-        thread has flushed to disk. A clip left open when the stream stops
-        (the wearer was still mid-violation) would otherwise sit in a daemon
-        thread's queue and be lost when the process exits. Call this once,
-        when the stream/session ends.
+        """Force-close any still-open clips, then block until EVERY clip
+        this session ever wrote -- including ones that already closed
+        naturally earlier (rule cleared plus the tail) -- has fully
+        flushed to disk. A clip left open when the stream stops (the
+        wearer was still mid-violation) would otherwise sit in a daemon
+        thread's queue and be lost when the process exits; a clip that
+        already closed still has no guarantee its writer thread finished
+        draining its queue unless something joins it, which is exactly
+        what this closes the gap on. Call this once, when the stream/
+        session ends, before treating any clip_path as ready to read.
         """
         with self._clip_lock:
-            clips = list(self._active_clips.values())
+            still_open = list(self._active_clips.values())
             self._active_clips.clear()
-        for clip in clips:
+            all_clips = list(self._all_clips)
+        for clip in still_open:
             clip.close()
-        for clip in clips:
+        for clip in all_clips:
             clip.join(timeout=timeout)
 
 
