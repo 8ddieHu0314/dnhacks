@@ -56,3 +56,23 @@ class SegmentationResult(BaseModel):
     completed_at: datetime = Field(default_factory=utc_now)
     latency_ms: float = Field(ge=0.0)
     regions: list[SegmentationRegion]
+
+
+class SessionCreated(BaseModel):
+    session_id: str
+    created_at: datetime
+
+
+class IngestAcknowledgement(BaseModel):
+    session_id: str
+    frame_id: str
+    accepted: bool = True
+    dropped_stale_frames: int = Field(ge=0)
+
+
+class SessionMetrics(BaseModel):
+    session_id: str
+    received_frames: int = Field(ge=0)
+    processed_frames: int = Field(ge=0)
+    dropped_stale_frames: int = Field(ge=0)
+    queue_depth: int = Field(ge=0)
