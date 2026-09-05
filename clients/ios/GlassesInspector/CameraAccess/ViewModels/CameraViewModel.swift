@@ -52,7 +52,7 @@ final class CameraViewModel {
   private(set) var hasActiveDevice: Bool = false
 
   // MARK: - Glasses Inspector: frame relay to the Mac receiver
-  let frameRelay = FrameRelay()
+  nonisolated let frameRelay: FrameRelay
 
   // MARK: - Session state (bound directly to the SDK)
 
@@ -184,6 +184,7 @@ final class CameraViewModel {
     wearables: WearablesInterface,
     backgroundStopErrorSuppressionTimeout: Duration = .seconds(5)
   ) {
+    self.frameRelay = FrameRelay()
     self.wearables = wearables
     self.deviceSelector = AutoDeviceSelector(wearables: wearables)
     self.backgroundStopErrorSuppressionTimeout = backgroundStopErrorSuppressionTimeout
@@ -506,6 +507,8 @@ final class CameraViewModel {
 
       // Decode the compressed hvc1 frame for preview off the main actor.
       let previewImage = self.videoFrameDecoder.decode(frame.sampleBuffer)
+      // Glasses Inspector: relay off the main actor too (throttle/encode/send in an actor).
+      if let previewImage { self.frameRelay.push(previewImage) }
 
       Task { @MainActor [weak self] in
         guard let self else { return }
@@ -516,7 +519,6 @@ final class CameraViewModel {
           let image = previewImage
         {
           self.currentVideoFrame = image
-          self.frameRelay.push(image)
           if !self.hasReceivedFirstFrame {
             self.hasReceivedFirstFrame = true
           }

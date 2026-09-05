@@ -17,6 +17,7 @@
 
 import Foundation
 import Network
+import QuartzCore
 import Observation
 import UIKit
 
@@ -398,6 +399,137 @@ final class RelayBrowser {
   }
 }
 
+/// Per-frame path, entirely off the main thread: throttle, latest-frame slot, encode, send, counters.
+actor RelayEngine {
+  struct Snapshot: Sendable {
+    var inputFPS = 0.0, outputFPS = 0.0
+    var sent = 0, dropped = 0, failed = 0, inFlight = 0
+    var frameKB = 0, encodeMillis = 0
+    var error: String?
+    var path = "not connected"
+    var events: [String] = []
+  }
+
+  let socket = RelaySocket()
+  var enabled = true
+  var targetFPS = 24.0
+  var quality: CGFloat = 0.7
+  var maxInFlight = 3
+
+  private var latest: (image: UIImage, millis: UInt64)?
+  private var inFlight = 0
+  private var lastAccepted: TimeInterval = 0
+  private var inputTimes: [TimeInterval] = []
+  private var sendTimes: [TimeInterval] = []
+  private var sent = 0, dropped = 0, failed = 0, frameKB = 0, encodeMillis = 0
+  private var error: String?
+
+  func configure(enabled: Bool, targetFPS: Double, quality: Double, maxInFlight: Int) {
+    self.enabled = enabled; self.targetFPS = targetFPS; self.quality = quality; self.maxInFlight = maxInFlight
+  }
+
+  func ingest(_ image: UIImage, at now: TimeInterval) {
+    guard enabled else { return }
+    inputTimes.append(now)
+    if inputTimes.count > 64 { inputTimes.removeFirst(inputTimes.count - 64) }
+    // Accept a little early so jitter at input ≈ cap doesn't reject every third frame.
+    guard now - lastAccepted >= 0.8 / max(targetFPS, 1) else { return }
+    lastAccepted = now
+    if inFlight < maxInFlight {
+      startSend(image, millis: UInt64(now * 1000))
+    } else {
+      if latest != nil { dropped += 1 }
+      latest = (image, UInt64(now * 1000))
+    }
+  }
+
+  private func startSend(_ image: UIImage, millis: UInt64) {
+    inFlight += 1
+    Task {
+      let t0 = Date()
+      do {
+        let bytes = try await socket.send(image: image, quality: quality, captureMillis: millis, timeout: 4)
+        sent += 1
+        frameKB = bytes / 1024
+        error = nil
+        let now = Date().timeIntervalSince1970
+        sendTimes.append(now)
+        if sendTimes.count > 64 { sendTimes.removeFirst(sendTimes.count - 64) }
+      } catch {
+        failed += 1
+        self.error = error.localizedDescription
+        try? await Task.sleep(for: .milliseconds(500))
+      }
+      encodeMillis = Int(Date().timeIntervalSince(t0) * 1000)
+      inFlight -= 1
+      if let next = latest {
+        latest = nil
+        startSend(next.image, millis: next.millis)
+      }
+    }
+  }
+
+  private static func rate(_ times: [TimeInterval], now: TimeInterval) -> Double {
+    let recent = times.filter { now - $0 <= 2 }
+    guard let first = recent.first, recent.count > 1, now > first else { return 0 }
+    return Double(recent.count - 1) / (now - first)
+  }
+
+  func snapshot() async -> Snapshot {
+    let now = Date().timeIntervalSince1970
+    return Snapshot(inputFPS: Self.rate(inputTimes, now: now), outputFPS: Self.rate(sendTimes, now: now),
+                    sent: sent, dropped: dropped, failed: failed, inFlight: inFlight,
+                    frameKB: frameKB, encodeMillis: encodeMillis, error: error,
+                    path: await socket.pathDescription, events: await socket.events)
+  }
+}
+
+/// Main-thread health: how late a 100 ms timer fires (stall) and the process CPU load.
+@MainActor
+final class MainThreadMeter {
+  private var timer: Timer?
+  private var expected: TimeInterval = 0
+  private var maxLate: TimeInterval = 0
+  private(set) var stallMillis = 0
+  private var lastCPU: (user: Double, sys: Double, at: TimeInterval)?
+  private(set) var cpuPercent = 0
+
+  func start() {
+    guard timer == nil else { return }
+    expected = CACurrentMediaTime() + 0.1
+    timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+      Task { @MainActor [weak self] in self?.tick() }
+    }
+  }
+
+  private func tick() {
+    let now = CACurrentMediaTime()
+    maxLate = max(maxLate, now - expected)
+    expected = now + 0.1
+  }
+
+  /// Publishes the worst stall since the last call and samples CPU.
+  func sample() {
+    stallMillis = Int(maxLate * 1000)
+    maxLate = 0
+    var info = task_thread_times_info()
+    var count = mach_msg_type_number_t(MemoryLayout<task_thread_times_info>.size / MemoryLayout<natural_t>.size)
+    let kr = withUnsafeMutablePointer(to: &info) {
+      $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+        task_info(mach_task_self_, task_flavor_t(TASK_THREAD_TIMES_INFO), $0, &count)
+      }
+    }
+    guard kr == KERN_SUCCESS else { return }
+    let user = Double(info.user_time.seconds) + Double(info.user_time.microseconds) / 1e6
+    let sys = Double(info.system_time.seconds) + Double(info.system_time.microseconds) / 1e6
+    let at = Date().timeIntervalSince1970
+    if let last = lastCPU, at > last.at {
+      cpuPercent = Int(((user - last.user) + (sys - last.sys)) / (at - last.at) * 100)
+    }
+    lastCPU = (user, sys, at)
+  }
+}
+
 @Observable
 @MainActor
 final class FrameRelay {
@@ -423,18 +555,17 @@ final class FrameRelay {
   var preferCable: Bool {
     didSet { UserDefaults.standard.set(preferCable, forKey: Self.preferCableKey); applyTarget() }
   }
-  var isEnabled: Bool = true
+  var isEnabled: Bool = true { didSet { pushSettings() } }
   var targetFPS: Double {
-    didSet { UserDefaults.standard.set(targetFPS, forKey: Self.fpsKey) }
+    didSet { UserDefaults.standard.set(targetFPS, forKey: Self.fpsKey); pushSettings() }
   }
   var jpegQuality: Double {
-    didSet { UserDefaults.standard.set(jpegQuality, forKey: Self.qualityKey) }
+    didSet { UserDefaults.standard.set(jpegQuality, forKey: Self.qualityKey); pushSettings() }
   }
-  /// Frames allowed on the wire at once. >1 overlaps network latency with the next encode.
-  var maxInFlight: Int = 3
+  var maxInFlight: Int = 3 { didSet { pushSettings() } }
 
-  // MARK: Published snapshot (updated at most twice a second so the camera screen
-  // does not re-render at frame rate).
+  // MARK: Published snapshot (refreshed twice a second; the camera screen never
+  // re-renders per frame because of the relay).
   private(set) var statusText: String = "idle"
   private(set) var pathDescription: String = "not connected"
   private(set) var socketEvents: [String] = []
@@ -445,8 +576,24 @@ final class FrameRelay {
   private(set) var lastFrameKB: Int = 0
   private(set) var effectiveFPS: Double = 0
   private(set) var inputFPS: Double = 0
+  private(set) var uiStallMillis: Int = 0
+  private(set) var cpuPercent: Int = 0
+  private(set) var encodeMillis: Int = 0
 
   var diagnostics: [String] { (browser.events.suffix(4) + socketEvents.suffix(14)) }
+
+  var activeTargetDescription: String {
+    if useManualURL { return "\(manualURL) via \(pathDescription)" }
+    if let name = serviceName.isEmpty ? browser.found.first?.name : serviceName {
+      return "\(name) via \(pathDescription)"
+    }
+    return "nothing discovered, using \(manualURL) via \(pathDescription)"
+  }
+
+  let browser = RelayBrowser()
+  private let engine = RelayEngine()
+  private let meter = MainThreadMeter()
+  @ObservationIgnored private var statsTask: Task<Void, Never>?
 
   // MARK: Claude analysis -> speech
   let speaker = Speaker()
@@ -462,72 +609,6 @@ final class FrameRelay {
   private(set) var narrationInterval: Double = 8
   private(set) var lastCommandError: String?
 
-  /// Ask the Mac to analyze the current frame; the answer comes back as speech.
-  func requestInspect(question: String? = nil) {
-    caption = ""
-    captionFinal = false
-    var msg: [String: Any] = ["type": "inspect"]
-    if let question, !question.isEmpty { msg["question"] = question }
-    sendCommand(msg)
-  }
-
-  func setNarration(enabled: Bool, interval: Double) {
-    sendCommand(["type": "narrate", "enabled": enabled, "interval": interval])
-  }
-
-  private func sendCommand(_ msg: [String: Any]) {
-    guard let data = try? JSONSerialization.data(withJSONObject: msg), let text = String(data: data, encoding: .utf8) else { return }
-    Task { [socket] in
-      do { try await socket.sendText(text); await MainActor.run { self.lastCommandError = nil } }
-      catch { await MainActor.run { self.lastCommandError = error.localizedDescription } }
-    }
-  }
-
-  private func handleServerText(_ text: String) {
-    guard let data = text.data(using: .utf8),
-      let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-      let kind = obj["type"] as? String else { return }
-    switch kind {
-    case "speak":
-      if let t = obj["text"] as? String {
-        caption = caption.isEmpty ? t : caption + " " + t
-        captionFinal = false
-        if speakEnabled { speaker.speak(t) }
-      }
-    case "speak_end":
-      captionFinal = true
-    case "narration":
-      narrationEnabled = obj["enabled"] as? Bool ?? false
-      narrationInterval = obj["interval"] as? Double ?? narrationInterval
-    default:
-      break
-    }
-  }
-
-  var activeTargetDescription: String {
-    if useManualURL { return "\(manualURL) via \(pathDescription)" }
-    if let name = serviceName.isEmpty ? browser.found.first?.name : serviceName {
-      return "\(name) via \(pathDescription)"
-    }
-    return "nothing discovered, using \(manualURL) via \(pathDescription)"
-  }
-
-  let browser = RelayBrowser()
-
-  // MARK: Live counters (not observed by SwiftUI)
-  @ObservationIgnored private let socket = RelaySocket()
-  @ObservationIgnored private var latest: (image: UIImage, millis: UInt64)?
-  @ObservationIgnored private var inFlight = 0
-  @ObservationIgnored private var lastAccepted: TimeInterval = 0
-  @ObservationIgnored private var sendTimes: [TimeInterval] = []
-  @ObservationIgnored private var inputTimes: [TimeInterval] = []
-  @ObservationIgnored private var cSent = 0
-  @ObservationIgnored private var cDropped = 0
-  @ObservationIgnored private var cFailed = 0
-  @ObservationIgnored private var cError: String?
-  @ObservationIgnored private var cFrameKB = 0
-  @ObservationIgnored private var lastPublish: TimeInterval = 0
-
   init() {
     let d = UserDefaults.standard
     serviceName = d.string(forKey: Self.serviceKey) ?? ""
@@ -539,12 +620,43 @@ final class FrameRelay {
     speakEnabled = d.object(forKey: "relaySpeak") as? Bool ?? true
     browser.onUpdate = { [weak self] in self?.applyTarget() }
     browser.start()
+    meter.start()
     applyTarget()
-    Task { [socket] in
-      await socket.setTextHandler { [weak self] text in
+    pushSettings()
+    Task { [engine] in
+      await engine.socket.setTextHandler { [weak self] text in
         Task { @MainActor [weak self] in self?.handleServerText(text) }
       }
     }
+    statsTask = Task { [weak self] in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .milliseconds(500))
+        await self?.refreshStats()
+      }
+    }
+  }
+
+  private func pushSettings() {
+    let e = isEnabled, f = targetFPS, q = jpegQuality, m = maxInFlight
+    Task { [engine] in await engine.configure(enabled: e, targetFPS: f, quality: q, maxInFlight: m) }
+  }
+
+  private func refreshStats() async {
+    let snap = await engine.snapshot()
+    meter.sample()
+    inputFPS = snap.inputFPS
+    effectiveFPS = snap.outputFPS
+    sentFrames = snap.sent
+    droppedFrames = snap.dropped
+    failedFrames = snap.failed
+    lastError = snap.error
+    lastFrameKB = snap.frameKB
+    encodeMillis = snap.encodeMillis
+    uiStallMillis = meter.stallMillis
+    cpuPercent = meter.cpuPercent
+    if snap.path != pathDescription { pathDescription = snap.path }
+    if snap.events != socketEvents { socketEvents = snap.events }
+    statusText = snap.error ?? "in \(String(format: "%.1f", inputFPS)) · out \(String(format: "%.1f", effectiveFPS)) fps · \(lastFrameKB) KB · enc \(encodeMillis) ms · ui stall \(uiStallMillis) ms · cpu \(cpuPercent)% · \(sentFrames) sent"
   }
 
   private func applyTarget() {
@@ -581,77 +693,54 @@ final class FrameRelay {
       lanURL = r.urls.first(where: { !$0.contains("169.254") }).flatMap(wsURL)
     }
     let prefer = preferCable
-    Task { [socket] in await socket.configure(target: target, cableURL: cableURL, lanURL: lanURL, preferCable: prefer) }
+    Task { [engine] in await engine.socket.configure(target: target, cableURL: cableURL, lanURL: lanURL, preferCable: prefer) }
   }
 
-  /// Called on every decoded preview frame; cheap to call at 24 fps. Event-driven: a frame
-  /// is sent immediately if there is capacity, otherwise it replaces the pending one.
-  func push(_ image: UIImage) {
-    guard isEnabled else { return }
+  /// Called from the toolkit's frame callback (any thread). Never touches the main actor.
+  nonisolated func push(_ image: UIImage) {
     let now = Date().timeIntervalSince1970
-    inputTimes.append(now)
-    inputTimes.removeAll { now - $0 > 2 }
-    // Accept a little early so jitter at input ≈ cap doesn't reject every third frame.
-    guard now - lastAccepted >= 0.8 / max(targetFPS, 1) else { publishIfDue(now); return }
-    lastAccepted = now
-    if inFlight < maxInFlight {
-      startSend(image, millis: UInt64(now * 1000))
-    } else {
-      if latest != nil { cDropped += 1 }
-      latest = (image, UInt64(now * 1000))
-    }
-    publishIfDue(now)
+    Task { [engine] in await engine.ingest(image, at: now) }
   }
 
-  private func startSend(_ image: UIImage, millis: UInt64) {
-    inFlight += 1
-    let quality = jpegQuality
-    Task { [weak self] in
-      guard let self else { return }
-      do {
-        let bytes = try await self.socket.send(image: image, quality: quality, captureMillis: millis, timeout: 4)
-        self.cSent += 1
-        self.cFrameKB = bytes / 1024
-        self.cError = nil
-        let now = Date().timeIntervalSince1970
-        self.sendTimes.append(now)
-        self.sendTimes.removeAll { now - $0 > 2 }
-      } catch {
-        self.cFailed += 1
-        self.cError = error.localizedDescription
-        try? await Task.sleep(for: .milliseconds(500))
-      }
-      self.inFlight -= 1
-      if let next = self.latest {
-        self.latest = nil
-        self.startSend(next.image, millis: next.millis)
-      }
-      self.publishIfDue(Date().timeIntervalSince1970, force: self.cError != nil)
+  /// Ask the Mac to analyze the current frame; the answer comes back as speech.
+  func requestInspect(question: String? = nil) {
+    caption = ""
+    captionFinal = false
+    var msg: [String: Any] = ["type": "inspect"]
+    if let question, !question.isEmpty { msg["question"] = question }
+    sendCommand(msg)
+  }
+
+  func setNarration(enabled: Bool, interval: Double) {
+    sendCommand(["type": "narrate", "enabled": enabled, "interval": interval])
+  }
+
+  private func sendCommand(_ msg: [String: Any]) {
+    guard let data = try? JSONSerialization.data(withJSONObject: msg), let text = String(data: data, encoding: .utf8) else { return }
+    Task { [engine] in
+      do { try await engine.socket.sendText(text); await MainActor.run { self.lastCommandError = nil } }
+      catch { await MainActor.run { self.lastCommandError = error.localizedDescription } }
     }
   }
 
-  /// Copy live counters into the observed properties, at most twice a second.
-  private func publishIfDue(_ now: TimeInterval, force: Bool = false) {
-    guard force || now - lastPublish >= 0.5 else { return }
-    lastPublish = now
-    if let first = inputTimes.first, now > first, inputTimes.count > 1 {
-      inputFPS = Double(inputTimes.count - 1) / (now - first)
-    } else { inputFPS = 0 }
-    if let first = sendTimes.first, now > first, sendTimes.count > 1 {
-      effectiveFPS = Double(sendTimes.count - 1) / (now - first)
-    } else { effectiveFPS = 0 }
-    sentFrames = cSent
-    droppedFrames = cDropped
-    failedFrames = cFailed
-    lastError = cError
-    lastFrameKB = cFrameKB
-    statusText = cError ?? "in \(String(format: "%.1f", inputFPS)) · out \(String(format: "%.1f", effectiveFPS)) fps · \(lastFrameKB) KB · \(inFlight) inflight · \(sentFrames) sent"
-    Task { [weak self] in
-      guard let self else { return }
-      let path = await self.socket.pathDescription
-      let events = await self.socket.events
-      if path != self.pathDescription { self.pathDescription = path }
-      if events != self.socketEvents { self.socketEvents = events }
+  private func handleServerText(_ text: String) {
+    guard let data = text.data(using: .utf8),
+      let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+      let kind = obj["type"] as? String else { return }
+    switch kind {
+    case "speak":
+      if let t = obj["text"] as? String {
+        caption = caption.isEmpty ? t : caption + " " + t
+        captionFinal = false
+        if speakEnabled { speaker.speak(t) }
+      }
+    case "speak_end":
+      captionFinal = true
+    case "narration":
+      narrationEnabled = obj["enabled"] as? Bool ?? false
+      narrationInterval = obj["interval"] as? Double ?? narrationInterval
+    default:
+      break
     }
   }
 }
