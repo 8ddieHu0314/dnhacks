@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PPE Sentinel capture</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --line:#2a2f3a; --fg:#e7e9ee; --muted:#8b93a3; --accent:#f5c518; --ok:#3ddc84; --bad:#ff5f56; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:16px; }
+  header h1 { margin:0; font-size:18px; }
+  header span { color:var(--muted); font-size:13px; }
+  main { display:grid; grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap:20px; padding:20px 24px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  h2 { margin:0 0 12px; font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  video { width:100%; background:#000; border-radius:8px; aspect-ratio:4/3; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:12px; }
+  button, select, input[type=file] { font:inherit; }
+  button { background:#262b36; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:8px 14px; cursor:pointer; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:default; }
+  button.primary { background:var(--accent); color:#111; border-color:var(--accent); font-weight:600; }
+  button.danger { background:var(--bad); color:#fff; border-color:var(--bad); font-weight:600; }
+  select { background:#262b36; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:8px 10px; max-width:100%; }
+  label { color:var(--muted); font-size:13px; }
+  .timer { font-variant-numeric:tabular-nums; font-weight:600; min-width:64px; }
+  .rec { color:var(--bad); }
+  .status { margin-top:10px; color:var(--muted); font-size:13px; min-height:1.4em; white-space:pre-wrap; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; white-space:nowrap; }
+  td:first-child { white-space:normal; word-break:break-all; font-family:ui-monospace, Menlo, monospace; font-size:12px; }
+  th { color:var(--muted); font-weight:500; }
+  td a { color:var(--accent); text-decoration:none; }
+  .verdict { font-size:13px; }
+  .verdict .fired { color:var(--bad); font-weight:600; }
+  .verdict .clear { color:var(--ok); }
+  .verdict ul { margin:6px 0 0; padding-left:18px; color:var(--muted); }
+  .hint { color:var(--muted); font-size:12px; }
+  progress { width:100%; height:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PPE Sentinel capture</h1>
+  <span>record from a camera, upload to the server, download the frames</span>
+</header>
+<main>
+  <div style="display:flex; flex-direction:column; gap:20px; min-width:0;">
+    <section>
+      <h2>1. Camera</h2>
+      <video id="preview" autoplay muted playsinline></video>
+      <div class="row">
+        <label for="camera">Camera</label>
+        <select id="camera"></select>
+        <button id="refreshCams" title="Re-scan cameras (plug in a phone via Continuity Camera, then refresh)">Rescan</button>
+      </div>
+      <div class="row">
+        <button id="recBtn" class="primary">Start recording</button>
+        <span id="timer" class="timer">00:00</span>
+        <label><input type="checkbox" id="liveJudge"> Live verdict while recording (posts ~5 fps to /frame)</label>
+      </div>
+      <div id="camStatus" class="status"></div>
+    </section>
+
+    <section>
+      <h2>2. Recording</h2>
+      <video id="playback" controls playsinline hidden></video>
+      <div class="row">
+        <label for="everyN">Keep every</label>
+        <select id="everyN">
+          <option value="1">1st frame (all)</option>
+          <option value="2">2nd frame</option>
+          <option value="3" selected>3rd frame</option>
+          <option value="5">5th frame</option>
+          <option value="10">10th frame</option>
+        </select>
+        <button id="uploadBtn" disabled>Upload to server</button>
+        <a id="downloadRec" hidden><button>Download recording</button></a>
+      </div>
+      <div class="row">
+        <label for="fileInput">Or upload a video file (AirDropped from a phone works)</label>
+        <input type="file" id="fileInput" accept="video/*">
+      </div>
+      <progress id="uploadProgress" value="0" max="100" hidden></progress>
+      <div id="uploadStatus" class="status"></div>
+    </section>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:20px; min-width:0;">
+    <section>
+      <h2>Live verdict</h2>
+      <div id="verdict" class="verdict hint">Enable "Live verdict" and start recording to see what the model thinks.</div>
+    </section>
+
+    <section>
+      <h2>3. Sessions on disk</h2>
+      <div class="row" style="margin-top:0; margin-bottom:10px;">
+        <button id="refreshSessions">Refresh</button>
+        <span class="hint">Each row is a folder under sessions/. Zip includes frames, clips, keyframes, events.</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="sessions">
+          <thead><tr><th>Session</th><th>Frames</th><th>Clips</th><th>Size</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const preview = $("preview"), playback = $("playback"), camSel = $("camera");
+  const recBtn = $("recBtn"), timerEl = $("timer"), camStatus = $("camStatus");
+  const uploadBtn = $("uploadBtn"), downloadRec = $("downloadRec"), uploadStatus = $("uploadStatus");
+  const uploadProgress = $("uploadProgress"), fileInput = $("fileInput"), everyN = $("everyN");
+  const liveJudge = $("liveJudge"), verdictEl = $("verdict");
+
+  let stream = null, recorder = null, chunks = [], blob = null, mime = "";
+  let timerId = null, t0 = 0, liveId = null, liveBusy = false;
+
+  const fmtTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  const fmtBytes = (b) => b > 1e9 ? (b / 1e9).toFixed(2) + " GB" : b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.round(b / 1e3) + " KB";
+
+  function pickMime() {
+    const candidates = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"];
+    return candidates.find((c) => window.MediaRecorder && MediaRecorder.isTypeSupported(c)) || "";
+  }
+
+  async function listCameras() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cams = devices.filter((d) => d.kind === "videoinput");
+    const current = camSel.value;
+    camSel.innerHTML = "";
+    cams.forEach((c, i) => {
+      const o = document.createElement("option");
+      o.value = c.deviceId;
+      o.textContent = c.label || `Camera ${i + 1}`;
+      camSel.appendChild(o);
+    });
+    if (current && [...camSel.options].some((o) => o.value === current)) camSel.value = current;
+  }
+
+  async function startCamera(deviceId) {
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+    const video = deviceId ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+                           : { width: { ideal: 1280 }, height: { ideal: 720 } };
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video, audio: false });
+      preview.srcObject = stream;
+      const s = stream.getVideoTracks()[0].getSettings();
+      camStatus.textContent = `Camera ready: ${s.width}x${s.height}${s.frameRate ? " @ " + Math.round(s.frameRate) + " fps" : ""}`;
+      await listCameras();
+    } catch (e) {
+      camStatus.textContent = "Camera error: " + e.message + ". Allow camera access for localhost in the browser.";
+    }
+  }
+
+  camSel.addEventListener("change", () => startCamera(camSel.value));
+  $("refreshCams").addEventListener("click", async () => { await listCameras(); camStatus.textContent = `${camSel.options.length} camera(s) found`; });
+
+  function grabJpeg() {
+    const w = preview.videoWidth, h = preview.videoHeight;
+    if (!w || !h) return Promise.resolve(null);
+    const canvas = grabJpeg.canvas || (grabJpeg.canvas = document.createElement("canvas"));
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(preview, 0, 0, w, h);
+    return new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.85));
+  }
+
+  async function liveTick() {
+    if (liveBusy) return;
+    liveBusy = true;
+    try {
+      const jpeg = await grabJpeg();
+      if (jpeg) {
+        await fetch("/frame", { method: "POST", body: jpeg, headers: { "Content-Type": "image/jpeg" } });
+        const r = await fetch("/latest");
+        if (r.ok) renderVerdict(await r.json());
+      }
+    } catch (e) {
+      verdictEl.textContent = "Live verdict error: " + e.message;
+    } finally {
+      liveBusy = false;
+    }
+  }
+
+  function renderVerdict(j) {
+    const fired = (j.fired || []).map((f) => f.rule);
+    const active = (j.rule_results || []).filter((r) => r.active).map((r) => `${r.rule}: ${r.detail}`);
+    const dets = (j.detections || []).map((d) => `${d.class} ${d.conf.toFixed(2)}`);
+    verdictEl.innerHTML =
+      `<div class="${fired.length ? "fired" : "clear"}">${fired.length ? "FIRED: " + fired.join(", ") : (active.length ? "active, debouncing" : "compliant")}</div>` +
+      (j.sentence ? `<div>"${j.sentence}"</div>` : "") +
+      `<ul>${active.map((a) => `<li>${a}</li>`).join("")}</ul>` +
+      `<div class="hint" style="margin-top:6px">detections: ${dets.length ? dets.join(", ") : "none"} · ${Math.round(j.latency_ms || 0)} ms</div>`;
+  }
+
+  function startRecording() {
+    if (!stream) { camStatus.textContent = "No camera stream yet."; return; }
+    mime = pickMime();
+    chunks = []; blob = null;
+    try {
+      recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 6_000_000 } : undefined);
+    } catch (e) {
+      camStatus.textContent = "MediaRecorder error: " + e.message;
+      return;
+    }
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    recorder.onstop = finishRecording;
+    recorder.start(1000);
+    t0 = Date.now();
+    timerEl.classList.add("rec");
+    timerId = setInterval(() => { timerEl.textContent = fmtTime(Math.floor((Date.now() - t0) / 1000)); }, 250);
+    recBtn.textContent = "Stop recording";
+    recBtn.classList.remove("primary"); recBtn.classList.add("danger");
+    uploadBtn.disabled = true; downloadRec.hidden = true; playback.hidden = true;
+    uploadStatus.textContent = "";
+    if (liveJudge.checked) liveId = setInterval(liveTick, 200);
+    camSel.disabled = true;
+  }
+
+  function stopRecording() {
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+    clearInterval(timerId); timerId = null;
+    if (liveId) { clearInterval(liveId); liveId = null; }
+    timerEl.classList.remove("rec");
+    recBtn.textContent = "Start recording";
+    recBtn.classList.add("primary"); recBtn.classList.remove("danger");
+    camSel.disabled = false;
+  }
+
+  function finishRecording() {
+    blob = new Blob(chunks, { type: (recorder && recorder.mimeType) || mime || "video/webm" });
+    const url = URL.createObjectURL(blob);
+    playback.src = url; playback.hidden = false;
+    const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    downloadRec.href = url; downloadRec.download = `capture_${stamp}.${ext}`; downloadRec.hidden = false;
+    uploadBtn.disabled = false;
+    uploadStatus.textContent = `Recorded ${fmtBytes(blob.size)} (${blob.type}). Upload it to extract frames, or download it.`;
+  }
+
+  recBtn.addEventListener("click", () => (recorder && recorder.state === "recording") ? stopRecording() : startRecording());
+
+  function uploadVideo(file, name) {
+    return new Promise((resolve, reject) => {
+      const fd = new FormData();
+      fd.append("video", file, name);
+      fd.append("every_n", everyN.value);
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/upload");
+      uploadProgress.hidden = false; uploadProgress.value = 0;
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) uploadProgress.value = Math.round((e.loaded / e.total) * 100); };
+      xhr.onload = () => {
+        uploadProgress.hidden = true;
+        if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+        else reject(new Error(`${xhr.status}: ${xhr.responseText}`));
+      };
+      xhr.onerror = () => { uploadProgress.hidden = true; reject(new Error("network error")); };
+      uploadStatus.textContent = "Uploading, then extracting frames on the server (this can take a minute for long clips)...";
+      xhr.send(fd);
+    });
+  }
+
+  async function handleUpload(file, name) {
+    uploadBtn.disabled = true;
+    try {
+      const r = await uploadVideo(file, name);
+      uploadStatus.textContent =
+        `Saved to ${r.session_dir}: ${r.frames_written} frames written out of ${r.total_frames} decoded ` +
+        `(${r.fps ? r.fps.toFixed(1) + " fps source, " : ""}every ${r.every_n}${r.every_n === 1 ? "" : r.every_n === 2 ? "nd" : r.every_n === 3 ? "rd" : "th"} frame).`;
+      await loadSessions();
+    } catch (e) {
+      uploadStatus.textContent = "Upload failed: " + e.message;
+    } finally {
+      uploadBtn.disabled = !blob;
+    }
+  }
+
+  uploadBtn.addEventListener("click", () => { if (blob) handleUpload(blob, downloadRec.download || "capture.webm"); });
+  fileInput.addEventListener("change", () => { const f = fileInput.files[0]; if (f) handleUpload(f, f.name); fileInput.value = ""; });
+
+  async function loadSessions() {
+    const tbody = document.querySelector("#sessions tbody");
+    try {
+      const r = await fetch("/sessions");
+      const j = await r.json();
+      tbody.innerHTML = "";
+      if (!j.sessions.length) { tbody.innerHTML = `<tr><td colspan="5" class="hint">No sessions yet.</td></tr>`; return; }
+      for (const s of j.sessions) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${s.id}${s.live ? ' <span class="hint">(live)</span>' : ""}</td><td>${s.frames}</td><td>${s.clips}</td><td>${fmtBytes(s.bytes)}</td>` +
+          `<td><a href="/sessions/${encodeURIComponent(s.id)}/download">Download zip</a></td>`;
+        tbody.appendChild(tr);
+      }
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="5">Could not list sessions: ${e.message}</td></tr>`;
+    }
+  }
+  $("refreshSessions").addEventListener("click", loadSessions);
+
+  window.addEventListener("beforeunload", (e) => { if (recorder && recorder.state === "recording") { e.preventDefault(); e.returnValue = ""; } });
+
+  startCamera(null);
+  loadSessions();
+})();
+</script>
+</body>
+</html>

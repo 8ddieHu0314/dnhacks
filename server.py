@@ -7,14 +7,17 @@ Launch: .venv/bin/uvicorn server:app --host 0.0.0.0 --port 8000
 """
 
 import os
+import re
+import shutil
 import threading
 import time
+import zipfile
 
 import cv2
 import numpy as np
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.detectors import SH17Detector
@@ -160,6 +163,127 @@ def get_events():
             item["keyframe_url"] = f"/keyframes/{os.path.basename(item['keyframe_path'])}"
         events.append(item)
     return {"recording": True, "session_dir": recorder.session_dir, "events": events}
+
+
+SESSIONS_DIR = "sessions"
+_STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_\-T]+$")
+
+
+@app.get("/")
+def get_capture_page():
+    """Browser capture page: record from a camera, upload the clip, download
+    sessions. Camera access needs a secure context, so open it on the Mac at
+    http://127.0.0.1:8000/ (an iPhone can join as a Continuity Camera)."""
+    return FileResponse(os.path.join(_STATIC_DIR, "capture.html"))
+
+
+def _extract_frames(video_path: str, frames_dir: str, every_n: int) -> dict:
+    """Decode a video and write every Nth frame as frames/<index>.jpg. Runs
+    on the request threadpool (sync endpoint), never on the live frame path."""
+    os.makedirs(frames_dir, exist_ok=True)
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError("OpenCV could not open the uploaded video")
+    fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
+    total = written = 0
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+        if total % every_n == 0:
+            cv2.imwrite(os.path.join(frames_dir, f"{total:06d}.jpg"), frame, [cv2.IMWRITE_JPEG_QUALITY, 92])
+            written += 1
+        total += 1
+    cap.release()
+    return {"total_frames": total, "frames_written": written, "fps": fps}
+
+
+@app.post("/upload")
+def post_upload(video: UploadFile = File(...), every_n: int = Form(3)):
+    """Save an uploaded clip under sessions/capture_<t>/ and extract frames
+    from it for training data. Accepts whatever the browser's MediaRecorder
+    or a phone produced (webm, mp4, mov)."""
+    every_n = max(1, int(every_n))
+    ext = os.path.splitext(video.filename or "")[1].lower() or ".webm"
+    if not re.fullmatch(r"\.[a-z0-9]{1,5}", ext):
+        ext = ".webm"
+    session_id = time.strftime("capture_%Y%m%dT%H%M%S")
+    session_dir = os.path.join(SESSIONS_DIR, session_id)
+    os.makedirs(session_dir, exist_ok=True)
+    source_path = os.path.join(session_dir, f"source{ext}")
+    with open(source_path, "wb") as out:
+        shutil.copyfileobj(video.file, out)
+
+    try:
+        stats = _extract_frames(source_path, os.path.join(session_dir, "frames"), every_n)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc), "session_dir": session_dir}, status_code=400)
+
+    return {
+        "session_id": session_id,
+        "session_dir": session_dir,
+        "source": source_path,
+        "every_n": every_n,
+        **stats,
+        "download_url": f"/sessions/{session_id}/download",
+    }
+
+
+def _dir_stats(path: str) -> tuple:
+    n_bytes = 0
+    for root, _dirs, files in os.walk(path):
+        for f in files:
+            try:
+                n_bytes += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                pass
+    return n_bytes
+
+
+def _count_files(path: str) -> int:
+    return len(os.listdir(path)) if os.path.isdir(path) else 0
+
+
+@app.get("/sessions")
+def list_sessions():
+    """Every session folder on disk, newest first, with frame and clip counts."""
+    if not os.path.isdir(SESSIONS_DIR):
+        return {"sessions": []}
+    live_id = recorder.session_id if recorder is not None else None
+    out = []
+    for sid in sorted(os.listdir(SESSIONS_DIR), reverse=True):
+        p = os.path.join(SESSIONS_DIR, sid)
+        if not os.path.isdir(p) or not _SESSION_ID_RE.match(sid):
+            continue
+        out.append(
+            {
+                "id": sid,
+                "live": sid == live_id,
+                "frames": _count_files(os.path.join(p, "frames")),
+                "clips": _count_files(os.path.join(p, "clips")),
+                "bytes": _dir_stats(p),
+            }
+        )
+    return {"sessions": out}
+
+
+@app.get("/sessions/{session_id}/download")
+def download_session(session_id: str):
+    """Zip a session folder (frames, clips, keyframes, events, source clip)
+    and send it. The zip is rebuilt each time, next to the folder."""
+    if not _SESSION_ID_RE.match(session_id):
+        return JSONResponse({"error": "bad session id"}, status_code=400)
+    session_dir = os.path.join(SESSIONS_DIR, session_id)
+    if not os.path.isdir(session_dir):
+        return JSONResponse({"error": "no such session"}, status_code=404)
+    zip_path = os.path.join(SESSIONS_DIR, f"{session_id}.zip")
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as zf:
+        for root, _dirs, files in os.walk(session_dir):
+            for f in sorted(files):
+                full = os.path.join(root, f)
+                zf.write(full, os.path.relpath(full, SESSIONS_DIR))
+    return FileResponse(zip_path, media_type="application/zip", filename=f"{session_id}.zip")
 
 
 @app.get("/health")

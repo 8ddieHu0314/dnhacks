@@ -187,8 +187,19 @@ When a rule fires (the debounce passes), the recorder dumps the ring buffer to
 clears plus a tail of a few seconds. Result: full frame rate video of the lead-up,
 the violation, and the recovery, for every incident, and nothing else.
 
-`--record-all` writes the whole session as one file for supervised training runs.
-It is off by default because it fills a disk quickly.
+`--record-all` (`RECORD_ALL=1` on the server) also writes every ingested frame as a
+JPEG under `sessions/<id>/frames/` for supervised training runs. It is off by default
+because it fills a disk quickly.
+
+### Capture page
+
+`server.py` serves `static/capture.html` at `/`. It records from a camera in the
+browser (the Mac's webcam, or an iPhone via Continuity Camera; camera access needs
+localhost or HTTPS), optionally posts frames to `/frame` for a live verdict while
+recording, and uploads the clip or any video file to `POST /upload`, which decodes it
+with OpenCV and writes every Nth frame to `sessions/capture_<t>/frames/`. `GET
+/sessions` lists every session folder and `GET /sessions/<id>/download` zips one.
+Upload decoding runs on the request threadpool, never on the live frame path.
 
 ### Session folder layout
 
