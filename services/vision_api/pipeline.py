@@ -74,3 +74,15 @@ class VisionPipeline:
             self._dropped[discarded.session_id] += 1
         self._queue.put_nowait(frame)
         return self._dropped[session_id]
+
+    def results_for(self, session_id: str) -> list[SegmentationResult]:
+        return list(self._results[session_id])
+
+    def metrics_for(self, session_id: str) -> SessionMetrics:
+        return SessionMetrics(
+            session_id=session_id,
+            received_frames=self._received[session_id],
+            processed_frames=self._processed[session_id],
+            dropped_stale_frames=self._dropped[session_id],
+            queue_depth=self._queue.qsize(),
+        )
