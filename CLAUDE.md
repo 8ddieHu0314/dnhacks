@@ -18,8 +18,10 @@ Run things:
 - `.venv/bin/python smoke.py test_images/<file>.jpg` one image through the spine
 - `.venv/bin/python stream_demo.py --no-speak` fake 10 fps feed, proves the debounce
 - `.venv/bin/python stream_demo.py --fps 30 --show` smooth overlay window
-- `.venv/bin/python app.py` Gradio playground on http://127.0.0.1:7860
+- `.venv/bin/python app.py` Gradio playground on http://127.0.0.1:7860 (Image, Video, Live webcam tabs)
 - `.venv/bin/uvicorn server:app --port 8000` endpoint the iPhone posts frames to
+- `.venv/bin/python -m pytest tests/unit tests/integration -q` fast tests, no weights needed
+- `.venv/bin/python -m pytest tests/e2e -q -m e2e` Playwright drives the Live tab with a fake webcam, loads weights
 
 Setup: `./setup.sh` on a fresh clone (venv, pinned deps from requirements-lock.txt, SH17 weights).
 Secrets: `ROBOFLOW_API_KEY` lives in `.env` (gitignored), only needed to fetch a model bundle. Never print it.

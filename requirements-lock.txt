@@ -94,3 +94,6 @@ ultralytics-thop==2.1.6
 urllib3==2.7.0
 uvicorn==0.52.4
 yarl==1.24.5
+pytest==9.1.1
+playwright==1.62.0
+pytest-playwright==0.9.0
