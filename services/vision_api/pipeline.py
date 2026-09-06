@@ -4,6 +4,7 @@ import asyncio
 import logging
 import time
 from collections import defaultdict, deque
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 
 from .models import Frame, FrameMetadata, SegmentationResult, SessionMetrics, WorkflowDefinition
@@ -30,6 +31,7 @@ class VisionPipeline:
         *,
         queue_capacity: int,
         result_history: int,
+        on_result: Callable[[SegmentationResult], Awaitable[None]] | None = None,
     ) -> None:
         self._engine = engine
         self._queue: asyncio.Queue[Frame] = asyncio.Queue(maxsize=queue_capacity)
@@ -42,6 +44,7 @@ class VisionPipeline:
         self._dropped: dict[str, int] = defaultdict(int)
         self._worker: asyncio.Task[None] | None = None
         self._stopping = asyncio.Event()
+        self._on_result = on_result
 
     @property
     def backend_name(self) -> str:
@@ -114,8 +117,7 @@ class VisionPipeline:
             try:
                 output = await self._engine.analyze(frame)
                 latency_ms = (time.perf_counter() - started) * 1_000
-                self._results[frame.session_id].append(
-                    SegmentationResult(
+                result = SegmentationResult(
                         session_id=frame.session_id,
                         frame_id=frame.metadata.frame_id,
                         backend=self._engine.name,
@@ -124,8 +126,10 @@ class VisionPipeline:
                         latency_ms=latency_ms,
                         regions=output.regions,
                         analysis=output.analysis,
-                    )
                 )
+                self._results[frame.session_id].append(result)
+                if self._on_result is not None:
+                    await self._on_result(result)
                 self._processed[frame.session_id] += 1
             except asyncio.CancelledError:
                 raise
