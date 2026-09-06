@@ -228,11 +228,7 @@ def system_prompt() -> str:
             "Read any printed markings first; markings beat shape. Never invent specifications.\n"
             "Answer in exactly three lines and nothing else:\n"
             "line 1: <catalog id, or none> <confidence 0-1>\n"
-            "line 2: <at most 12 words of evidence: markings, shape, color, pins>\n"
-            "line 3: one spoken sentence for the wearer, under 16 words, natural and conversational, like a "
-            "colleague glancing over. The name is already being spoken, so never state what the part is called or "
-            "what kind of part it is; begin with what it does, or one rating, or one caution, or something notable "
-            "about this particular unit. Say units in words (five volts). If line 1 is none, leave line 3 empty.")
+            "line 2: <at most 12 words of evidence: markings, shape, color, pins>")
     if catalog_index:
         return base + "\n\nCatalog:\n" + catalog_index
     return base + "\n\nNo catalog is loaded: answer 'none 0' and name the part on line 2."
@@ -262,7 +258,6 @@ def _parse_line1(line: str):
 def _parse(text: str) -> dict:
     lines = [l for l in text.strip().splitlines() if l.strip()]
     first = _parse_line1(lines[0]) if lines else None
-    remark = " ".join(lines[2:]).strip() if len(lines) > 2 else ""
     if first is None:
         # tolerate the old JSON shape
         m = re.search(r"\{.*\}", text, re.S)
@@ -273,7 +268,7 @@ def _parse(text: str) -> dict:
         except Exception:
             return {"id": None, "confidence": 0.0, "name": "unknown", "evidence": text[:120]}
     pid, conf = first
-    return {"id": pid, "confidence": conf, "evidence": " ".join(lines[1:2]).strip()[:160], "remark": remark[:240]}
+    return {"id": pid, "confidence": conf, "evidence": " ".join(lines[1:2]).strip()[:160]}
 
 
 def _hint_text(det: dict | None) -> str:
@@ -319,16 +314,11 @@ async def _call_model(model: str, data: bytes, max_tokens: int = 60, det: dict |
     return await client.beta.messages.create(**_kwargs(model, data, max_tokens, det))
 
 
-_SENT_END = re.compile(r"(?<=[.!?])\s+")
-
-
-async def _stream_model(model: str, data: bytes, on_first_line, max_tokens: int = 110, det: dict | None = None,
-                        on_sentence=None) -> tuple[str, object]:
-    """Stream the answer; call on_first_line(pid, conf) as soon as line 1 is complete, and
-    on_sentence(text) for each completed sentence of line 3 (the conversational remark)."""
+async def _stream_model(model: str, data: bytes, on_first_line, max_tokens: int = 60, det: dict | None = None) -> tuple[str, object]:
+    """Stream the answer; call on_first_line(pid, conf) as soon as line 1 is complete."""
     import anthropic
     client = anthropic.AsyncAnthropic()
-    text, fired, spoken_sent = "", False, 0
+    text, fired = "", False
     async with client.beta.messages.stream(**_kwargs(model, data, max_tokens, det)) as stream:
         async for piece in stream.text_stream:
             text += piece
@@ -337,20 +327,7 @@ async def _stream_model(model: str, data: bytes, on_first_line, max_tokens: int 
                 if parsed:
                     fired = True
                     await on_first_line(*parsed)
-            if on_sentence and text.count("\n") >= 2:
-                tail = text.split("\n", 2)[2]
-                parts = _SENT_END.split(tail)
-                while len(parts) - 1 > spoken_sent and spoken_sent < 2:
-                    sent = parts[spoken_sent].strip()
-                    spoken_sent += 1
-                    if sent:
-                        await on_sentence(sent)
         final = await stream.get_final_message()
-        if on_sentence and text.count("\n") >= 2:
-            tail = text.split("\n", 2)[2]
-            parts = [x.strip() for x in _SENT_END.split(tail) if x.strip()]
-            for sent in parts[spoken_sent:2]:
-                await on_sentence(sent)
     if not fired:
         parsed = _parse_line1(text.strip().split("\n", 1)[0]) if text.strip() else None
         if parsed:
@@ -388,7 +365,7 @@ def spoken_short(rec: dict) -> str:
     return f"{name}." + (f" {', '.join(bits)}." if bits else "")
 
 
-async def identify_frame(data: bytes, on_early=None, det: dict | None = None, on_sentence=None) -> dict:
+async def identify_frame(data: bytes, on_early=None, det: dict | None = None) -> dict:
     """One identification call on a frame. `on_early(pid, conf, rec)` fires as soon as the id
     is known (before the evidence line finishes). With `det` Claude sees the box crop plus a
     hint (detector path). Returns the parsed result plus the record."""
@@ -412,7 +389,7 @@ async def identify_frame(data: bytes, on_early=None, det: dict | None = None, on
         obj = {"id": pid, "confidence": 0.9, "evidence": "fake mode" + (" via detector" if det else "")}
         usage = None
     else:
-        text, final = await _stream_model(state["model"], data, first_line, det=det, on_sentence=on_sentence)
+        text, final = await _stream_model(state["model"], data, first_line, det=det)
         obj = _parse(text) if final.stop_reason != "refusal" else {"id": None, "confidence": 0, "evidence": "declined"}
         usage = {"cache_read": getattr(final.usage, "cache_read_input_tokens", 0), "out": final.usage.output_tokens}
     pid, rec = resolve(obj.get("id"))
@@ -595,8 +572,7 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, n
             decided = {"action": None, "spoken": []}
 
             async def on_early(pid, conf, rec):
-                # Hybrid announcement: the part's name the instant the id is known (instant, fixed),
-                # then Claude's short conversational remark streams in right behind it.
+                # Speak the instant the id is known; evidence keeps streaming for the dashboard.
                 action = _interrupt_policy(pid, conf, time.time())
                 decided["action"] = action
                 if action in ("announce", "interrupt") and rec:
@@ -605,24 +581,14 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, n
                     state["last_id"] = pid
                     state["last_spoken_at"] = time.time()
                     state["pending"] = None
-                    name = str(rec.get("name_on_kit") or rec.get("canonical_name") or pid).split(",")[0].split(" (")[0]
-                    line = f"{name}." if state["short_spoken"] else spoken_for(rec, "")
+                    line = spoken_short(rec) if state["short_spoken"] else spoken_for(rec, "")
                     secs = await speak(line)
                     state["announce_until"] = time.time() + (secs or 0)
-                    decided["spoken"].append(line)
-                    await set_caption(line, False)
+                    await set_caption(line, True)
                 elif action == "pending" and rec:
                     state["pending"] = (pid, rec, conf)
 
-            async def on_sentence(sent):
-                # Only after we announced this part; never for repeats, pending, or "none".
-                if decided["action"] in ("announce", "interrupt") and len(decided["spoken"]) < 3:
-                    secs = await speak(sent)
-                    state["announce_until"] = max(state["announce_until"], time.time()) + (secs or 0)
-                    decided["spoken"].append(sent)
-                    await set_caption(" ".join(decided["spoken"]), False)
-
-            obj = await identify_frame(data, on_early=on_early, det=det, on_sentence=on_sentence)
+            obj = await identify_frame(data, on_early=on_early, det=det)
             _identified_thumb = thumb
             state["last_det_label"] = det["label"] if det else None
             state["last_result"] = obj
@@ -635,7 +601,7 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, n
                 # person moving around in front of the camera does not become a call every 2 seconds.
                 state["miss_backoff"] = 0.0 if pid else min(15.0, max(4.0, state["miss_backoff"] * 2))
             if decided["action"] in ("announce", "interrupt"):
-                await set_caption(" ".join(decided["spoken"]), True)
+                pass
             elif decided["action"] == "pending":
                 await set_caption(f"Maybe {obj.get('name')} ({conf:.0%}), waiting for audio to finish.", True)
             elif pid and pid == state["last_id"]:
