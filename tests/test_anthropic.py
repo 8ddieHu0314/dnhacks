@@ -81,3 +81,16 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("temperature", body)
         self.assertNotIn("tools", body)
         self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "breadboard-830")
+
+    async def test_treats_non_json_catalog_responses_as_unclear(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"content": [{"type": "text", "text": "No image is clear."}]})
+
+        knowledge = ComponentKnowledgeBase.from_path(Path(__file__).parents[1] / "docs/components/components.json")
+        engine = AnthropicCatalogIdentificationVLM(base_url="https://model.example", api_key="test-key",
+            model="claude-test", timeout_seconds=1, knowledge_base=knowledge, transport=httpx.MockTransport(handler))
+        frame = Frame("session", FrameMetadata(frame_id="frame", width=2, height=2), b"image", datetime.now(timezone.utc))
+        output = await engine.analyze(frame)
+
+        self.assertEqual(output.analysis.component_guidance.identified_components, [])
+        self.assertIn("Hold one component closer", output.analysis.component_guidance.clarifying_questions[0])
