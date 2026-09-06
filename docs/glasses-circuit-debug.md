@@ -54,6 +54,9 @@ terminal with `curl http://127.0.0.1:8000/health`.
    rising sent-frame count.
 5. Tap **Test voice on glasses**. Fix the iPhone's Bluetooth audio route before
    debugging if that sentence does not play through the glasses.
+6. Under **Voice input**, choose Wake word and the glasses or phone microphone.
+   Say “Inspector, what is wrong with this circuit?”; the question is applied to
+   the first full debug pass even when that frame initially detects the breadboard.
 
 Point at an ordinary kit part to test identification. Point at a breadboard to
 switch that socket's session automatically into circuit debugging. The first

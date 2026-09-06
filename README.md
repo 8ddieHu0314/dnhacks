@@ -16,6 +16,8 @@ the signal?"), and a dashboard on the Mac shows what the system saw and heard.
   identification against the part catalog, ElevenLabs voice, and a live dashboard on `:8787`.
   Setup, endpoints, and tuning live in
   [`services/relay_receiver/README.md`](services/relay_receiver/README.md).
+- `services/vision_api`: the circuit-debug relay on `:8000`. It shares the iOS wire protocol,
+  enters debug mode when it sees a breadboard, and enforces evidence-gated instructions.
 - `docs/components`: the researched part catalog (`components.json`, 47 parts) the relay loads
   at startup, plus query and merge scripts and a small retrieval eval.
 - `docs/meta-glasses-field-notes.md`: hardware facts, measurements, and root causes of past
@@ -31,8 +33,8 @@ services/relay_receiver/run.sh
 Then run the iOS app from Xcode, pick the receiver from the Bonjour list in the gear menu, and
 press Preview.
 
-Everything below documents `services/vision_api`, the earlier server-side scaffold that the
-phone app does not use yet.
+Everything below documents `services/vision_api`. On this branch the phone can use it directly
+by selecting its port-8000 manual URL; the general-purpose relay remains on port 8787.
 
 ## Ray-Ban Meta live vision scaffold (`services/vision_api`)
 
