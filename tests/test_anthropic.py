@@ -25,6 +25,7 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(gated.debug_guidance.safe_to_energize)
         self.assertEqual(gated.debug_guidance.phase, "verify_unpowered")
         self.assertEqual(len(gated.debug_guidance.checks), 7)
+        self.assertEqual(gated.debug_guidance.checks[0].status, "pending")
         self.assertNotIn("Turn on", gated.debug_guidance.steps[0].instruction)
 
         debug["checks"] = [{"check_id": item["id"], "status": "pass",
