@@ -12,7 +12,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field, field_validator
 
-from .models import ComponentGuidance, Frame, VisionAnalysis, VisionOutput, RetrievedComponent
+from .models import ComponentGuidance, ComponentIdentification, Frame, VisionAnalysis, VisionOutput, RetrievedComponent
 from .vlm import VisionModelError, encoded_image_url, instruction_for
 
 _TOKEN = re.compile(r"[a-z0-9]+")
@@ -337,3 +337,33 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
     def _system_prompt(self) -> str:
         return ("Identify the electronic component in view against this catalog. Read printed markings first; "
                 "never invent specifications. Return only the requested JSON.\n\nCatalog:\n" + self._catalog_index)
+
+    @staticmethod
+    def _identification_schema(ids: list[str]) -> dict[str, Any]:
+        return {"type": "object", "properties": {
+            "id": {"type": ["string", "null"], "enum": [*ids, None]},
+            "confidence": {"type": "number"}, "name": {"type": "string"}, "evidence": {"type": "string"},
+        }, "required": ["id", "confidence", "name", "evidence"]}
+
+    async def analyze(self, frame: Frame) -> VisionOutput:
+        payload = await self._complete(
+            system=self._system_prompt(), text=frame.metadata.user_request or "Identify the component in view.",
+            frame=frame, schema=self._identification_schema(list(self._knowledge_base._by_id)),
+        )
+        record = self._knowledge_base.record_for(str(payload.get("id"))) if payload.get("id") else None
+        evidence = str(payload.get("evidence", "")).strip()
+        if record is None:
+            return VisionOutput(analysis=VisionAnalysis(
+                summary=str(payload.get("name") or "No catalog component is clear in this frame."),
+                observations=[evidence] if evidence else [], component_guidance=ComponentGuidance(
+                    clarifying_questions=["Hold one component closer and make its printed label visible."])))
+        match = ComponentMatch(record, 100.0)
+        guidance = ComponentGuidance(identified_components=[ComponentIdentification(
+            component_id=str(record["id"]), confidence=payload.get("confidence", 0),
+            observed_evidence=[evidence] if evidence else [],
+        )])
+        output = VisionOutput(analysis=VisionAnalysis(
+            summary=str(payload.get("name") or record["canonical_name"]),
+            observations=[evidence] if evidence else [], component_guidance=guidance,
+        ))
+        return self._ground(output, [match])
