@@ -45,7 +45,8 @@ CATALOG_HINT = {
     "esp82": None,       # ESP8266, not in the kit
     "ttl": None,         # USB-TTL adapter, not in the kit
 }
-ENGLISH = {"resistencia": "resistor", "diodo": "diode", "pulsador": "button", "servomotor": "servo",
+ENGLISH = {"component": "Electronic component",   # the single-class fine-tuned detector (tools/components/)
+           "resistencia": "resistor", "diodo": "diode", "pulsador": "button", "servomotor": "servo",
            "sensor ultrasonico": "ultrasonic sensor", "pot": "potentiometer", "7-seg": "7-segment display",
            "esp82": "ESP8266", "ttl": "USB-TTL adapter", "drv8825": "DRV8825 stepper driver"}
 

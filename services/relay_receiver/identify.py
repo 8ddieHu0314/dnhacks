@@ -250,6 +250,10 @@ def _hint_text(det: dict | None) -> str:
     if not det:
         return "Identify the component in view."
     guess = det.get("catalog_hint")
+    if det.get("label") == "component":
+        # class-agnostic detector: it only says "a part is here", Claude does the naming
+        return (f"A local detector flagged this crop as an electronic component ({det.get('conf', 0):.0%}). "
+                "Identify it against the catalog by reading the markings.")
     hint = f"A local detector flagged this crop as: {det.get('name')} ({det.get('conf', 0):.0%})."
     if guess:
         hint += f" Likely catalog id: {guess}."
