@@ -423,11 +423,18 @@ def set_reactive(enabled: bool, **kw):
     t = identify.state.get("task")
     if enabled and (t is None or t.done()):
         async def on_result(obj):
+            # keep the frame so identifications can be reviewed for accuracy afterwards
+            frame_name = f"identify-{int(obj['ts'])}.jpg"
+            if state["latest"]:
+                (FRAMES_DIR / frame_name).write_bytes(state["latest"])
             await _send_all(viewer_sockets, {"type": "identified", **{k: v for k, v in obj.items() if k != "record"},
-                                             "record": obj.get("record")})
-            state["report"].append({"ts": obj["ts"], "question": "reactive identify", "result": obj.get("spoken") or obj.get("name"),
-                                    "id": obj.get("id"), "confidence": obj.get("confidence"), "evidence": obj.get("evidence"),
-                                    "frame": None, "model": "fake" if FAKE else MODEL, "narration": True})
+                                             "record": obj.get("record"), "frame": frame_name})
+            entry = {"ts": obj["ts"], "question": "reactive identify", "result": obj.get("spoken") or obj.get("name"),
+                     "id": obj.get("id"), "confidence": obj.get("confidence"), "evidence": obj.get("evidence"),
+                     "frame": frame_name, "model": "fake" if FAKE else MODEL, "narration": True}
+            state["report"].append(entry)
+            with REPORT_PATH.open("a") as f:
+                f.write(json.dumps(entry) + "\n")
         async def speak(text):
             await _send_all(phones, {"type": "speak", "text": text})
             await _send_all(phones, {"type": "speak_end"})

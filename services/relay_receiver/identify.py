@@ -124,7 +124,8 @@ def _spoken_line(rec: dict) -> str:
     if bits:
         line += " " + ", ".join(bits) + "."
     if caution:
-        line += " " + caution[0].upper() + caution[1:].rstrip(".") + "."
+        caution = caution.rstrip(" .;,:")
+        line += " " + caution[0].upper() + caution[1:] + "."
     return line
 
 
