@@ -60,11 +60,13 @@ class GlassesBridgeTests(unittest.TestCase):
                     socket.send_bytes(JPEG)
                     spoken = socket.receive_json()
                     finished = socket.receive_json()
+                    state = socket.receive_json()
         finally:
             main.speech._mode, main.pipeline._engine = prior_mode, prior_engine
         self.assertEqual(spoken["type"], "speak")
         self.assertEqual(spoken["text"], "Breadboard visible.")
         self.assertEqual(finished["type"], "speak_end")
+        self.assertEqual(state, {"type": "debug_state", "mode": "identification"})
 
 
 if __name__ == "__main__":

@@ -42,8 +42,19 @@ speech = SpeechRouter(settings.speech_mode)
 
 
 async def speak_result(result) -> None:
-    if result.analysis is not None:
-        await speech.publish(result.session_id, result.frame_id, spoken_guidance(result.analysis))
+    analysis = result.analysis
+    if analysis is None:
+        return
+    await speech.publish(result.session_id, result.frame_id, spoken_guidance(analysis))
+    state: dict[str, object] = {"type": "debug_state", "mode": analysis.mode}
+    if debug := analysis.debug_guidance:
+        state.update({
+            "status": debug.status,
+            "phase": debug.phase,
+            "safe_to_energize": debug.safe_to_energize,
+            "checks": [check.model_dump(mode="json") for check in debug.checks],
+        })
+    await speech.publish_event(result.session_id, state)
 
 
 pipeline = VisionPipeline(
