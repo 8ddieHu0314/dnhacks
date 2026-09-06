@@ -816,6 +816,17 @@ final class FrameRelay {
     sendCommand(msg)
   }
 
+  /// Attach a wearer confirmation or meter result to the next glasses frame.
+  func submitDebugEvidence(checkID: String, value: String) {
+    let measured = ["relay-pin-map", "no-supply-short", "button-operation"].contains(checkID)
+    let item: [String: Any] = [
+      "check_id": checkID,
+      "evidence_source": measured ? "measurement" : "user_report",
+      "value": value,
+    ]
+    sendCommand(["type": "debug_evidence", "reported_evidence": [item]])
+  }
+
   func setNarration(enabled: Bool, interval: Double) {
     sendCommand(["type": "narrate", "enabled": enabled, "interval": interval])
   }
