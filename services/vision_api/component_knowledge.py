@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .models import ComponentGuidance, Frame, VisionAnalysis, VisionOutput, RetrievedComponent
 from .vlm import VisionModelError, encoded_image_url, instruction_for
@@ -101,6 +101,15 @@ class SceneDescription(BaseModel):
     scene_description: str = Field(min_length=1, max_length=1_500)
     visible_text: list[str] = Field(default_factory=list, max_length=20)
     likely_component_terms: list[str] = Field(default_factory=list, max_length=12)
+
+    @field_validator("visible_text", "likely_component_terms", mode="before")
+    @classmethod
+    def normalize_string_lists(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, dict):
+            return list(value.values())
+        return value
 
     def query(self, user_request: str | None) -> str:
         return " ".join([self.scene_description, *self.visible_text, *self.likely_component_terms, user_request or ""])
