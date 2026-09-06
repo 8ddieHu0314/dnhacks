@@ -1,14 +1,29 @@
 {
   "id": "elegoo-uno-r3-kit/photoresistor",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 2 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 2
+  },
   "identity": {
     "name_on_kit": "Photoresistor (Photocell)",
     "canonical_name": "light-dependent resistor (LDR)",
-    "aliases": ["LDR", "CdS cell", "photocell", "photoconductive cell"],
+    "aliases": [
+      "LDR",
+      "CdS cell",
+      "photocell",
+      "photoconductive cell"
+    ],
     "category": "sensor",
     "manufacturer": "generic (GL55 series is a widely second-sourced part made by multiple Chinese photoresistor manufacturers; no single confirmed OEM found in this research)",
     "manufacturer_part_number": "GL5528",
-    "generic_equivalents": ["GL5516", "GL5537", "GL5539", "GL5549", "generic 5mm CdS photoresistor modules"],
+    "generic_equivalents": [
+      "GL5516",
+      "GL5537",
+      "GL5539",
+      "GL5549",
+      "generic 5mm CdS photoresistor modules"
+    ],
     "serial_number": "not_applicable",
     "package": "5mm through-hole (flat epoxy-coated disc on two leads; the GL55-series datasheet labels the package type 'TO-18 Epoxy Resin')"
   },
@@ -20,8 +35,18 @@
   "pins": {
     "pin_count": 2,
     "pinout": [
-      { "pin": 1, "name": "Lead 1", "role": "sensor terminal, no polarity", "notes": "electrically identical to lead 2, can go to either side of the voltage divider" },
-      { "pin": 2, "name": "Lead 2", "role": "sensor terminal, no polarity", "notes": "electrically identical to lead 1, can go to either side of the voltage divider" }
+      {
+        "pin": 1,
+        "name": "Lead 1",
+        "role": "sensor terminal, no polarity",
+        "notes": "electrically identical to lead 2, can go to either side of the voltage divider"
+      },
+      {
+        "pin": 2,
+        "name": "Lead 2",
+        "role": "sensor terminal, no polarity",
+        "notes": "electrically identical to lead 1, can go to either side of the voltage divider"
+      }
     ],
     "pin_1_identification": "There is no pin 1 or polarity to find, both leads are electrically identical and interchangeable. Identify the part itself by its small flat disc (about 5 mm across) with a visible zig-zag light-sensitive track on its face, and two bare wire leads coming out of the same edge of the disc.",
     "polarity_sensitive": false
@@ -54,8 +79,14 @@
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "Lead 1", "uno_pin": "5V" },
-      { "part_pin": "Lead 2 (divider midpoint, also joined to one leg of a fixed resistor whose other leg goes to GND)", "uno_pin": "A0" }
+      {
+        "part_pin": "Lead 1",
+        "uno_pin": "5V"
+      },
+      {
+        "part_pin": "Lead 2 (divider midpoint, also joined to one leg of a fixed resistor whose other leg goes to GND)",
+        "uno_pin": "A0"
+      }
     ],
     "required_extra_parts": [
       "one fixed resistor to complete the voltage divider (commonly 10 kOhm in typical Arduino tutorials; the exact value used in ELEGOO's own kit tutorial could not be confirmed in this research pass because elegoo.com blocked automated fetches)"
@@ -79,9 +110,21 @@
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "analogRead() always returns nearly the same value no matter the light level", "likely_cause": "the fixed divider resistor is missing, or there is an open or shorted connection", "check": "confirm a second resistor completes the divider between the sensor node and ground or 5V, then check continuity on both leads with a multimeter" },
-      { "symptom": "the reading moves opposite to what the code expects (goes down in bright light instead of up, or vice versa)", "likely_cause": "the divider is wired with the photoresistor on the opposite leg from what the sketch assumes", "check": "trace which lead goes toward 5V and which goes toward GND/A0, and match that to the sketch's logic" },
-      { "symptom": "reading is stuck near 0 or near the maximum value regardless of light", "likely_cause": "a short or open circuit in the sensor itself or its partner resistor", "check": "disconnect the sensor and measure resistance directly across its two leads in bright light and then fully covered" }
+      {
+        "symptom": "analogRead() always returns nearly the same value no matter the light level",
+        "likely_cause": "the fixed divider resistor is missing, or there is an open or shorted connection",
+        "check": "confirm a second resistor completes the divider between the sensor node and ground or 5V, then check continuity on both leads with a multimeter"
+      },
+      {
+        "symptom": "the reading moves opposite to what the code expects (goes down in bright light instead of up, or vice versa)",
+        "likely_cause": "the divider is wired with the photoresistor on the opposite leg from what the sketch assumes",
+        "check": "trace which lead goes toward 5V and which goes toward GND/A0, and match that to the sketch's logic"
+      },
+      {
+        "symptom": "reading is stuck near 0 or near the maximum value regardless of light",
+        "likely_cause": "a short or open circuit in the sensor itself or its partner resistor",
+        "check": "disconnect the sensor and measure resistance directly across its two leads in bright light and then fully covered"
+      }
     ],
     "how_to_test_with_a_multimeter": "Set the multimeter to resistance (ohms) mode and measure directly across the two leads with the part disconnected from the circuit (or at least isolated). Under normal indoor room light, expect roughly 8 to 20 kOhm (thousands of ohms) for this part at a moderate 10 lux brightness. Fully cover the disc so no light reaches it, and the reading should climb to over 1 MOhm (millions of ohms)."
   },
@@ -90,11 +133,25 @@
     "price_source_url": "https://www.adafruit.com/product/161",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["Adafruit", "Amazon (multi-packs of GL5528 from various sellers)", "Walmart (Uxcell multi-pack listing)"]
+    "typical_suppliers": [
+      "Adafruit",
+      "Amazon (multi-packs of GL5528 from various sellers)",
+      "Walmart (Uxcell multi-pack listing)"
+    ]
   },
   "sources": [
-    { "title": "GL55 Series Photo Resistor (LDR) User Guide", "url": "https://www.handsontec.com/dataspecs/sensor/GL55-LDR.pdf", "type": "datasheet", "used_for": "pins.pin_count, pins.polarity_sensitive, electrical.absolute_max_voltage, electrical.max_current basis (Pmax), key_specs.photo_resistance_at_10_lux, key_specs.dark_resistance, key_specs.spectral_peak, key_specs.response_time, key_specs.max_power_rating, key_specs.photoconductive_material, key_specs.package_dimensions, identity.package, visual_identification shape/dimensions" },
-    { "title": "Photo Cell (CdS Photoresistor) - Adafruit product 161", "url": "https://www.adafruit.com/product/161", "type": "retailer", "used_for": "market.unit_price_usd, market.price_source_url (used as a same-category retail price proxy; see confidence.notes for caveat)" }
+    {
+      "title": "GL55 Series Photo Resistor (LDR) User Guide",
+      "url": "https://www.handsontec.com/dataspecs/sensor/GL55-LDR.pdf",
+      "type": "datasheet",
+      "used_for": "pins.pin_count, pins.polarity_sensitive, electrical.absolute_max_voltage, electrical.max_current basis (Pmax), key_specs.photo_resistance_at_10_lux, key_specs.dark_resistance, key_specs.spectral_peak, key_specs.response_time, key_specs.max_power_rating, key_specs.photoconductive_material, key_specs.package_dimensions, identity.package, visual_identification shape/dimensions"
+    },
+    {
+      "title": "Photo Cell (CdS Photoresistor) - Adafruit product 161",
+      "url": "https://www.adafruit.com/product/161",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, market.price_source_url (used as a same-category retail price proxy; see confidence.notes for caveat)"
+    }
   ],
   "confidence": {
     "overall": "medium",

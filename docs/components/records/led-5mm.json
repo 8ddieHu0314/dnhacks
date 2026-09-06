@@ -1,14 +1,26 @@
 {
   "id": "elegoo-uno-r3-kit/led-5mm",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 25 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 25
+  },
   "identity": {
     "name_on_kit": "LED",
     "canonical_name": "5 mm through-hole LED (light emitting diode), assorted colors",
-    "aliases": ["LED", "light emitting diode", "5mm LED", "indicator LED"],
+    "aliases": [
+      "LED",
+      "light emitting diode",
+      "5mm LED",
+      "indicator LED"
+    ],
     "category": "display",
     "manufacturer": "generic / unbranded (no LED manufacturer is named in ELEGOO's kit documentation)",
     "manufacturer_part_number": "generic (no specific MPN found; treated as a commodity part)",
-    "generic_equivalents": ["Adafruit 4203 diffused 5mm LED pack (used here as a reference part for price and specs)", "any standard T-1 3/4 5mm through-hole indicator LED, e.g. Kingbright or Lite-On equivalents"],
+    "generic_equivalents": [
+      "Adafruit 4203 diffused 5mm LED pack (used here as a reference part for price and specs)",
+      "any standard T-1 3/4 5mm through-hole indicator LED, e.g. Kingbright or Lite-On equivalents"
+    ],
     "serial_number": "not_applicable",
     "package": "5mm through-hole dome (T-1 3/4 package)"
   },
@@ -20,8 +32,18 @@
   "pins": {
     "pin_count": 2,
     "pinout": [
-      { "pin": 1, "name": "anode", "role": "positive terminal, current enters here", "notes": "The longer of the two leads on a new, untrimmed LED." },
-      { "pin": 2, "name": "cathode", "role": "negative terminal, current exits here (to ground)", "notes": "The shorter lead. Also marked by a flat-ground spot on the rim of the plastic dome on the same side as this lead, useful once leads have been trimmed or bent." }
+      {
+        "pin": 1,
+        "name": "anode",
+        "role": "positive terminal, current enters here",
+        "notes": "The longer of the two leads on a new, untrimmed LED."
+      },
+      {
+        "pin": 2,
+        "name": "cathode",
+        "role": "negative terminal, current exits here (to ground)",
+        "notes": "The shorter lead. Also marked by a flat-ground spot on the rim of the plastic dome on the same side as this lead, useful once leads have been trimmed or bent."
+      }
     ],
     "pin_1_identification": "Hold the LED with both leads visible: the longer lead is the anode (positive). If the leads have been trimmed to equal length, look instead for a flat spot ground into the rim of the clear plastic dome; the lead closest to that flat side is the cathode (negative).",
     "polarity_sensitive": true
@@ -55,10 +77,19 @@
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "anode (long leg)", "uno_pin": "digital pin (e.g. pin 13) through a 220-330 ohm series resistor" },
-      { "part_pin": "cathode (short leg / flat-side lead)", "uno_pin": "GND" }
+      {
+        "part_pin": "anode (long leg)",
+        "uno_pin": "digital pin (e.g. pin 13) through a 220-330 ohm series resistor"
+      },
+      {
+        "part_pin": "cathode (short leg / flat-side lead)",
+        "uno_pin": "GND"
+      }
     ],
-    "required_extra_parts": ["series current-limiting resistor, commonly 220 ohm to 330 ohm for 5V logic", "breadboard and jumper wires"],
+    "required_extra_parts": [
+      "series current-limiting resistor, commonly 220 ohm to 330 ohm for 5V logic",
+      "breadboard and jumper wires"
+    ],
     "arduino_library": "None required. Drive it directly with digitalWrite() for on/off, or analogWrite() on a PWM-capable pin for dimming."
   },
   "safety": {
@@ -80,9 +111,21 @@
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "LED does not light at all", "likely_cause": "Reversed polarity (anode and cathode swapped), an open circuit, or a burned-out LED", "check": "Flip the LED's orientation in the breadboard; confirm continuity and orientation with a multimeter's diode-test mode" },
-      { "symptom": "LED lit briefly then went dark and stays dark", "likely_cause": "Missing or undersized series resistor caused an overcurrent failure", "check": "Verify a resistor of the correct value is actually in series with the LED, not accidentally in parallel or omitted" },
-      { "symptom": "LED is dim compared to others of the same color in the kit", "likely_cause": "Series resistor value too high, or a partially degraded LED", "check": "Measure the resistor's actual value and compare against the intended design value; swap in a known-good LED of the same color to compare brightness" }
+      {
+        "symptom": "LED does not light at all",
+        "likely_cause": "Reversed polarity (anode and cathode swapped), an open circuit, or a burned-out LED",
+        "check": "Flip the LED's orientation in the breadboard; confirm continuity and orientation with a multimeter's diode-test mode"
+      },
+      {
+        "symptom": "LED lit briefly then went dark and stays dark",
+        "likely_cause": "Missing or undersized series resistor caused an overcurrent failure",
+        "check": "Verify a resistor of the correct value is actually in series with the LED, not accidentally in parallel or omitted"
+      },
+      {
+        "symptom": "LED is dim compared to others of the same color in the kit",
+        "likely_cause": "Series resistor value too high, or a partially degraded LED",
+        "check": "Measure the resistor's actual value and compare against the intended design value; swap in a known-good LED of the same color to compare brightness"
+      }
     ],
     "how_to_test_with_a_multimeter": "Set the multimeter to diode-test mode (the diode symbol). Touch the red probe to the anode (long lead) and the black probe to the cathode (short lead / flat-side lead); a healthy LED will glow faintly and the display will show a forward voltage drop reading (commonly in the 1.6V to 3.6V range depending on color). Swapping the probes should show no reading (open circuit) in the reverse direction, which confirms the part behaves as a diode rather than being shorted or open."
   },
@@ -91,17 +134,48 @@
     "price_source_url": "https://www.adafruit.com/product/4203",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["Adafruit", "Amazon (assorted multi-packs)", "bundled only, not sold separately, by ELEGOO"]
+    "typical_suppliers": [
+      "Adafruit",
+      "Amazon (assorted multi-packs)",
+      "bundled only, not sold separately, by ELEGOO"
+    ]
   },
   "sources": [
-    { "title": "5mm LED Pinout, Features, Forward Voltages & Datasheet", "url": "https://components101.com/diodes/5mm-round-led", "type": "wiki", "used_for": "pin count and names (anode/cathode), forward voltage ranges by color, maximum forward current (30mA), package description" },
-    { "title": "Diffused 5mm LED Pack - 5 LEDs each in 5 Colors - 25 Pack", "url": "https://www.adafruit.com/product/4203", "type": "retailer", "used_for": "unit price (pack price divided by quantity), simplified forward voltage by color group (red/yellow/green vs blue/white) at 20mA, typical luminous intensity, confirms 5mm diffused format as a reference equivalent part" },
-    { "title": "ELEGOO UNO R3 Super Starter Kit product listing", "url": "https://www.elexp.com/products/arduino-starter-kit-elegoo", "type": "retailer", "used_for": "ELEGOO kit's actual LED parts list: quantities and colors of LEDs bundled in the kit (5 each of yellow, blue, green, red) plus a separate RGB LED" },
-    { "title": "Elegoo Super Starter Kit parts list (16-223 Creative Kinetic Systems course resource)", "url": "https://courses.ideate.cmu.edu/16-223/f2020/text/resources/Elegoo-kit.html", "type": "tutorial", "used_for": "cross-verification of the kit's LED color/quantity breakdown and confirmation that the RGB LED is a distinct component from the single-color LEDs" }
+    {
+      "title": "5mm LED Pinout, Features, Forward Voltages & Datasheet",
+      "url": "https://components101.com/diodes/5mm-round-led",
+      "type": "wiki",
+      "used_for": "pin count and names (anode/cathode), forward voltage ranges by color, maximum forward current (30mA), package description"
+    },
+    {
+      "title": "Diffused 5mm LED Pack - 5 LEDs each in 5 Colors - 25 Pack",
+      "url": "https://www.adafruit.com/product/4203",
+      "type": "retailer",
+      "used_for": "unit price (pack price divided by quantity), simplified forward voltage by color group (red/yellow/green vs blue/white) at 20mA, typical luminous intensity, confirms 5mm diffused format as a reference equivalent part"
+    },
+    {
+      "title": "ELEGOO UNO R3 Super Starter Kit product listing",
+      "url": "https://www.elexp.com/products/arduino-starter-kit-elegoo",
+      "type": "retailer",
+      "used_for": "ELEGOO kit's actual LED parts list: quantities and colors of LEDs bundled in the kit (5 each of yellow, blue, green, red) plus a separate RGB LED"
+    },
+    {
+      "title": "Elegoo Super Starter Kit parts list (16-223 Creative Kinetic Systems course resource)",
+      "url": "https://courses.ideate.cmu.edu/16-223/f2020/text/resources/Elegoo-kit.html",
+      "type": "tutorial",
+      "used_for": "cross-verification of the kit's LED color/quantity breakdown and confirmation that the RGB LED is a distinct component from the single-color LEDs"
+    }
   ],
   "confidence": {
     "overall": "medium",
-    "fields_uncertain": ["kit.quantity_in_kit", "key_specs.kit_colors_confirmed_by_sources (white color and total of 25)", "electrical.absolute_max_voltage", "identity.manufacturer", "identity.manufacturer_part_number", "market.unit_price_usd (reference part, not confirmed identical to ELEGOO's bundled LEDs)"],
+    "fields_uncertain": [
+      "kit.quantity_in_kit",
+      "key_specs.kit_colors_confirmed_by_sources (white color and total of 25)",
+      "electrical.absolute_max_voltage",
+      "identity.manufacturer",
+      "identity.manufacturer_part_number",
+      "market.unit_price_usd (reference part, not confirmed identical to ELEGOO's bundled LEDs)"
+    ],
     "notes": "Two independent sources for the ELEGOO UNO R3 Super Starter Kit's own parts list (an Electronix Express retailer listing and a CMU course resource page) both show the kit's single-color LEDs as 5 red + 5 yellow + 5 green + 5 blue = 20 pieces, with no white LED, plus 1-2 separate 4-pin RGB LEDs counted apart from this record. Neither source lists a white LED or a total of 25 single-color LEDs, so the seed record's '25 qty' and 'white' color could not be confirmed and may reflect a different kit revision or a mix-up with the separate RGB LED count; quantity_in_kit is set to 25 per task instruction despite this gap. Forward voltage figures vary noticeably between the generic components101 datasheet reference and the Adafruit reference part, especially for green (1.9-4.0V vs ~2V), so treat the 'simplified' 2V/3.3V grouping as the more practical field number and the wider range as the full spread across manufacturers. No manufacturer or MPN could be found for ELEGOO's actual bundled LEDs; this is a generic commodity part. Unit price is from an Adafruit 25-pack of equivalent diffused 5mm LEDs ($4.95 / 25 = $0.198, rounded to $0.20 per unit), not a price for ELEGOO's exact bundled part, since ELEGOO does not sell these LEDs separately. Absolute maximum reverse voltage was not found in any source checked and is left unconfirmed rather than guessed."
   }
 }

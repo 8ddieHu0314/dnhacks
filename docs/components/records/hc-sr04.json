@@ -1,14 +1,24 @@
 {
   "id": "elegoo-uno-r3-kit/hc-sr04",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
   "identity": {
     "name_on_kit": "Ultrasonic Sensor",
     "canonical_name": "HC-SR04 ultrasonic distance sensor",
-    "aliases": ["Ultrasonic ranging module", "Ultrasonic sensor module HC-SR04"],
+    "aliases": [
+      "Ultrasonic ranging module",
+      "Ultrasonic sensor module HC-SR04"
+    ],
     "category": "sensor",
     "manufacturer": "Generic (widely second-sourced); the datasheet used here was published by ElecFreaks, one of the original documenters of this module",
     "manufacturer_part_number": "HC-SR04",
-    "generic_equivalents": ["RCWL-1601 (3.3V/5V-tolerant pin-compatible clone)", "US-015/US-100 (similar ultrasonic modules, not always pin-identical)"],
+    "generic_equivalents": [
+      "RCWL-1601 (3.3V/5V-tolerant pin-compatible clone)",
+      "US-015/US-100 (similar ultrasonic modules, not always pin-identical)"
+    ],
     "serial_number": "not_applicable",
     "package": "module (45mm x 20mm x 15mm green PCB with two silver ultrasonic transducer cans and a 4-pin header)"
   },
@@ -20,10 +30,30 @@
   "pins": {
     "pin_count": 4,
     "pinout": [
-      { "pin": 1, "name": "VCC", "role": "power in", "notes": "5V DC" },
-      { "pin": 2, "name": "Trig", "role": "digital input to the sensor", "notes": "Send a 10us HIGH pulse here to start a measurement" },
-      { "pin": 3, "name": "Echo", "role": "digital output from the sensor", "notes": "Goes HIGH for a duration proportional to distance" },
-      { "pin": 4, "name": "GND", "role": "ground", "notes": "" }
+      {
+        "pin": 1,
+        "name": "VCC",
+        "role": "power in",
+        "notes": "5V DC"
+      },
+      {
+        "pin": 2,
+        "name": "Trig",
+        "role": "digital input to the sensor",
+        "notes": "Send a 10us HIGH pulse here to start a measurement"
+      },
+      {
+        "pin": 3,
+        "name": "Echo",
+        "role": "digital output from the sensor",
+        "notes": "Goes HIGH for a duration proportional to distance"
+      },
+      {
+        "pin": 4,
+        "name": "GND",
+        "role": "ground",
+        "notes": ""
+      }
     ],
     "pin_1_identification": "Reading the silkscreen left to right with the two round silver transducer 'eyes' facing away from you: VCC, Trig, Echo, GND. Confirmed in the ElecFreaks datasheet's own labeled photo.",
     "polarity_sensitive": true
@@ -48,28 +78,65 @@
     "shape_and_size": "Rectangular green PCB about 45mm x 20mm, with two round silver-mesh cylinders ('eyes') mounted side by side on top and a 4-pin header along the bottom edge.",
     "color_and_markings": "Green PCB; 'HC-SR04' printed on the board near the two transducers; pin labels VCC/Trig/Echo/GND silkscreened next to the header.",
     "printed_text_to_look_for": "'HC-SR04' printed on the PCB, plus small markings near each silver cylinder distinguishing transmitter from receiver.",
-    "easily_confused_with": ["A dome-shaped PIR motion sensor module (different shape, not applicable here)", "the RCWL-1601, a similar-looking single-PCB 'twin-eye' ultrasonic module that runs at 3.3V or 5V"]
+    "easily_confused_with": [
+      "A dome-shaped PIR motion sensor module (different shape, not applicable here)",
+      "the RCWL-1601, a similar-looking single-PCB 'twin-eye' ultrasonic module that runs at 3.3V or 5V"
+    ]
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "VCC", "uno_pin": "5V" },
-      { "part_pin": "Trig", "uno_pin": "D9 (illustrative; any free digital output pin works)" },
-      { "part_pin": "Echo", "uno_pin": "D10 (illustrative; any free digital input pin works)" },
-      { "part_pin": "GND", "uno_pin": "GND" }
+      {
+        "part_pin": "VCC",
+        "uno_pin": "5V"
+      },
+      {
+        "part_pin": "Trig",
+        "uno_pin": "D9 (illustrative; any free digital output pin works)"
+      },
+      {
+        "part_pin": "Echo",
+        "uno_pin": "D10 (illustrative; any free digital input pin works)"
+      },
+      {
+        "part_pin": "GND",
+        "uno_pin": "GND"
+      }
     ],
     "required_extra_parts": [],
     "arduino_library": "None required (built-in pulseIn()); NewPing is a common optional convenience library"
   },
   "safety": {
-    "hazards": ["None significant; low voltage sensor", "The two transducer cans are somewhat fragile; avoid pressing on the mesh"],
-    "handling_notes": ["Connect GND before VCC when wiring on a live board, per the datasheet's own recommendation", "Keep the sensing path clear of soft or absorbent materials (foam, cloth) which can swallow the echo and give false 'no object' readings"],
-    "common_mistakes": ["Swapping the Trig and Echo wires", "Testing against a surface smaller than about 0.5 square meters or at a steep angle, which the datasheet notes can produce bad readings", "Powering it from 3.3V, below its rated 5V supply"]
+    "hazards": [
+      "None significant; low voltage sensor",
+      "The two transducer cans are somewhat fragile; avoid pressing on the mesh"
+    ],
+    "handling_notes": [
+      "Connect GND before VCC when wiring on a live board, per the datasheet's own recommendation",
+      "Keep the sensing path clear of soft or absorbent materials (foam, cloth) which can swallow the echo and give false 'no object' readings"
+    ],
+    "common_mistakes": [
+      "Swapping the Trig and Echo wires",
+      "Testing against a surface smaller than about 0.5 square meters or at a steep angle, which the datasheet notes can produce bad readings",
+      "Powering it from 3.3V, below its rated 5V supply"
+    ]
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "Always reads 0 or a max-range/garbage value", "likely_cause": "Trig and Echo wires swapped, or GND not connected", "check": "Verify wiring against the VCC-Trig-Echo-GND order and confirm GND continuity with a multimeter" },
-      { "symptom": "Distance jumps around erratically", "likely_cause": "Target surface too small, soft, or angled; measuring faster than the recommended cycle", "check": "Test against a flat hard wall at close range and add at least 60ms between measurements" },
-      { "symptom": "No echo pulse ever seen", "likely_cause": "Dead sensor, no 5V present, or trigger pulse too short", "check": "Confirm 5V at VCC with a multimeter and confirm the code sends a pulse of at least 10 microseconds" }
+      {
+        "symptom": "Always reads 0 or a max-range/garbage value",
+        "likely_cause": "Trig and Echo wires swapped, or GND not connected",
+        "check": "Verify wiring against the VCC-Trig-Echo-GND order and confirm GND continuity with a multimeter"
+      },
+      {
+        "symptom": "Distance jumps around erratically",
+        "likely_cause": "Target surface too small, soft, or angled; measuring faster than the recommended cycle",
+        "check": "Test against a flat hard wall at close range and add at least 60ms between measurements"
+      },
+      {
+        "symptom": "No echo pulse ever seen",
+        "likely_cause": "Dead sensor, no 5V present, or trigger pulse too short",
+        "check": "Confirm 5V at VCC with a multimeter and confirm the code sends a pulse of at least 10 microseconds"
+      }
     ],
     "how_to_test_with_a_multimeter": "With the module powered, measure DC voltage between VCC and GND to confirm 5V is present. Trig and Echo are pulsed signals rather than steady levels, so a multimeter will mostly read close to 0V on them at rest; an oscilloscope is needed to see the actual pulses, though the multimeter is still useful to rule out a wiring fault."
   },
@@ -78,12 +145,32 @@
     "price_source_url": "https://www.adafruit.com/product/3942",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["Adafruit", "SparkFun", "Amazon", "DigiKey"]
+    "typical_suppliers": [
+      "Adafruit",
+      "SparkFun",
+      "Amazon",
+      "DigiKey"
+    ]
   },
   "sources": [
-    { "title": "Ultrasonic Ranging Module HC-SR04 datasheet", "url": "https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf", "type": "datasheet", "used_for": "pins, electrical, key_specs, safety notes" },
-    { "title": "Lesson 10 - Ultrasonic Sensor Module (ElegooTutorial mirror)", "url": "https://github.com/rmorenojr/ElegooTutorial/blob/master/Lesson%2010%20-%20Ultrasonic%20Sensor%20Module/README.md", "type": "tutorial", "used_for": "function, confirms this is the kit's HC-SR04 lesson, required jumper wires" },
-    { "title": "HC-SR04 Ultrasonic Sonar Distance Sensor + 2 x 10K resistors", "url": "https://www.adafruit.com/product/3942", "type": "retailer", "used_for": "market.unit_price_usd, lifecycle_status, typical_suppliers" }
+    {
+      "title": "Ultrasonic Ranging Module HC-SR04 datasheet",
+      "url": "https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf",
+      "type": "datasheet",
+      "used_for": "pins, electrical, key_specs, safety notes"
+    },
+    {
+      "title": "Lesson 10 - Ultrasonic Sensor Module (ElegooTutorial mirror)",
+      "url": "https://github.com/rmorenojr/ElegooTutorial/blob/master/Lesson%2010%20-%20Ultrasonic%20Sensor%20Module/README.md",
+      "type": "tutorial",
+      "used_for": "function, confirms this is the kit's HC-SR04 lesson, required jumper wires"
+    },
+    {
+      "title": "HC-SR04 Ultrasonic Sonar Distance Sensor + 2 x 10K resistors",
+      "url": "https://www.adafruit.com/product/3942",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, lifecycle_status, typical_suppliers"
+    }
   ],
   "confidence": {
     "overall": "high",

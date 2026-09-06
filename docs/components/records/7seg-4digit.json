@@ -1,14 +1,27 @@
 {
   "id": "7seg-4digit",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
   "identity": {
     "name_on_kit": "4 Digit 7-Segment Display",
     "canonical_name": "0.36 inch four-digit common-anode 7-segment LED display (3461BS)",
-    "aliases": ["4-digit 7-segment display", "quad digit LED display", "HS-3461BS", "3461BS"],
+    "aliases": [
+      "4-digit 7-segment display",
+      "quad digit LED display",
+      "HS-3461BS",
+      "3461BS"
+    ],
     "category": "display",
     "manufacturer": "generic, widely cloned part number; the datasheet fetched is from XLITX Technology, but the same 3461BS numbering and pinout is used by many Chinese LED display makers",
     "manufacturer_part_number": "3461BS",
-    "generic_equivalents": ["HS-3461BS", "3461AS (common-cathode version of the same footprint)", "other 0.36 inch 4-digit common-anode displays with the same 12-pin layout"],
+    "generic_equivalents": [
+      "HS-3461BS",
+      "3461AS (common-cathode version of the same footprint)",
+      "other 0.36 inch 4-digit common-anode displays with the same 12-pin layout"
+    ],
     "serial_number": "not_applicable",
     "package": "12-pin through-hole DIP-style 4-digit 7-segment display, 0.36 inch (9.2 mm) digit height"
   },
@@ -20,18 +33,78 @@
   "pins": {
     "pin_count": 12,
     "pinout": [
-      { "pin": 1, "name": "E", "role": "segment E cathode, shared by all 4 digits", "notes": "needs a series resistor" },
-      { "pin": 2, "name": "D", "role": "segment D cathode, shared by all 4 digits", "notes": "needs a series resistor" },
-      { "pin": 3, "name": "DP", "role": "decimal point cathode, shared by all 4 digits", "notes": "needs a series resistor" },
-      { "pin": 4, "name": "C", "role": "segment C cathode, shared by all 4 digits", "notes": "needs a series resistor" },
-      { "pin": 5, "name": "G", "role": "segment G cathode, shared by all 4 digits", "notes": "needs a series resistor" },
-      { "pin": 6, "name": "DIG4", "role": "common anode for digit 4 (rightmost)", "notes": "drive HIGH (directly or through a transistor) to select this digit" },
-      { "pin": 7, "name": "B", "role": "segment B cathode, shared by all 4 digits", "notes": "needs a series resistor" },
-      { "pin": 8, "name": "DIG3", "role": "common anode for digit 3", "notes": "drive HIGH to select this digit" },
-      { "pin": 9, "name": "DIG2", "role": "common anode for digit 2", "notes": "drive HIGH to select this digit" },
-      { "pin": 10, "name": "F", "role": "segment F cathode, shared by all 4 digits", "notes": "needs a series resistor" },
-      { "pin": 11, "name": "A", "role": "segment A cathode, shared by all 4 digits", "notes": "needs a series resistor" },
-      { "pin": 12, "name": "DIG1", "role": "common anode for digit 1 (leftmost)", "notes": "drive HIGH to select this digit" }
+      {
+        "pin": 1,
+        "name": "E",
+        "role": "segment E cathode, shared by all 4 digits",
+        "notes": "needs a series resistor"
+      },
+      {
+        "pin": 2,
+        "name": "D",
+        "role": "segment D cathode, shared by all 4 digits",
+        "notes": "needs a series resistor"
+      },
+      {
+        "pin": 3,
+        "name": "DP",
+        "role": "decimal point cathode, shared by all 4 digits",
+        "notes": "needs a series resistor"
+      },
+      {
+        "pin": 4,
+        "name": "C",
+        "role": "segment C cathode, shared by all 4 digits",
+        "notes": "needs a series resistor"
+      },
+      {
+        "pin": 5,
+        "name": "G",
+        "role": "segment G cathode, shared by all 4 digits",
+        "notes": "needs a series resistor"
+      },
+      {
+        "pin": 6,
+        "name": "DIG4",
+        "role": "common anode for digit 4 (rightmost)",
+        "notes": "drive HIGH (directly or through a transistor) to select this digit"
+      },
+      {
+        "pin": 7,
+        "name": "B",
+        "role": "segment B cathode, shared by all 4 digits",
+        "notes": "needs a series resistor"
+      },
+      {
+        "pin": 8,
+        "name": "DIG3",
+        "role": "common anode for digit 3",
+        "notes": "drive HIGH to select this digit"
+      },
+      {
+        "pin": 9,
+        "name": "DIG2",
+        "role": "common anode for digit 2",
+        "notes": "drive HIGH to select this digit"
+      },
+      {
+        "pin": 10,
+        "name": "F",
+        "role": "segment F cathode, shared by all 4 digits",
+        "notes": "needs a series resistor"
+      },
+      {
+        "pin": 11,
+        "name": "A",
+        "role": "segment A cathode, shared by all 4 digits",
+        "notes": "needs a series resistor"
+      },
+      {
+        "pin": 12,
+        "name": "DIG1",
+        "role": "common anode for digit 1 (leftmost)",
+        "notes": "drive HIGH to select this digit"
+      }
     ],
     "pin_1_identification": "Confirmed from the datasheet's dimension diagram: hold the display face-up in normal reading orientation (decimal points along the bottom edge of each digit). Pin 1 is the leftmost pin on the front (bottom) row of legs.",
     "polarity_sensitive": true
@@ -55,44 +128,97 @@
     "shape_and_size": "Black rectangular plastic housing about 30 mm wide and 14 mm tall, with four separate figure-8 shaped red display windows in a row, each with its own small decimal point dot at the bottom-right. Twelve thin metal legs come out the bottom, 6 per row, front and back.",
     "color_and_markings": "Black plastic body, red segments. Usually no printed model number visible on the part.",
     "printed_text_to_look_for": "Usually none; if present, look for '3461' as the model family. Four separate digit windows in a row is the main visual giveaway versus the single-digit part.",
-    "easily_confused_with": ["the 1-digit 7-segment display in this kit (same color scheme, but only one window instead of four)", "an LED dot-matrix module (also a black rectangle with red LEDs, but arranged as a dot grid, not bar segments)"]
+    "easily_confused_with": [
+      "the 1-digit 7-segment display in this kit (same color scheme, but only one window instead of four)",
+      "an LED dot-matrix module (also a black rectangle with red LEDs, but arranged as a dot grid, not bar segments)"
+    ]
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "pin 12 (DIG1)", "uno_pin": "digital pin, e.g. D9, selects the leftmost digit" },
-      { "part_pin": "pin 11 (segment A)", "uno_pin": "digital pin, e.g. D2, through a 220-330 ohm resistor" },
-      { "part_pin": "pin 9 (DIG2)", "uno_pin": "digital pin, e.g. D10, selects the second digit" }
+      {
+        "part_pin": "pin 12 (DIG1)",
+        "uno_pin": "digital pin, e.g. D9, selects the leftmost digit"
+      },
+      {
+        "part_pin": "pin 11 (segment A)",
+        "uno_pin": "digital pin, e.g. D2, through a 220-330 ohm resistor"
+      },
+      {
+        "part_pin": "pin 9 (DIG2)",
+        "uno_pin": "digital pin, e.g. D10, selects the second digit"
+      }
     ],
-    "required_extra_parts": ["one 220-330 ohm resistor per segment line (up to 8 total)", "optionally 4 small NPN or PNP transistors if driving digits needs more current than the Arduino pins can safely supply"],
+    "required_extra_parts": [
+      "one 220-330 ohm resistor per segment line (up to 8 total)",
+      "optionally 4 small NPN or PNP transistors if driving digits needs more current than the Arduino pins can safely supply"
+    ],
     "arduino_library": "none required for basic multiplexing written by hand in a loop; the SevSeg library is commonly used to simplify driving it"
   },
   "safety": {
-    "hazards": ["none inherent; low voltage part"],
-    "handling_notes": ["always use series resistors on the segment lines", "when multiplexing, never drive more than one digit's common pin HIGH at the same instant, or the digits will bleed light into each other"],
-    "common_mistakes": ["wiring it as if it were common cathode (this part is common anode: digit pins must be driven HIGH to select a digit, and segments pulled LOW to light, the opposite of a common-cathode display)", "refreshing the digits too slowly in code, causing visible flicker"]
+    "hazards": [
+      "none inherent; low voltage part"
+    ],
+    "handling_notes": [
+      "always use series resistors on the segment lines",
+      "when multiplexing, never drive more than one digit's common pin HIGH at the same instant, or the digits will bleed light into each other"
+    ],
+    "common_mistakes": [
+      "wiring it as if it were common cathode (this part is common anode: digit pins must be driven HIGH to select a digit, and segments pulled LOW to light, the opposite of a common-cathode display)",
+      "refreshing the digits too slowly in code, causing visible flicker"
+    ]
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "only one digit ever lights up, or the same digit repeats across all four positions", "likely_cause": "digit-select pins (6, 8, 9, 12) wired or coded incorrectly, or the sketch never cycles through the other digits", "check": "verify each DIG pin goes to a separate Arduino pin and the sketch loops through all four digits in sequence" },
-      { "symptom": "display looks dim or flickers badly", "likely_cause": "the multiplexing loop refreshes too slowly, or resistor values are too high", "check": "increase the refresh rate in code (aim for each digit redrawn at least ~100 times per second total) and confirm resistors are 220-330 ohm" },
-      { "symptom": "segments seem inverted, dim ones look 'on' and bright ones look 'off'", "likely_cause": "code written for a common-cathode display applied to this common-anode part", "check": "confirm HIGH on a DIG pin selects that digit and LOW on a segment pin lights that segment, not the reverse" }
+      {
+        "symptom": "only one digit ever lights up, or the same digit repeats across all four positions",
+        "likely_cause": "digit-select pins (6, 8, 9, 12) wired or coded incorrectly, or the sketch never cycles through the other digits",
+        "check": "verify each DIG pin goes to a separate Arduino pin and the sketch loops through all four digits in sequence"
+      },
+      {
+        "symptom": "display looks dim or flickers badly",
+        "likely_cause": "the multiplexing loop refreshes too slowly, or resistor values are too high",
+        "check": "increase the refresh rate in code (aim for each digit redrawn at least ~100 times per second total) and confirm resistors are 220-330 ohm"
+      },
+      {
+        "symptom": "segments seem inverted, dim ones look 'on' and bright ones look 'off'",
+        "likely_cause": "code written for a common-cathode display applied to this common-anode part",
+        "check": "confirm HIGH on a DIG pin selects that digit and LOW on a segment pin lights that segment, not the reverse"
+      }
     ],
     "how_to_test_with_a_multimeter": "Set a multimeter to its diode-test function. Touch the positive probe to a DIG pin (6, 8, 9, or 12) and the negative probe to a segment pin (1, 2, 3, 4, 5, 7, 10, or 11); the matching segment on that digit should light up dimly, confirming both the pin map and that this part is common anode."
   },
   "market": {
-    "unit_price_usd": 0.30,
+    "unit_price_usd": 0.3,
     "price_source_url": "https://make.net.za/product/4-digit-7-segment-display-red/",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["Abra Electronics (HS-3461BS)", "Amazon (uxcell and generic 0.36 inch 4-digit displays)", "XLITX Technology (factory/bulk)", "generic electronics resellers"]
+    "typical_suppliers": [
+      "Abra Electronics (HS-3461BS)",
+      "Amazon (uxcell and generic 0.36 inch 4-digit displays)",
+      "XLITX Technology (factory/bulk)",
+      "generic electronics resellers"
+    ]
   },
   "sources": [
-    { "title": "3461BS datasheet - XLITX Technology", "url": "https://www.xlitx.com/datasheet/3461BS.pdf", "type": "datasheet", "used_for": "pin numbering/segment and digit-select map, common anode confirmation, forward voltage, reverse voltage/current, max continuous and peak forward current per segment, operating/storage temperature, physical dimensions, pin 1 location" },
-    { "title": "4 Digit 7-Segment Display (Red), Part No. 3461BS - Make Electronics", "url": "https://make.net.za/product/4-digit-7-segment-display-red/", "type": "retailer", "used_for": "single-unit retail price (converted from South African rand), independent confirmation of MPN 3461BS and common-anode configuration" }
+    {
+      "title": "3461BS datasheet - XLITX Technology",
+      "url": "https://www.xlitx.com/datasheet/3461BS.pdf",
+      "type": "datasheet",
+      "used_for": "pin numbering/segment and digit-select map, common anode confirmation, forward voltage, reverse voltage/current, max continuous and peak forward current per segment, operating/storage temperature, physical dimensions, pin 1 location"
+    },
+    {
+      "title": "4 Digit 7-Segment Display (Red), Part No. 3461BS - Make Electronics",
+      "url": "https://make.net.za/product/4-digit-7-segment-display-red/",
+      "type": "retailer",
+      "used_for": "single-unit retail price (converted from South African rand), independent confirmation of MPN 3461BS and common-anode configuration"
+    }
   ],
   "confidence": {
     "overall": "medium",
-    "fields_uncertain": ["identity.manufacturer (the fetched datasheet is from XLITX Technology, one of several factories making a 3461BS-numbered part; ELEGOO's actual supplier is unconfirmed)", "market.unit_price_usd (converted from South African rand at an approximate exchange rate, not a native USD retail listing)"],
+    "fields_uncertain": [
+      "identity.manufacturer (the fetched datasheet is from XLITX Technology, one of several factories making a 3461BS-numbered part; ELEGOO's actual supplier is unconfirmed)",
+      "market.unit_price_usd (converted from South African rand at an approximate exchange rate, not a native USD retail listing)"
+    ],
     "notes": "Every US-based retailer fetch attempted (Amazon x2, Abra Electronics) failed or returned no usable pricing, so the single-unit retail price is taken from a South African electronics shop and converted to USD at an approximate September 2026 rate (~18.3 ZAR/USD). That listing independently confirmed the exact part number (3461BS) and common-anode configuration, matching the datasheet. The manufacturer's own bulk factory price ($0.76 per 100-piece minimum order from XLITX) is far lower per unit than any real single-piece retail price and was not used as the headline number for that reason, though the datasheet from that same source was used for all pin and electrical specs."
   }
 }

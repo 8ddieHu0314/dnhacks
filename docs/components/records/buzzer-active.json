@@ -1,14 +1,23 @@
 {
   "id": "buzzer-active",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
   "identity": {
     "name_on_kit": "Active Buzzer",
     "canonical_name": "5V active piezo buzzer (built-in oscillator)",
-    "aliases": ["self-driving buzzer", "DC buzzer"],
+    "aliases": [
+      "self-driving buzzer",
+      "DC buzzer"
+    ],
     "category": "actuator",
     "manufacturer": "unbranded / generic",
     "manufacturer_part_number": "none published by ELEGOO; functionally equivalent to Adafruit \"Buzzer 5V - Breadboard friendly\" (PID 1536)",
-    "generic_equivalents": ["Adafruit Buzzer 5V - Breadboard friendly (PID 1536)"],
+    "generic_equivalents": [
+      "Adafruit Buzzer 5V - Breadboard friendly (PID 1536)"
+    ],
     "serial_number": "not_applicable",
     "package": "12mm round through-hole buzzer, 2 pins"
   },
@@ -20,8 +29,18 @@
   "pins": {
     "pin_count": 2,
     "pinout": [
-      { "pin": 1, "name": "+", "role": "power input, positive", "notes": "the longer of the two leads on a bare through-hole buzzer" },
-      { "pin": 2, "name": "-", "role": "power input, ground/negative", "notes": "the shorter of the two leads" }
+      {
+        "pin": 1,
+        "name": "+",
+        "role": "power input, positive",
+        "notes": "the longer of the two leads on a bare through-hole buzzer"
+      },
+      {
+        "pin": 2,
+        "name": "-",
+        "role": "power input, ground/negative",
+        "notes": "the shorter of the two leads"
+      }
     ],
     "pin_1_identification": "The positive lead is the longer of the two pins, the standard convention for this style of through-hole buzzer. ELEGOO's own diagram for the related passive buzzer wires the red jumper to positive and the black jumper to GND; the active buzzer follows the same colour convention.",
     "polarity_sensitive": true
@@ -42,25 +61,50 @@
     "shape_and_size": "Small round can about 12mm in diameter and roughly 9-12mm tall, with two pins sticking out of the bottom.",
     "color_and_markings": "The bottom is sealed with a solid black tape or sticker; this is how ELEGOO's own tutorial tells it apart from the passive buzzer, which shows a green circuit board instead.",
     "printed_text_to_look_for": "Usually none visible once installed; may show a tiny voltage rating printed on the tape.",
-    "easily_confused_with": ["Passive buzzer (nearly identical size and shape, but has an exposed green PCB on the back instead of a solid black seal, and needs a changing signal rather than steady power to make sound)"]
+    "easily_confused_with": [
+      "Passive buzzer (nearly identical size and shape, but has an exposed green PCB on the back instead of a solid black seal, and needs a changing signal rather than steady power to make sound)"
+    ]
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "+", "uno_pin": "any spare digital output pin; ELEGOO's passive buzzer lesson uses D8, and the active buzzer lesson follows the same wiring style" },
-      { "part_pin": "-", "uno_pin": "GND" }
+      {
+        "part_pin": "+",
+        "uno_pin": "any spare digital output pin; ELEGOO's passive buzzer lesson uses D8, and the active buzzer lesson follows the same wiring style"
+      },
+      {
+        "part_pin": "-",
+        "uno_pin": "GND"
+      }
     ],
-    "required_extra_parts": ["2 female-to-male jumper wires (per ELEGOO's Lesson 6)"],
+    "required_extra_parts": [
+      "2 female-to-male jumper wires (per ELEGOO's Lesson 6)"
+    ],
     "arduino_library": "none required; driven with plain digitalWrite() HIGH/LOW"
   },
   "safety": {
-    "hazards": ["None significant; a low-voltage, low-current part"],
-    "handling_notes": ["Observe polarity; reversed power usually will not damage it but will prevent it from sounding"],
-    "common_mistakes": ["Confusing it with the passive buzzer and expecting tone() to change its pitch, it cannot, the tone is fixed", "Reversing the two leads"]
+    "hazards": [
+      "None significant; a low-voltage, low-current part"
+    ],
+    "handling_notes": [
+      "Observe polarity; reversed power usually will not damage it but will prevent it from sounding"
+    ],
+    "common_mistakes": [
+      "Confusing it with the passive buzzer and expecting tone() to change its pitch, it cannot, the tone is fixed",
+      "Reversing the two leads"
+    ]
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "No sound at all", "likely_cause": "Leads reversed, or a passive buzzer installed by mistake", "check": "Look for a solid black sealed back (active) versus a green PCB (passive), and confirm the digital pin is being driven HIGH" },
-      { "symptom": "Sound is very faint", "likely_cause": "Insufficient supply voltage", "check": "Measure DC voltage at the buzzer's two pins with a multimeter while it is active; it should read close to 5V" }
+      {
+        "symptom": "No sound at all",
+        "likely_cause": "Leads reversed, or a passive buzzer installed by mistake",
+        "check": "Look for a solid black sealed back (active) versus a green PCB (passive), and confirm the digital pin is being driven HIGH"
+      },
+      {
+        "symptom": "Sound is very faint",
+        "likely_cause": "Insufficient supply voltage",
+        "check": "Measure DC voltage at the buzzer's two pins with a multimeter while it is active; it should read close to 5V"
+      }
     ],
     "how_to_test_with_a_multimeter": "Set the multimeter to DC voltage mode across the two pins while the UNO drives the connected pin HIGH; a working buzzer and correct wiring should read close to the supply voltage (about 5V). With power off, a working unit typically shows a stable low resistance through its internal coil in resistance mode."
   },
@@ -69,16 +113,39 @@
     "price_source_url": "https://www.adafruit.com/product/1536",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["ELEGOO (bundled in kit only)", "Adafruit", "generic electronics retailers/AliExpress"]
+    "typical_suppliers": [
+      "ELEGOO (bundled in kit only)",
+      "Adafruit",
+      "generic electronics retailers/AliExpress"
+    ]
   },
   "sources": [
-    { "title": "Elegoo Super Starter Kit for UNO tutorial PDF (Lesson 6: Active buzzer)", "url": "https://www.uastem.com/wp-content/uploads/2021/10/Elegoo_Super_Starter_Kit_for_UNO_V1.0.2019.09.17.pdf", "type": "tutorial", "used_for": "confirms the part, how to visually tell active from passive, function, and general wiring style (jumper wire count)" },
-    { "title": "Active Buzzer Module datasheet, Handson Technology", "url": "https://www.handsontec.com/dataspecs/module/active%20buzzer%20module.pdf", "type": "datasheet", "used_for": "generic-equivalent electrical specs: operating_voltage, typical_current, resonant_frequency_hz, sound_output (note: this datasheet covers a 3-pin driver-module version; ELEGOO ships the bare 2-pin element)" },
-    { "title": "Buzzer 5V - Breadboard friendly, Adafruit product #1536", "url": "https://www.adafruit.com/product/1536", "type": "retailer", "used_for": "bare 2-pin generic equivalent confirming pin count/spacing, operating_voltage range, fixed frequency, and unit_price_usd" }
+    {
+      "title": "Elegoo Super Starter Kit for UNO tutorial PDF (Lesson 6: Active buzzer)",
+      "url": "https://www.uastem.com/wp-content/uploads/2021/10/Elegoo_Super_Starter_Kit_for_UNO_V1.0.2019.09.17.pdf",
+      "type": "tutorial",
+      "used_for": "confirms the part, how to visually tell active from passive, function, and general wiring style (jumper wire count)"
+    },
+    {
+      "title": "Active Buzzer Module datasheet, Handson Technology",
+      "url": "https://www.handsontec.com/dataspecs/module/active%20buzzer%20module.pdf",
+      "type": "datasheet",
+      "used_for": "generic-equivalent electrical specs: operating_voltage, typical_current, resonant_frequency_hz, sound_output (note: this datasheet covers a 3-pin driver-module version; ELEGOO ships the bare 2-pin element)"
+    },
+    {
+      "title": "Buzzer 5V - Breadboard friendly, Adafruit product #1536",
+      "url": "https://www.adafruit.com/product/1536",
+      "type": "retailer",
+      "used_for": "bare 2-pin generic equivalent confirming pin count/spacing, operating_voltage range, fixed frequency, and unit_price_usd"
+    }
   ],
   "confidence": {
     "overall": "medium",
-    "fields_uncertain": ["pins.pin_1_identification (exact ELEGOO lead length not independently confirmed)", "electrical.max_current", "wiring_to_uno.example_connections (the exact UNO pin used in ELEGOO's active-buzzer lesson wiring diagram is an image and could not be extracted as text; the passive-buzzer lesson's D8 is given by analogy, not confirmed for this lesson)"],
+    "fields_uncertain": [
+      "pins.pin_1_identification (exact ELEGOO lead length not independently confirmed)",
+      "electrical.max_current",
+      "wiring_to_uno.example_connections (the exact UNO pin used in ELEGOO's active-buzzer lesson wiring diagram is an image and could not be extracted as text; the passive-buzzer lesson's D8 is given by analogy, not confirmed for this lesson)"
+    ],
     "notes": "ELEGOO's own wiring diagram for the active buzzer lesson is an image, not machine-readable text, so the exact UNO pin used could not be confirmed from the fetched tutorial; D8 is carried over by analogy with the passive buzzer lesson, which does state its pin explicitly. Electrical specs come from a similar Handson Technology 3-pin driver-module datasheet as the closest available generic reference, since no datasheet exists for a bare 2-pin unbranded buzzer."
   }
 }

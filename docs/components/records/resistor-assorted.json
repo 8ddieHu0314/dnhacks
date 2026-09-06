@@ -1,14 +1,25 @@
 {
   "id": "elegoo-uno-r3-kit/resistor-assorted",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 120 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 120
+  },
   "identity": {
     "name_on_kit": "Resistor",
     "canonical_name": "1/4 W 5% resistor assortment (generic axial-lead fixed resistors)",
-    "aliases": ["carbon film resistor", "fixed resistor", "resistor pack", "resistor assortment kit"],
+    "aliases": [
+      "carbon film resistor",
+      "fixed resistor",
+      "resistor pack",
+      "resistor assortment kit"
+    ],
     "category": "passive",
     "manufacturer": "unbranded / generic (assorted OEM manufacturers, not identified on the kit)",
     "manufacturer_part_number": "generic, no single MPN published for the bundled resistors",
-    "generic_equivalents": ["Any 1/4 W, axial-lead carbon film or metal film resistor of the same ohm value, from any manufacturer (e.g. Yageo, Multicomp, Xicon); resistors of matching value and power rating are functionally interchangeable regardless of brand"],
+    "generic_equivalents": [
+      "Any 1/4 W, axial-lead carbon film or metal film resistor of the same ohm value, from any manufacturer (e.g. Yageo, Multicomp, Xicon); resistors of matching value and power rating are functionally interchangeable regardless of brand"
+    ],
     "serial_number": "not_applicable",
     "package": "axial-lead through-hole, cylindrical body"
   },
@@ -20,8 +31,18 @@
   "pins": {
     "pin_count": 2,
     "pinout": [
-      { "pin": 1, "name": "Lead A", "role": "circuit terminal, non-polarized", "notes": "Either lead can connect to either side of the circuit; a resistor has no direction." },
-      { "pin": 2, "name": "Lead B", "role": "circuit terminal, non-polarized", "notes": "Electrically identical to Lead A and interchangeable with it." }
+      {
+        "pin": 1,
+        "name": "Lead A",
+        "role": "circuit terminal, non-polarized",
+        "notes": "Either lead can connect to either side of the circuit; a resistor has no direction."
+      },
+      {
+        "pin": 2,
+        "name": "Lead B",
+        "role": "circuit terminal, non-polarized",
+        "notes": "Electrically identical to Lead A and interchangeable with it."
+      }
     ],
     "pin_1_identification": "Not applicable. A resistor has no pin 1 and no positive lead. Both wire leads are electrically identical and can be swapped without changing how the circuit works.",
     "polarity_sensitive": false
@@ -53,10 +74,20 @@
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "Lead A", "uno_pin": "typical usage: in series between a digital or PWM output pin and the anode of an LED, to limit current" },
-      { "part_pin": "Lead B", "uno_pin": "typical usage: continues from the LED's cathode to GND, completing the current-limiting path" }
+      {
+        "part_pin": "Lead A",
+        "uno_pin": "typical usage: in series between a digital or PWM output pin and the anode of an LED, to limit current"
+      },
+      {
+        "part_pin": "Lead B",
+        "uno_pin": "typical usage: continues from the LED's cathode to GND, completing the current-limiting path"
+      }
     ],
-    "required_extra_parts": ["breadboard", "jumper wires", "an LED or other part the resistor is protecting"],
+    "required_extra_parts": [
+      "breadboard",
+      "jumper wires",
+      "an LED or other part the resistor is protecting"
+    ],
     "arduino_library": "none, a resistor is a passive part and needs no software library"
   },
   "safety": {
@@ -78,9 +109,21 @@
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "LED does not light, or is extremely dim", "likely_cause": "Resistor value is too high, choking off too much current, or there is a broken connection.", "check": "Measure the resistor's resistance with a multimeter and compare it to the value decoded from its color bands." },
-      { "symptom": "Resistor or the part it protects gets hot, or an LED burns out", "likely_cause": "Resistor value is too low for the applied voltage, letting more current through than the part downstream (or the resistor itself) can handle.", "check": "Calculate expected current and power (Power = Current squared x Resistance) and compare against the resistor's 1/4 W rating; swap in a higher-value or higher-wattage resistor if needed." },
-      { "symptom": "Multimeter reads open circuit or infinite resistance across the leads", "likely_cause": "An internally broken lead, or a bad solder/breadboard connection.", "check": "Remove the resistor from the circuit and measure resistance directly across its two leads with a multimeter." }
+      {
+        "symptom": "LED does not light, or is extremely dim",
+        "likely_cause": "Resistor value is too high, choking off too much current, or there is a broken connection.",
+        "check": "Measure the resistor's resistance with a multimeter and compare it to the value decoded from its color bands."
+      },
+      {
+        "symptom": "Resistor or the part it protects gets hot, or an LED burns out",
+        "likely_cause": "Resistor value is too low for the applied voltage, letting more current through than the part downstream (or the resistor itself) can handle.",
+        "check": "Calculate expected current and power (Power = Current squared x Resistance) and compare against the resistor's 1/4 W rating; swap in a higher-value or higher-wattage resistor if needed."
+      },
+      {
+        "symptom": "Multimeter reads open circuit or infinite resistance across the leads",
+        "likely_cause": "An internally broken lead, or a bad solder/breadboard connection.",
+        "check": "Remove the resistor from the circuit and measure resistance directly across its two leads with a multimeter."
+      }
     ],
     "how_to_test_with_a_multimeter": "Power off the circuit, set the multimeter to resistance (Ohms) mode, and touch one probe to each lead of the resistor (ideally with it removed from the circuit to avoid other parts affecting the reading). The displayed value should match the value decoded from the color bands, within the tolerance percentage."
   },
@@ -89,12 +132,32 @@
     "price_source_url": "https://www.sparkfun.com/resistor-kit-1-4w-500-total.html",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["SparkFun", "DigiKey", "Amazon", "AliExpress"]
+    "typical_suppliers": [
+      "SparkFun",
+      "DigiKey",
+      "Amazon",
+      "AliExpress"
+    ]
   },
   "sources": [
-    { "title": "Elegoo Uno Project Super Starter Kit Unboxing & Review - The DIY Life", "url": "https://the-diy-life.com/elegoo-uno-project-super-starter-kit-unboxing-review/", "type": "tutorial", "used_for": "Kit contents overview and confirming resistors are one of the bundled component types in this ELEGOO starter kit line; this edition's review reported 30 bundled resistors, a different count than this record's specified 120, flagged in confidence notes." },
-    { "title": "4 Band Resistor Color Code Calculator and Chart - DigiKey Electronics", "url": "https://www.digikey.com/en/resources/conversion-calculators/conversion-calculator-resistor-color-code-4-band", "type": "manufacturer", "used_for": "pins.pin_count (two leads), pins.polarity_sensitive, key_specs.band_code, and visual_identification.color_and_markings (4-band color code table and meaning of each band)." },
-    { "title": "Resistor Kit - 1/4W (500 total) - SparkFun Electronics", "url": "https://www.sparkfun.com/resistor-kit-1-4w-500-total.html", "type": "retailer", "used_for": "market.unit_price_usd (computed as $9.95 / 500 pieces = $0.0199, rounded to $0.02), key_specs.power_rating_watts (1/4 W), key_specs.resistance_range, and identity.package (axial through-hole leads)." }
+    {
+      "title": "Elegoo Uno Project Super Starter Kit Unboxing & Review - The DIY Life",
+      "url": "https://the-diy-life.com/elegoo-uno-project-super-starter-kit-unboxing-review/",
+      "type": "tutorial",
+      "used_for": "Kit contents overview and confirming resistors are one of the bundled component types in this ELEGOO starter kit line; this edition's review reported 30 bundled resistors, a different count than this record's specified 120, flagged in confidence notes."
+    },
+    {
+      "title": "4 Band Resistor Color Code Calculator and Chart - DigiKey Electronics",
+      "url": "https://www.digikey.com/en/resources/conversion-calculators/conversion-calculator-resistor-color-code-4-band",
+      "type": "manufacturer",
+      "used_for": "pins.pin_count (two leads), pins.polarity_sensitive, key_specs.band_code, and visual_identification.color_and_markings (4-band color code table and meaning of each band)."
+    },
+    {
+      "title": "Resistor Kit - 1/4W (500 total) - SparkFun Electronics",
+      "url": "https://www.sparkfun.com/resistor-kit-1-4w-500-total.html",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd (computed as $9.95 / 500 pieces = $0.0199, rounded to $0.02), key_specs.power_rating_watts (1/4 W), key_specs.resistance_range, and identity.package (axial through-hole leads)."
+    }
   ],
   "confidence": {
     "overall": "medium",

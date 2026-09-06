@@ -1,14 +1,26 @@
 {
   "id": "ir-remote",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
   "identity": {
     "name_on_kit": "Remote Control",
     "canonical_name": "17-key infrared (IR) remote control (widely marketed elsewhere as a \"21-key\" IR remote; that count could not be confirmed for this unit, see key_specs.key_count)",
-    "aliases": ["IR remote", "NEC remote control", "ELEGOO remote control", "21-key IR remote (common but unconfirmed marketing name)"],
+    "aliases": [
+      "IR remote",
+      "NEC remote control",
+      "ELEGOO remote control",
+      "21-key IR remote (common but unconfirmed marketing name)"
+    ],
     "category": "input",
     "manufacturer": "ELEGOO (kit brand; the remote itself is most likely a generic OEM part bundled and rebranded by ELEGOO, not independently confirmed this session)",
     "manufacturer_part_number": "unknown, not confirmed this session",
-    "generic_equivalents": ["generic NEC-protocol infrared remote control with an arrow pad, OK button, digits 0-9, and */# keys, widely sold for Arduino and Raspberry Pi hobby kits", "a differently-labeled but protocol-compatible \"21-key\" remote (CH-/CH/CH+, VOL, EQ layout) is also extremely common in Arduino kits and shares the same underlying NEC code table"],
+    "generic_equivalents": [
+      "generic NEC-protocol infrared remote control with an arrow pad, OK button, digits 0-9, and */# keys, widely sold for Arduino and Raspberry Pi hobby kits",
+      "a differently-labeled but protocol-compatible \"21-key\" remote (CH-/CH/CH+, VOL, EQ layout) is also extremely common in Arduino kits and shares the same underlying NEC code table"
+    ],
     "serial_number": "not_applicable",
     "package": "handheld battery-powered remote control unit (not a circuit package)"
   },
@@ -75,9 +87,21 @@
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "Remote does nothing, no response from the project", "likely_cause": "Battery insulator tab still in place, or battery dead or missing", "check": "Open the battery compartment and confirm a battery is seated and any pull-tab has been removed" },
-      { "symptom": "Some buttons work but others do not", "likely_cause": "Worn or dirty membrane contacts under specific buttons", "check": "Press firmly and squarely on the button; if it still fails, the remote itself likely has a fault" },
-      { "symptom": "Receiver only responds at very close range", "likely_cause": "Weak or low battery, or receiver misaligned", "check": "Swap in a fresh CR2025 coin cell and re-test at a normal distance and angle" }
+      {
+        "symptom": "Remote does nothing, no response from the project",
+        "likely_cause": "Battery insulator tab still in place, or battery dead or missing",
+        "check": "Open the battery compartment and confirm a battery is seated and any pull-tab has been removed"
+      },
+      {
+        "symptom": "Some buttons work but others do not",
+        "likely_cause": "Worn or dirty membrane contacts under specific buttons",
+        "check": "Press firmly and squarely on the button; if it still fails, the remote itself likely has a fault"
+      },
+      {
+        "symptom": "Receiver only responds at very close range",
+        "likely_cause": "Weak or low battery, or receiver misaligned",
+        "check": "Swap in a fresh CR2025 coin cell and re-test at a normal distance and angle"
+      }
     ],
     "how_to_test_with_a_multimeter": "A multimeter cannot read the remote's infrared light output directly. The practical checks are: set a multimeter to DC voltage and touch the probes to the battery contacts inside the compartment to confirm the CR2025 coin cell still reads close to its rated 3V, and separately, view the remote's infrared lens through a phone camera while pressing a button. Phone camera sensors can usually pick up near-infrared light as a faint flicker that the human eye cannot see, which confirms the remote is transmitting."
   },
@@ -94,11 +118,36 @@
     ]
   },
   "sources": [
-    { "title": "Lesson 3 Infrared Controlling Car (ELEGOO official tutorial PDF, elegoo.com header, hosted for the Smart Robot Car Kit V2.0)", "url": "https://sbpengineering.weebly.com/uploads/6/5/5/8/6558719/lesson_3_infrared_remote_control_car.pdf", "type": "manufacturer", "used_for": "visual_identification (color_and_markings, printed_text_to_look_for, shape_and_size), key_specs.ir_protocol, key_specs.carrier_frequency, key_specs.key_count, key_specs.nec_example_code, wiring_to_uno.arduino_library, function.how_it_works_briefly -- this PDF loaded as a readable, image-bearing document and shows an actual photo of the ELEGOO-branded remote plus its official example sketch; it documents the Smart Robot Car Kit V2.0 rather than the UNO R3 Super Starter Kit named in this record, but ELEGOO is known to reuse this exact IR remote/receiver accessory across its Arduino kit line, so it is treated as strong (not certain) evidence for this kit's remote too" },
-    { "title": "IR Remote Control Kit product page, ProtoSupplies", "url": "https://protosupplies.com/product/ir-remote-control-kit/", "type": "retailer", "used_for": "market.unit_price_usd, key_specs.carrier_frequency, key_specs.battery_model, key_specs.claimed_range, key_specs.key_count -- for a closely comparable generic remote+receiver kit sold for Arduino (18 keys, same layout family, CR2025 battery, 38 kHz, matching range), used as corroboration since the exact 17-key ELEGOO remote does not have its own standalone datasheet or listing" },
-    { "title": "ARD-IR-KIT - ELEGOO - IR RECEIVER & EMISSION, ace4parts.com", "url": "https://ace4parts.com/products/ard-ir-kit-elegoo-ir-receiver-emission", "type": "retailer", "used_for": "market.typical_suppliers -- an ELEGOO-branded IR receiver-plus-remote listing at $5.95 USD, kept as a secondary price data point since the listing does not clarify whether that price is for the pair or a single part" },
-    { "title": "Arduino Tutorial 64: Understanding and Using the Infrared (IR) Remote to Control a Project, toptechboy.com", "url": "https://toptechboy.com/arduino-tutorial-64-understanding-and-using-the-infrared-ir-remote-to-control-a-project/", "type": "tutorial", "used_for": "key_specs.nec_example_code -- independently lists hex code 0xFF6897 for a '0' (zero) button on a same-family generic 21-key NEC remote, used to cross-check the hex value read from the ELEGOO PDF's decimal constant for its own button '1'" },
-    { "title": "james1293/ElegooIRRemoteFuncExample (GitHub)", "url": "https://github.com/james1293/ElegooIRRemoteFuncExample", "type": "tutorial", "used_for": "wiring_to_uno.arduino_library, function.how_it_works_briefly -- confirms this example project decodes the exact remote bundled in the ELEGOO starter kit using the IRremote library (carried over from the prior research pass; not refetched this session, no indication it has gone offline)" }
+    {
+      "title": "Lesson 3 Infrared Controlling Car (ELEGOO official tutorial PDF, elegoo.com header, hosted for the Smart Robot Car Kit V2.0)",
+      "url": "https://sbpengineering.weebly.com/uploads/6/5/5/8/6558719/lesson_3_infrared_remote_control_car.pdf",
+      "type": "manufacturer",
+      "used_for": "visual_identification (color_and_markings, printed_text_to_look_for, shape_and_size), key_specs.ir_protocol, key_specs.carrier_frequency, key_specs.key_count, key_specs.nec_example_code, wiring_to_uno.arduino_library, function.how_it_works_briefly -- this PDF loaded as a readable, image-bearing document and shows an actual photo of the ELEGOO-branded remote plus its official example sketch; it documents the Smart Robot Car Kit V2.0 rather than the UNO R3 Super Starter Kit named in this record, but ELEGOO is known to reuse this exact IR remote/receiver accessory across its Arduino kit line, so it is treated as strong (not certain) evidence for this kit's remote too"
+    },
+    {
+      "title": "IR Remote Control Kit product page, ProtoSupplies",
+      "url": "https://protosupplies.com/product/ir-remote-control-kit/",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, key_specs.carrier_frequency, key_specs.battery_model, key_specs.claimed_range, key_specs.key_count -- for a closely comparable generic remote+receiver kit sold for Arduino (18 keys, same layout family, CR2025 battery, 38 kHz, matching range), used as corroboration since the exact 17-key ELEGOO remote does not have its own standalone datasheet or listing"
+    },
+    {
+      "title": "ARD-IR-KIT - ELEGOO - IR RECEIVER & EMISSION, ace4parts.com",
+      "url": "https://ace4parts.com/products/ard-ir-kit-elegoo-ir-receiver-emission",
+      "type": "retailer",
+      "used_for": "market.typical_suppliers -- an ELEGOO-branded IR receiver-plus-remote listing at $5.95 USD, kept as a secondary price data point since the listing does not clarify whether that price is for the pair or a single part"
+    },
+    {
+      "title": "Arduino Tutorial 64: Understanding and Using the Infrared (IR) Remote to Control a Project, toptechboy.com",
+      "url": "https://toptechboy.com/arduino-tutorial-64-understanding-and-using-the-infrared-ir-remote-to-control-a-project/",
+      "type": "tutorial",
+      "used_for": "key_specs.nec_example_code -- independently lists hex code 0xFF6897 for a '0' (zero) button on a same-family generic 21-key NEC remote, used to cross-check the hex value read from the ELEGOO PDF's decimal constant for its own button '1'"
+    },
+    {
+      "title": "james1293/ElegooIRRemoteFuncExample (GitHub)",
+      "url": "https://github.com/james1293/ElegooIRRemoteFuncExample",
+      "type": "tutorial",
+      "used_for": "wiring_to_uno.arduino_library, function.how_it_works_briefly -- confirms this example project decodes the exact remote bundled in the ELEGOO starter kit using the IRremote library (carried over from the prior research pass; not refetched this session, no indication it has gone offline)"
+    }
   ],
   "confidence": {
     "overall": "medium",

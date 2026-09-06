@@ -1,14 +1,24 @@
 {
   "id": "psu-mb102",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
   "identity": {
     "name_on_kit": "Power Supply Module",
     "canonical_name": "MB102 breadboard power supply module",
-    "aliases": ["MB-102", "breadboard power supply", "solderless breadboard PSU"],
+    "aliases": [
+      "MB-102",
+      "breadboard power supply",
+      "solderless breadboard PSU"
+    ],
     "category": "power",
     "manufacturer": "generic; no single named manufacturer confirmed. MB102 is a widely cloned reference design produced by many OEMs",
     "manufacturer_part_number": "MB102 (de facto standard model designation used industry-wide)",
-    "generic_equivalents": ["any \"MB102\" or \"MB-102\" breadboard power supply module"],
+    "generic_equivalents": [
+      "any \"MB102\" or \"MB-102\" breadboard power supply module"
+    ],
     "serial_number": "not_applicable",
     "package": "module (small PCB that clips onto the end power rails of an 830-point breadboard)"
   },
@@ -20,14 +30,54 @@
   "pins": {
     "pin_count": 8,
     "pinout": [
-      { "pin": 1, "name": "GND", "role": "power", "notes": "4-pin header group; ground return, connects to the breadboard's negative rails" },
-      { "pin": 2, "name": "3.3V", "role": "power out", "notes": "2-pin header group; regulated 3.3V rail" },
-      { "pin": 3, "name": "5V", "role": "power out", "notes": "2-pin header group; regulated 5V rail" },
-      { "pin": 4, "name": "Left jumper", "role": "control", "notes": "Selects that side's rail voltage: 5V / OFF (0V) / 3.3V" },
-      { "pin": 5, "name": "Right jumper", "role": "control", "notes": "Selects that side's rail voltage: 5V / OFF (0V) / 3.3V" },
-      { "pin": 6, "name": "DC barrel jack", "role": "power in", "notes": "5.5x2.1mm barrel jack, accepts 6.5-12V input" },
-      { "pin": 7, "name": "USB Type-A input", "role": "power in", "notes": "Alternate 5V input via USB" },
-      { "pin": 8, "name": "ON/OFF switch", "role": "control", "notes": "Cuts power to the whole board" }
+      {
+        "pin": 1,
+        "name": "GND",
+        "role": "power",
+        "notes": "4-pin header group; ground return, connects to the breadboard's negative rails"
+      },
+      {
+        "pin": 2,
+        "name": "3.3V",
+        "role": "power out",
+        "notes": "2-pin header group; regulated 3.3V rail"
+      },
+      {
+        "pin": 3,
+        "name": "5V",
+        "role": "power out",
+        "notes": "2-pin header group; regulated 5V rail"
+      },
+      {
+        "pin": 4,
+        "name": "Left jumper",
+        "role": "control",
+        "notes": "Selects that side's rail voltage: 5V / OFF (0V) / 3.3V"
+      },
+      {
+        "pin": 5,
+        "name": "Right jumper",
+        "role": "control",
+        "notes": "Selects that side's rail voltage: 5V / OFF (0V) / 3.3V"
+      },
+      {
+        "pin": 6,
+        "name": "DC barrel jack",
+        "role": "power in",
+        "notes": "5.5x2.1mm barrel jack, accepts 6.5-12V input"
+      },
+      {
+        "pin": 7,
+        "name": "USB Type-A input",
+        "role": "power in",
+        "notes": "Alternate 5V input via USB"
+      },
+      {
+        "pin": 8,
+        "name": "ON/OFF switch",
+        "role": "control",
+        "notes": "Cuts power to the whole board"
+      }
     ],
     "pin_1_identification": "No single pin 1. The board is a rectangle with two independent output pin clusters, one on each long edge, mirrored around a center barrel jack and switch. Each side's polarity is silkscreened (+ / -) right next to its pins.",
     "polarity_sensitive": true
@@ -51,25 +101,57 @@
     "shape_and_size": "A small rectangular PCB, about 5.3cm x 3.3cm, with two rows of pin headers along its long edges spaced to plug straight into a standard breadboard's end power rails, and a round barrel jack plus a USB-A port sticking out one end.",
     "color_and_markings": "Usually a blue PCB with white silkscreen; two small black switches near the middle for jumper voltage selection; a small LED that lights when powered.",
     "printed_text_to_look_for": "Silkscreen near the header pins usually reads \"5V\", \"3.3V\", and \"GND\" or +/- symbols, plus \"MB102\" printed on the board.",
-    "easily_confused_with": ["A generic USB charging module (no barrel jack or breadboard-pin footprint)", "A single-rail voltage regulator breakout", "A relay module (similar size, but has a large relay can and screw terminals instead of breadboard pins)"]
+    "easily_confused_with": [
+      "A generic USB charging module (no barrel jack or breadboard-pin footprint)",
+      "A single-rail voltage regulator breakout",
+      "A relay module (similar size, but has a large relay can and screw terminals instead of breadboard pins)"
+    ]
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "5V output pins", "uno_pin": "not wired to the Uno directly; plugs straight into the breadboard's own power rail holes" },
-      { "part_pin": "GND output pins", "uno_pin": "share a common ground with the Uno only if both are powering the same circuit at the same time" }
+      {
+        "part_pin": "5V output pins",
+        "uno_pin": "not wired to the Uno directly; plugs straight into the breadboard's own power rail holes"
+      },
+      {
+        "part_pin": "GND output pins",
+        "uno_pin": "share a common ground with the Uno only if both are powering the same circuit at the same time"
+      }
     ],
-    "required_extra_parts": ["9V battery or a 6.5-12V wall adapter with a compatible barrel plug", "830-point breadboard (this module clips onto its end rails)"],
+    "required_extra_parts": [
+      "9V battery or a 6.5-12V wall adapter with a compatible barrel plug",
+      "830-point breadboard (this module clips onto its end rails)"
+    ],
     "arduino_library": "none; it is a passive power module, no code needed"
   },
   "safety": {
-    "hazards": ["Reversed barrel-jack polarity can damage the module", "Setting both jumpers to 5V while a 3.3V-only part is wired in can destroy that part", "Shorting the output rails together can overheat the regulator"],
-    "handling_notes": ["Turn the switch off before changing the jumpers or rewiring the breadboard", "Double check jumper position before powering anything sensitive"],
-    "common_mistakes": ["Leaving a jumper in the wrong voltage position for the parts wired to that rail", "Plugging the module onto the breadboard backwards (check the printed +/- markings line up with the breadboard's own rail markings)", "Forgetting to flip the ON/OFF switch and assuming the module is broken"]
+    "hazards": [
+      "Reversed barrel-jack polarity can damage the module",
+      "Setting both jumpers to 5V while a 3.3V-only part is wired in can destroy that part",
+      "Shorting the output rails together can overheat the regulator"
+    ],
+    "handling_notes": [
+      "Turn the switch off before changing the jumpers or rewiring the breadboard",
+      "Double check jumper position before powering anything sensitive"
+    ],
+    "common_mistakes": [
+      "Leaving a jumper in the wrong voltage position for the parts wired to that rail",
+      "Plugging the module onto the breadboard backwards (check the printed +/- markings line up with the breadboard's own rail markings)",
+      "Forgetting to flip the ON/OFF switch and assuming the module is broken"
+    ]
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "No power on the breadboard rails", "likely_cause": "Switch is off, a jumper is set to the middle OFF position, or no input power is connected", "check": "Verify the ON/OFF switch position and that both jumpers are set to 5V or 3.3V, not the middle" },
-      { "symptom": "Parts overheat or fail immediately", "likely_cause": "Jumper set to 5V when the circuit needs 3.3V, or reversed barrel-jack polarity", "check": "Measure the actual rail voltage with a multimeter before reconnecting parts" }
+      {
+        "symptom": "No power on the breadboard rails",
+        "likely_cause": "Switch is off, a jumper is set to the middle OFF position, or no input power is connected",
+        "check": "Verify the ON/OFF switch position and that both jumpers are set to 5V or 3.3V, not the middle"
+      },
+      {
+        "symptom": "Parts overheat or fail immediately",
+        "likely_cause": "Jumper set to 5V when the circuit needs 3.3V, or reversed barrel-jack polarity",
+        "check": "Measure the actual rail voltage with a multimeter before reconnecting parts"
+      }
     ],
     "how_to_test_with_a_multimeter": "With input power connected and the switch on, measure DC volts between the output + and - pins on each side; expect close to 5.0V or 3.3V depending on that side's jumper position."
   },
@@ -78,12 +160,31 @@
     "price_source_url": "https://robotpishop.com/products/mb-102-power-supply-module",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["Amazon", "Robot Pi Shop", "generic electronics retailers"]
+    "typical_suppliers": [
+      "Amazon",
+      "Robot Pi Shop",
+      "generic electronics retailers"
+    ]
   },
   "sources": [
-    { "title": "MB102 Breadboard Power Supply module: Pinout and How to use it", "url": "https://microcontrollerslab.com/mb102-breadboard-power-supply-module-pinout-and-how-to-use-it/", "type": "tutorial", "used_for": "function, general pinout/jumper description corroboration" },
-    { "title": "Breadboard Power Supply Module - components101", "url": "https://components101.com/modules/5v-mb102-breadboard-power-supply-module", "type": "wiki", "used_for": "pins (header groups, jumper behavior), electrical (input voltage range, output voltage options, max current), key_specs (board dimensions)" },
-    { "title": "MB-102 Power Supply Module - Robot Pi Shop", "url": "https://robotpishop.com/products/mb-102-power-supply-module", "type": "retailer", "used_for": "market.unit_price_usd, electrical (input voltage, output voltage options, max current) corroboration" }
+    {
+      "title": "MB102 Breadboard Power Supply module: Pinout and How to use it",
+      "url": "https://microcontrollerslab.com/mb102-breadboard-power-supply-module-pinout-and-how-to-use-it/",
+      "type": "tutorial",
+      "used_for": "function, general pinout/jumper description corroboration"
+    },
+    {
+      "title": "Breadboard Power Supply Module - components101",
+      "url": "https://components101.com/modules/5v-mb102-breadboard-power-supply-module",
+      "type": "wiki",
+      "used_for": "pins (header groups, jumper behavior), electrical (input voltage range, output voltage options, max current), key_specs (board dimensions)"
+    },
+    {
+      "title": "MB-102 Power Supply Module - Robot Pi Shop",
+      "url": "https://robotpishop.com/products/mb-102-power-supply-module",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, electrical (input voltage, output voltage options, max current) corroboration"
+    }
   ],
   "confidence": {
     "overall": "medium",

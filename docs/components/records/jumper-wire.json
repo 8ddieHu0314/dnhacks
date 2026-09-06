@@ -1,14 +1,25 @@
 {
   "id": "jumper-wire",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 65 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 65
+  },
   "identity": {
     "name_on_kit": "Breadboard Jumper Wire",
     "canonical_name": "solid-core breadboard jumper wire",
-    "aliases": ["pre-formed jumper wire", "solid-core jumper wire", "breadboard wire"],
+    "aliases": [
+      "pre-formed jumper wire",
+      "solid-core jumper wire",
+      "breadboard wire"
+    ],
     "category": "wiring",
     "manufacturer": "not confirmed. ELEGOO bundles a generic, unbranded wire supplier's product, not a named-brand part",
     "manufacturer_part_number": "not confirmed. This is a commodity part with no manufacturer part number found for the exact ELEGOO-bundled version",
-    "generic_equivalents": ["SparkFun PRT-00124 Jumper Wire Kit, 140pcs", "any 22 AWG solid-core pre-formed jumper wire kit"],
+    "generic_equivalents": [
+      "SparkFun PRT-00124 Jumper Wire Kit, 140pcs",
+      "any 22 AWG solid-core pre-formed jumper wire kit"
+    ],
     "serial_number": "not_applicable",
     "package": "cable, single pre-bent solid wire (loose piece, not a module)"
   },
@@ -20,7 +31,12 @@
   "pins": {
     "pin_count": 1,
     "pinout": [
-      { "pin": 1, "name": "conductor", "role": "single wire; carries whatever signal or power is present at whichever breadboard row it is plugged into", "notes": "Both ends are bare, identical wire tips. There is no fixed pin 1 and no internal direction." }
+      {
+        "pin": 1,
+        "name": "conductor",
+        "role": "single wire; carries whatever signal or power is present at whichever breadboard row it is plugged into",
+        "notes": "Both ends are bare, identical wire tips. There is no fixed pin 1 and no internal direction."
+      }
     ],
     "pin_1_identification": "Not applicable. Both ends are plain bare wire tips, electrically identical. Either end can go in either breadboard hole.",
     "polarity_sensitive": false
@@ -50,9 +66,14 @@
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "either bare end", "uno_pin": "not directly wired to the UNO; this wire only connects one breadboard hole to another. A separate dupont-fm wire (see that record) is what typically bridges the breadboard to the UNO's header pins." }
+      {
+        "part_pin": "either bare end",
+        "uno_pin": "not directly wired to the UNO; this wire only connects one breadboard hole to another. A separate dupont-fm wire (see that record) is what typically bridges the breadboard to the UNO's header pins."
+      }
     ],
-    "required_extra_parts": ["breadboard-830 (the breadboard these wires plug into)"],
+    "required_extra_parts": [
+      "breadboard-830 (the breadboard these wires plug into)"
+    ],
     "arduino_library": "none. It is a passive wire; no code is involved."
   },
   "safety": {
@@ -71,8 +92,16 @@
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "Circuit does not work even though the wiring looks correct", "likely_cause": "A jumper wire's bare end is not fully seated in the breadboard hole, or the breadboard's internal spring clip at that spot is worn out", "check": "Push the wire in fully, then try moving the same connection to an unused row as a test" },
-      { "symptom": "Circuit works intermittently, cutting in and out", "likely_cause": "A wire that has been bent too many times and partially broken inside, or a loose breadboard hole", "check": "Gently wiggle the wire while the circuit is powered; swap in a spare wire of the same length" }
+      {
+        "symptom": "Circuit does not work even though the wiring looks correct",
+        "likely_cause": "A jumper wire's bare end is not fully seated in the breadboard hole, or the breadboard's internal spring clip at that spot is worn out",
+        "check": "Push the wire in fully, then try moving the same connection to an unused row as a test"
+      },
+      {
+        "symptom": "Circuit works intermittently, cutting in and out",
+        "likely_cause": "A wire that has been bent too many times and partially broken inside, or a loose breadboard hole",
+        "check": "Gently wiggle the wire while the circuit is powered; swap in a spare wire of the same length"
+      }
     ],
     "how_to_test_with_a_multimeter": "Set a multimeter to continuity or resistance mode and touch one probe to each end of the wire. A good wire reads close to 0 ohms (continuity mode beeps). A broken wire reads open/infinite resistance."
   },
@@ -81,11 +110,26 @@
     "price_source_url": "https://www.sparkfun.com/jumper-wire-kit-140pcs.html",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["SparkFun", "Amazon (various generic sellers)", "Remington Industries", "DigiKey"]
+    "typical_suppliers": [
+      "SparkFun",
+      "Amazon (various generic sellers)",
+      "Remington Industries",
+      "DigiKey"
+    ]
   },
   "sources": [
-    { "title": "22 AWG Solid Jumper Wire Kit, Remington Industries", "url": "https://www.remingtonindustries.com/hook-up-wire/jumper-wire-kit-22-awg-solid-350-pieces/", "type": "manufacturer", "used_for": "wire gauge (22 AWG), solid conductor type, PVC insulation, voltage rating, and wire diameter, used in key_specs and electrical" },
-    { "title": "Jumper Wire Kit, 140pcs, SparkFun Electronics", "url": "https://www.sparkfun.com/jumper-wire-kit-140pcs.html", "type": "retailer", "used_for": "retail price used to compute the per-unit price in market.unit_price_usd, plus confirmation of 22 AWG gauge, 140-piece count, and the 14-length breakdown in key_specs" }
+    {
+      "title": "22 AWG Solid Jumper Wire Kit, Remington Industries",
+      "url": "https://www.remingtonindustries.com/hook-up-wire/jumper-wire-kit-22-awg-solid-350-pieces/",
+      "type": "manufacturer",
+      "used_for": "wire gauge (22 AWG), solid conductor type, PVC insulation, voltage rating, and wire diameter, used in key_specs and electrical"
+    },
+    {
+      "title": "Jumper Wire Kit, 140pcs, SparkFun Electronics",
+      "url": "https://www.sparkfun.com/jumper-wire-kit-140pcs.html",
+      "type": "retailer",
+      "used_for": "retail price used to compute the per-unit price in market.unit_price_usd, plus confirmation of 22 AWG gauge, 140-piece count, and the 14-length breakdown in key_specs"
+    }
   ],
   "confidence": {
     "overall": "medium",

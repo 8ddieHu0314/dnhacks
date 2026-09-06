@@ -1,14 +1,25 @@
 {
   "id": "elegoo-uno-r3-kit/thermistor",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
   "identity": {
     "name_on_kit": "Thermistor",
     "canonical_name": "10K NTC thermistor",
-    "aliases": ["NTC thermistor", "10K thermistor", "temperature sensor resistor"],
+    "aliases": [
+      "NTC thermistor",
+      "10K thermistor",
+      "temperature sensor resistor"
+    ],
     "category": "sensor",
     "manufacturer": "Unknown, generic unbranded component (no manufacturer markings printed on the part)",
     "manufacturer_part_number": "none printed on the part, generic NTC 10K thermistor, not a specific branded MPN",
-    "generic_equivalents": ["Adafruit 372, 10K Precision Epoxy Thermistor 3950 NTC", "any generic 10K ohm, B25/50 = 3950K NTC bead thermistor"],
+    "generic_equivalents": [
+      "Adafruit 372, 10K Precision Epoxy Thermistor 3950 NTC",
+      "any generic 10K ohm, B25/50 = 3950K NTC bead thermistor"
+    ],
     "serial_number": "not_applicable",
     "package": "2-lead epoxy-coated bead, through-hole, no standard package name"
   },
@@ -20,8 +31,18 @@
   "pins": {
     "pin_count": 2,
     "pinout": [
-      { "pin": 1, "name": "Lead A", "role": "resistive element terminal", "notes": "either lead, interchangeable, no polarity" },
-      { "pin": 2, "name": "Lead B", "role": "resistive element terminal", "notes": "either lead, interchangeable, no polarity" }
+      {
+        "pin": 1,
+        "name": "Lead A",
+        "role": "resistive element terminal",
+        "notes": "either lead, interchangeable, no polarity"
+      },
+      {
+        "pin": 2,
+        "name": "Lead B",
+        "role": "resistive element terminal",
+        "notes": "either lead, interchangeable, no polarity"
+      }
     ],
     "pin_1_identification": "There is no pin 1 or positive lead to find. Both wire leads are electrically identical and can be connected either way around.",
     "polarity_sensitive": false
@@ -52,23 +73,57 @@
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "Lead A", "uno_pin": "5V" },
-      { "part_pin": "Lead B", "uno_pin": "A0, and to one leg of a fixed 10k ohm resistor" },
-      { "part_pin": "fixed 10k ohm resistor, other leg", "uno_pin": "GND" }
+      {
+        "part_pin": "Lead A",
+        "uno_pin": "5V"
+      },
+      {
+        "part_pin": "Lead B",
+        "uno_pin": "A0, and to one leg of a fixed 10k ohm resistor"
+      },
+      {
+        "part_pin": "fixed 10k ohm resistor, other leg",
+        "uno_pin": "GND"
+      }
     ],
-    "required_extra_parts": ["one fixed resistor, commonly 10k ohm, to complete the voltage divider"],
+    "required_extra_parts": [
+      "one fixed resistor, commonly 10k ohm, to complete the voltage divider"
+    ],
     "arduino_library": "none required, read with the built-in analogRead() function and convert to temperature using the Beta equation in the sketch's own code"
   },
   "safety": {
-    "hazards": ["No electric shock risk at Arduino's low 5V", "very high external heat can crack or melt the epoxy bead"],
-    "handling_notes": ["the two wire leads are thin and can fatigue or break if bent back and forth at the same spot", "no polarity, so it cannot be plugged in backwards", "avoid pushing more than a few mA through it, extra current causes self-heating that makes the reading inaccurate"],
-    "common_mistakes": ["wiring it alone without the companion fixed resistor, so the analog pin just reads a fixed rail voltage instead of a changing one", "using a B-value or resistor value in the code's formula that does not match the one actually wired in, which throws off the computed temperature", "mistaking it for a photoresistor since both are small unlabeled two-lead sensors"]
+    "hazards": [
+      "No electric shock risk at Arduino's low 5V",
+      "very high external heat can crack or melt the epoxy bead"
+    ],
+    "handling_notes": [
+      "the two wire leads are thin and can fatigue or break if bent back and forth at the same spot",
+      "no polarity, so it cannot be plugged in backwards",
+      "avoid pushing more than a few mA through it, extra current causes self-heating that makes the reading inaccurate"
+    ],
+    "common_mistakes": [
+      "wiring it alone without the companion fixed resistor, so the analog pin just reads a fixed rail voltage instead of a changing one",
+      "using a B-value or resistor value in the code's formula that does not match the one actually wired in, which throws off the computed temperature",
+      "mistaking it for a photoresistor since both are small unlabeled two-lead sensors"
+    ]
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "analog reading is stuck near the top (about 1023) or bottom (about 0)", "likely_cause": "missing the companion divider resistor, or a broken or loose connection", "check": "confirm a fixed resistor completes the voltage divider and both leads are firmly connected" },
-      { "symptom": "temperature reading is wildly wrong or does not change at all", "likely_cause": "wrong B-value or divider-resistor value used in the sketch's formula, or a bad connection", "check": "measure the resistance across the two leads directly with a multimeter and compare to the expected 10k ohm at room temperature" },
-      { "symptom": "reading slowly climbs while the circuit sits untouched", "likely_cause": "self-heating from too much current flowing through the thermistor", "check": "measure the divider current, and increase the fixed resistor value or reduce supply voltage if the current is too high" }
+      {
+        "symptom": "analog reading is stuck near the top (about 1023) or bottom (about 0)",
+        "likely_cause": "missing the companion divider resistor, or a broken or loose connection",
+        "check": "confirm a fixed resistor completes the voltage divider and both leads are firmly connected"
+      },
+      {
+        "symptom": "temperature reading is wildly wrong or does not change at all",
+        "likely_cause": "wrong B-value or divider-resistor value used in the sketch's formula, or a bad connection",
+        "check": "measure the resistance across the two leads directly with a multimeter and compare to the expected 10k ohm at room temperature"
+      },
+      {
+        "symptom": "reading slowly climbs while the circuit sits untouched",
+        "likely_cause": "self-heating from too much current flowing through the thermistor",
+        "check": "measure the divider current, and increase the fixed resistor value or reduce supply voltage if the current is too high"
+      }
     ],
     "how_to_test_with_a_multimeter": "Disconnect the thermistor from the circuit, set the multimeter to resistance (ohms) mode, and measure across its two leads. At room temperature, about 25 C, expect roughly 10,000 ohms. Warm the bead slightly, for example by holding it between two fingers, and the reading should drop. Let it cool and the reading should rise again, confirming normal NTC behavior."
   },
@@ -77,11 +132,25 @@
     "price_source_url": "https://www.adafruit.com/product/372",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["Adafruit", "Amazon, bundled inside the ELEGOO kit", "generic electronics component distributors"]
+    "typical_suppliers": [
+      "Adafruit",
+      "Amazon, bundled inside the ELEGOO kit",
+      "generic electronics component distributors"
+    ]
   },
   "sources": [
-    { "title": "10K Precision Epoxy Thermistor, 3950 NTC, product 372", "url": "https://www.adafruit.com/product/372", "type": "retailer", "used_for": "unit price, resistance at 25C, B25/50 beta value, tolerance, operating temperature range, lead type, and confirming no polarity" },
-    { "title": "Generic 10K/3950 NTC thermistor resistance lookup table (Resistance at 25C = 10K ohm, B25/50 = 3950K)", "url": "https://cdn-shop.adafruit.com/datasheets/103_3950_lookuptable.pdf", "type": "datasheet", "used_for": "cross-checking resistance_at_25c_ohms and beta_b25_50_kelvin key specs against a standard generic NTC datasheet" }
+    {
+      "title": "10K Precision Epoxy Thermistor, 3950 NTC, product 372",
+      "url": "https://www.adafruit.com/product/372",
+      "type": "retailer",
+      "used_for": "unit price, resistance at 25C, B25/50 beta value, tolerance, operating temperature range, lead type, and confirming no polarity"
+    },
+    {
+      "title": "Generic 10K/3950 NTC thermistor resistance lookup table (Resistance at 25C = 10K ohm, B25/50 = 3950K)",
+      "url": "https://cdn-shop.adafruit.com/datasheets/103_3950_lookuptable.pdf",
+      "type": "datasheet",
+      "used_for": "cross-checking resistance_at_25c_ohms and beta_b25_50_kelvin key specs against a standard generic NTC datasheet"
+    }
   ],
   "confidence": {
     "overall": "medium",

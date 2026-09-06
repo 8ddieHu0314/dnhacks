@@ -1,14 +1,25 @@
 {
   "id": "battery-clip-9v",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
   "identity": {
     "name_on_kit": "9V Battery with Snap-on Connector Clip",
     "canonical_name": "9V battery snap connector with 2.1mm barrel jack plug",
-    "aliases": ["9V battery clip", "9V snap to DC barrel adapter", "9V battery snap connector"],
+    "aliases": [
+      "9V battery clip",
+      "9V snap to DC barrel adapter",
+      "9V battery snap connector"
+    ],
     "category": "power",
     "manufacturer": "ELEGOO (kit private label); the underlying connector design is generic and sold unbranded by many electronics vendors",
     "manufacturer_part_number": "not confirmed, ELEGOO does not publish a distinct part number for this accessory",
-    "generic_equivalents": ["Adafruit 9V battery clip with 5.5mm/2.1mm barrel plug (PID 80)", "SparkFun 9V to Barrel Jack Adapter (PRT-09518)"],
+    "generic_equivalents": [
+      "Adafruit 9V battery clip with 5.5mm/2.1mm barrel plug (PID 80)",
+      "SparkFun 9V to Barrel Jack Adapter (PRT-09518)"
+    ],
     "serial_number": "not_applicable",
     "package": "cable, battery snap connector molded to a coaxial barrel plug"
   },
@@ -20,8 +31,18 @@
   "pins": {
     "pin_count": 2,
     "pinout": [
-      { "pin": 1, "name": "positive (+)", "role": "carries battery positive through to the barrel plug's center pin", "notes": "On the 9V battery, this is the smaller of the two snap studs." },
-      { "pin": 2, "name": "negative (-) / ground", "role": "carries battery negative through to the barrel plug's outer sleeve", "notes": "On the 9V battery, this is the larger of the two snap studs." }
+      {
+        "pin": 1,
+        "name": "positive (+)",
+        "role": "carries battery positive through to the barrel plug's center pin",
+        "notes": "On the 9V battery, this is the smaller of the two snap studs."
+      },
+      {
+        "pin": 2,
+        "name": "negative (-) / ground",
+        "role": "carries battery negative through to the barrel plug's outer sleeve",
+        "notes": "On the 9V battery, this is the larger of the two snap studs."
+      }
     ],
     "pin_1_identification": "The battery-end caps are molded plastic sized differently, like the battery's own terminals, so the snap only clips on one way. On the barrel-plug end, positive is the thin center pin and negative is the outer metal sleeve around it, the standard center-positive layout confirmed on the generic equivalent (Adafruit PID 80).",
     "polarity_sensitive": true
@@ -45,13 +66,21 @@
     "shape_and_size": "A short two-wire cable. One end has two small rectangular plastic caps sized to snap onto the two terminals on top of a 9V battery. The other end has a small black cylindrical plug, roughly the size of a pencil eraser, that pushes straight into a round socket.",
     "color_and_markings": "Usually plain black wire insulation and black plastic housings; some versions use red insulation for the positive wire and black for negative.",
     "printed_text_to_look_for": "Typically none, this is a small unbranded accessory with no printed markings.",
-    "easily_confused_with": ["The barrel-plug end of a wall-wart AC power adapter (same size plug, but that one is not attached to a battery snap)", "The ELEGOO Power Supply Module's own power input cable"]
+    "easily_confused_with": [
+      "The barrel-plug end of a wall-wart AC power adapter (same size plug, but that one is not attached to a battery snap)",
+      "The ELEGOO Power Supply Module's own power input cable"
+    ]
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "barrel plug", "uno_pin": "DC power jack (round barrel socket next to the USB port)" }
+      {
+        "part_pin": "barrel plug",
+        "uno_pin": "DC power jack (round barrel socket next to the USB port)"
+      }
     ],
-    "required_extra_parts": ["A 9V battery. Whether ELEGOO ships an actual battery in the box or only this connector could not be confirmed for certain, see confidence.notes."],
+    "required_extra_parts": [
+      "A 9V battery. Whether ELEGOO ships an actual battery in the box or only this connector could not be confirmed for certain, see confidence.notes."
+    ],
     "arduino_library": "none, this is a power connection only and needs no code"
   },
   "safety": {
@@ -70,7 +99,11 @@
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "UNO board does not power on from the battery", "likely_cause": "dead battery, snap connector clipped on backward, or the barrel plug not fully seated in the jack", "check": "Measure the battery with a multimeter and confirm the barrel plug clicks all the way into the UNO's jack" }
+      {
+        "symptom": "UNO board does not power on from the battery",
+        "likely_cause": "dead battery, snap connector clipped on backward, or the barrel plug not fully seated in the jack",
+        "check": "Measure the battery with a multimeter and confirm the barrel plug clicks all the way into the UNO's jack"
+      }
     ],
     "how_to_test_with_a_multimeter": "Set the multimeter to DC volts. With a 9V battery clipped on, touch the red probe to the barrel plug's center pin and the black probe to its outer sleeve. A good cable and battery should read close to positive 9V; a negative reading with the same probe placement would mean the wiring is reversed."
   },
@@ -79,10 +112,19 @@
     "price_source_url": "https://www.adafruit.com/product/80",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["Adafruit", "SparkFun", "bundled inside ELEGOO starter kits"]
+    "typical_suppliers": [
+      "Adafruit",
+      "SparkFun",
+      "bundled inside ELEGOO starter kits"
+    ]
   },
   "sources": [
-    { "title": "9V battery clip with 5.5mm/2.1mm plug, Adafruit product 80", "url": "https://www.adafruit.com/product/80", "type": "retailer", "used_for": "barrel jack size (5.5mm/2.1mm), center-positive polarity, wire length, unit price" }
+    {
+      "title": "9V battery clip with 5.5mm/2.1mm plug, Adafruit product 80",
+      "url": "https://www.adafruit.com/product/80",
+      "type": "retailer",
+      "used_for": "barrel jack size (5.5mm/2.1mm), center-positive polarity, wire length, unit price"
+    }
   ],
   "confidence": {
     "overall": "medium",

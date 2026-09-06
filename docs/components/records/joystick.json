@@ -1,14 +1,25 @@
 {
   "id": "elegoo-uno-r3-kit/joystick",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
   "identity": {
     "name_on_kit": "Joystick Module",
     "canonical_name": "KY-023 2-axis analog joystick module",
-    "aliases": ["Dual-axis XY joystick module", "PS2-style joystick module", "Analog joystick module"],
+    "aliases": [
+      "Dual-axis XY joystick module",
+      "PS2-style joystick module",
+      "Analog joystick module"
+    ],
     "category": "input",
     "manufacturer": "Generic (no manufacturer branding on the ELEGOO-supplied board); documented here under Joy-IT's SensorKit X40 naming, since Joy-IT is one of the few brands to publish a formal datasheet for this common breakout",
     "manufacturer_part_number": "KY-023",
-    "generic_equivalents": ["Other PS2/PSP-style thumbstick breakouts with 2 potentiometers + 1 switch", "KY-023 clones sold under many brand names"],
+    "generic_equivalents": [
+      "Other PS2/PSP-style thumbstick breakouts with 2 potentiometers + 1 switch",
+      "KY-023 clones sold under many brand names"
+    ],
     "serial_number": "not_applicable",
     "package": "module (small square PCB, roughly 25mm x 25mm, with a tall plastic joystick handle on top and a 5-pin header)"
   },
@@ -20,11 +31,36 @@
   "pins": {
     "pin_count": 5,
     "pinout": [
-      { "pin": 1, "name": "Button (SW)", "role": "digital output, active low", "notes": "Connects to GND when the stick is pressed down; needs a pull-up (use Arduino's INPUT_PULLUP)" },
-      { "pin": 2, "name": "Y-position (VRy)", "role": "analog output", "notes": "Voltage from 0 to VCC depending on forward/back tilt" },
-      { "pin": 3, "name": "X-position (VRx)", "role": "analog output", "notes": "Voltage from 0 to VCC depending on left/right tilt" },
-      { "pin": 4, "name": "+V (VCC)", "role": "power in", "notes": "" },
-      { "pin": 5, "name": "GND", "role": "ground", "notes": "" }
+      {
+        "pin": 1,
+        "name": "Button (SW)",
+        "role": "digital output, active low",
+        "notes": "Connects to GND when the stick is pressed down; needs a pull-up (use Arduino's INPUT_PULLUP)"
+      },
+      {
+        "pin": 2,
+        "name": "Y-position (VRy)",
+        "role": "analog output",
+        "notes": "Voltage from 0 to VCC depending on forward/back tilt"
+      },
+      {
+        "pin": 3,
+        "name": "X-position (VRx)",
+        "role": "analog output",
+        "notes": "Voltage from 0 to VCC depending on left/right tilt"
+      },
+      {
+        "pin": 4,
+        "name": "+V (VCC)",
+        "role": "power in",
+        "notes": ""
+      },
+      {
+        "pin": 5,
+        "name": "GND",
+        "role": "ground",
+        "notes": ""
+      }
     ],
     "pin_1_identification": "With the header facing you and the joystick handle pointing up and away, the pins read left to right as Button, Y, X, +V, GND. Confirmed from the Joy-IT KY-023 datasheet's own pinout diagram, and matches the seed pin order.",
     "polarity_sensitive": true
@@ -46,29 +82,67 @@
     "shape_and_size": "Small square black PCB (about 25mm x 25mm) with a tall black plastic joystick cap sticking up from the center, and a 5-pin header along one edge.",
     "color_and_markings": "Black PCB, black joystick cap; two small trimpot-style potentiometers are visible under the stick mechanism; silkscreen may read 'KY-023' on the back (ELEGOO-sourced units are sometimes unmarked).",
     "printed_text_to_look_for": "'KY-023' silkscreened on the PCB where present, plus pin labels near the header.",
-    "easily_confused_with": ["A plain potentiometer/trimpot module (no stick, just a knob)", "a 4-direction D-pad button module (flat buttons instead of a stick)"]
+    "easily_confused_with": [
+      "A plain potentiometer/trimpot module (no stick, just a knob)",
+      "a 4-direction D-pad button module (flat buttons instead of a stick)"
+    ]
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "+V", "uno_pin": "5V" },
-      { "part_pin": "GND", "uno_pin": "GND" },
-      { "part_pin": "X-position (VRx)", "uno_pin": "A0" },
-      { "part_pin": "Y-position (VRy)", "uno_pin": "A1" },
-      { "part_pin": "Button (SW)", "uno_pin": "D3 (illustrative; any free digital pin works)" }
+      {
+        "part_pin": "+V",
+        "uno_pin": "5V"
+      },
+      {
+        "part_pin": "GND",
+        "uno_pin": "GND"
+      },
+      {
+        "part_pin": "X-position (VRx)",
+        "uno_pin": "A0"
+      },
+      {
+        "part_pin": "Y-position (VRy)",
+        "uno_pin": "A1"
+      },
+      {
+        "part_pin": "Button (SW)",
+        "uno_pin": "D3 (illustrative; any free digital pin works)"
+      }
     ],
     "required_extra_parts": [],
     "arduino_library": "None required; use analogRead() for X/Y and digitalRead() with INPUT_PULLUP for the button"
   },
   "safety": {
-    "hazards": ["None; low voltage passive/mechanical part"],
-    "handling_notes": ["Avoid yanking the plastic stick sideways with excessive force; the potentiometers underneath are small and can crack", "Keep it away from dust/grit, which can make the potentiometers feel gritty or give jumpy readings over time"],
-    "common_mistakes": ["Forgetting the button needs a pull-up (external resistor or the Arduino's built-in INPUT_PULLUP), otherwise it reads as floating or random", "Swapping X and Y pins, which just mirrors the controls in software rather than causing damage"]
+    "hazards": [
+      "None; low voltage passive/mechanical part"
+    ],
+    "handling_notes": [
+      "Avoid yanking the plastic stick sideways with excessive force; the potentiometers underneath are small and can crack",
+      "Keep it away from dust/grit, which can make the potentiometers feel gritty or give jumpy readings over time"
+    ],
+    "common_mistakes": [
+      "Forgetting the button needs a pull-up (external resistor or the Arduino's built-in INPUT_PULLUP), otherwise it reads as floating or random",
+      "Swapping X and Y pins, which just mirrors the controls in software rather than causing damage"
+    ]
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "Button always reads pressed or floats randomly", "likely_cause": "No pull-up resistor enabled on that pin", "check": "Set pinMode(pin, INPUT_PULLUP) in code, or wire an external pull-up to the SW pin" },
-      { "symptom": "X or Y always reads 0 or 1023 no matter how it's moved", "likely_cause": "That axis pin isn't actually wired, or VCC/GND isn't connected", "check": "Measure VRx or VRy to GND with a multimeter while moving the stick; it should sweep smoothly between about 0V and VCC" },
-      { "symptom": "Stick doesn't return to center", "likely_cause": "Worn or dirty potentiometer, or mechanical damage", "check": "Check the centered voltage reading (should be close to half of VCC); replace the module if it stays off-center" }
+      {
+        "symptom": "Button always reads pressed or floats randomly",
+        "likely_cause": "No pull-up resistor enabled on that pin",
+        "check": "Set pinMode(pin, INPUT_PULLUP) in code, or wire an external pull-up to the SW pin"
+      },
+      {
+        "symptom": "X or Y always reads 0 or 1023 no matter how it's moved",
+        "likely_cause": "That axis pin isn't actually wired, or VCC/GND isn't connected",
+        "check": "Measure VRx or VRy to GND with a multimeter while moving the stick; it should sweep smoothly between about 0V and VCC"
+      },
+      {
+        "symptom": "Stick doesn't return to center",
+        "likely_cause": "Worn or dirty potentiometer, or mechanical damage",
+        "check": "Check the centered voltage reading (should be close to half of VCC); replace the module if it stays off-center"
+      }
     ],
     "how_to_test_with_a_multimeter": "With the module powered, measure VRx (or VRy) to GND while slowly moving the stick along that axis; the voltage should sweep smoothly from near 0V to near VCC and rest at about half of VCC when centered. Measure the SW pin to GND: it should read open (no continuity) at rest and closed (continuity) when the stick is pressed straight down."
   },
@@ -77,12 +151,31 @@
     "price_source_url": "https://www.electronicscomp.com/dual-axis-xy-joystick-module",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["ElectronicsComp.com", "Robocraze", "Amazon (commonly sold in 2, 5, or 10-packs rather than singly)"]
+    "typical_suppliers": [
+      "ElectronicsComp.com",
+      "Robocraze",
+      "Amazon (commonly sold in 2, 5, or 10-packs rather than singly)"
+    ]
   },
   "sources": [
-    { "title": "KY-023 Joystick module (XY-Axis) datasheet (Joy-IT SensorKit X40)", "url": "https://naylampmechatronics.com/img/cms/Datasheets/000036%20-%20datasheet%20KY-023-Joy-IT.pdf", "type": "manufacturer", "used_for": "pins, pin order, wiring example, function/how-it-works" },
-    { "title": "KY-023 Joystick Module: PinOut, Datasheet & Its Working", "url": "https://www.watelectronics.com/ky-023-joystick-module/", "type": "wiki", "used_for": "electrical (potentiometer value, operating voltage range)" },
-    { "title": "Dual Axis XY Joystick Module (ElectronicsComp.com)", "url": "https://www.electronicscomp.com/dual-axis-xy-joystick-module", "type": "retailer", "used_for": "market.unit_price_usd, typical_suppliers" }
+    {
+      "title": "KY-023 Joystick module (XY-Axis) datasheet (Joy-IT SensorKit X40)",
+      "url": "https://naylampmechatronics.com/img/cms/Datasheets/000036%20-%20datasheet%20KY-023-Joy-IT.pdf",
+      "type": "manufacturer",
+      "used_for": "pins, pin order, wiring example, function/how-it-works"
+    },
+    {
+      "title": "KY-023 Joystick Module: PinOut, Datasheet & Its Working",
+      "url": "https://www.watelectronics.com/ky-023-joystick-module/",
+      "type": "wiki",
+      "used_for": "electrical (potentiometer value, operating voltage range)"
+    },
+    {
+      "title": "Dual Axis XY Joystick Module (ElectronicsComp.com)",
+      "url": "https://www.electronicscomp.com/dual-axis-xy-joystick-module",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, typical_suppliers"
+    }
   ],
   "confidence": {
     "overall": "high",

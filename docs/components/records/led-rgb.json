@@ -1,14 +1,24 @@
 {
   "id": "elegoo-uno-r3-kit/led-rgb",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 2 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 2
+  },
   "identity": {
     "name_on_kit": "RGB LED",
     "canonical_name": "5 mm 4-pin RGB LED (common cathode)",
-    "aliases": ["Tri-color LED", "RGB LED diode", "Full-color LED"],
+    "aliases": [
+      "Tri-color LED",
+      "RGB LED diode",
+      "Full-color LED"
+    ],
     "category": "display",
     "manufacturer": "Generic/unbranded, ELEGOO bundles an unbranded component and no chip manufacturer marking could be confirmed",
     "manufacturer_part_number": "Not confirmed, no manufacturer part number is printed on the part or documented for the ELEGOO-bundled unit",
-    "generic_equivalents": ["SparkFun COM-00105 (5 mm clear common-cathode RGB LED)"],
+    "generic_equivalents": [
+      "SparkFun COM-00105 (5 mm clear common-cathode RGB LED)"
+    ],
     "serial_number": "not_applicable",
     "package": "5 mm through-hole dome LED, 4 leads"
   },
@@ -20,10 +30,30 @@
   "pins": {
     "pin_count": 4,
     "pinout": [
-      { "pin": 1, "name": "R", "role": "red LED anode (positive)", "notes": "Connect through its own current-limiting resistor to a digital or PWM pin, do not connect directly to 5V" },
-      { "pin": 2, "name": "Common cathode (GND)", "role": "shared negative connection for all three color dies", "notes": "This is the longest of the four leads. Connect directly to Arduino GND, no resistor needed on this leg" },
-      { "pin": 3, "name": "G", "role": "green LED anode (positive)", "notes": "Connect through its own current-limiting resistor to a digital or PWM pin" },
-      { "pin": 4, "name": "B", "role": "blue LED anode (positive)", "notes": "Connect through its own current-limiting resistor to a digital or PWM pin" }
+      {
+        "pin": 1,
+        "name": "R",
+        "role": "red LED anode (positive)",
+        "notes": "Connect through its own current-limiting resistor to a digital or PWM pin, do not connect directly to 5V"
+      },
+      {
+        "pin": 2,
+        "name": "Common cathode (GND)",
+        "role": "shared negative connection for all three color dies",
+        "notes": "This is the longest of the four leads. Connect directly to Arduino GND, no resistor needed on this leg"
+      },
+      {
+        "pin": 3,
+        "name": "G",
+        "role": "green LED anode (positive)",
+        "notes": "Connect through its own current-limiting resistor to a digital or PWM pin"
+      },
+      {
+        "pin": 4,
+        "name": "B",
+        "role": "blue LED anode (positive)",
+        "notes": "Connect through its own current-limiting resistor to a digital or PWM pin"
+      }
     ],
     "pin_1_identification": "Looking at the dome from the front with the four leads pointing down, the order is R, common cathode, G, B. The common cathode lead is reliably identified as the single longest lead of the four, use that rather than position alone, since leads are sometimes trimmed or bent during use.",
     "polarity_sensitive": true
@@ -58,10 +88,22 @@
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "R (pin 1)", "uno_pin": "A digital PWM pin, e.g. D9, through a current-limiting resistor" },
-      { "part_pin": "Common cathode (pin 2, longest leg)", "uno_pin": "GND" },
-      { "part_pin": "G (pin 3)", "uno_pin": "A digital PWM pin, e.g. D10, through a current-limiting resistor" },
-      { "part_pin": "B (pin 4)", "uno_pin": "A digital PWM pin, e.g. D11, through a current-limiting resistor" }
+      {
+        "part_pin": "R (pin 1)",
+        "uno_pin": "A digital PWM pin, e.g. D9, through a current-limiting resistor"
+      },
+      {
+        "part_pin": "Common cathode (pin 2, longest leg)",
+        "uno_pin": "GND"
+      },
+      {
+        "part_pin": "G (pin 3)",
+        "uno_pin": "A digital PWM pin, e.g. D10, through a current-limiting resistor"
+      },
+      {
+        "part_pin": "B (pin 4)",
+        "uno_pin": "A digital PWM pin, e.g. D11, through a current-limiting resistor"
+      }
     ],
     "required_extra_parts": [
       "One current-limiting resistor per color leg (commonly 220 ohm for 5V logic, the exact value used in ELEGOO's own tutorial could not be confirmed)",
@@ -89,23 +131,53 @@
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "No colors light up at all", "likely_cause": "Common leg is not connected to GND, or is connected to 5V instead, which is backwards for this common-cathode part", "check": "Verify the longest leg goes to GND, move it there if it was on 5V" },
-      { "symptom": "Only some colors light up", "likely_cause": "A resistor or jumper wire is missing or loose on one or more color legs, or that pin is not being driven in the sketch", "check": "Use a multimeter to check continuity from the Arduino pin through the resistor to the LED leg, and confirm the sketch writes to that pin" },
-      { "symptom": "Colors look dim or washed out", "likely_cause": "Resistor value is too high, or the PWM duty cycle in the sketch is too low", "check": "Measure voltage across the LED leg while PWM is active, and compare the resistor's value to the typical 220 ohm reference" },
-      { "symptom": "One color is noticeably dimmer than the others at the same PWM level", "likely_cause": "Different color dies have different forward voltages, red is lower than green or blue, so identical resistors make red appear brighter or dimmer than the others depending on wiring", "check": "This can be normal behavior, try a different resistor value on the mismatched color leg to balance perceived brightness" }
+      {
+        "symptom": "No colors light up at all",
+        "likely_cause": "Common leg is not connected to GND, or is connected to 5V instead, which is backwards for this common-cathode part",
+        "check": "Verify the longest leg goes to GND, move it there if it was on 5V"
+      },
+      {
+        "symptom": "Only some colors light up",
+        "likely_cause": "A resistor or jumper wire is missing or loose on one or more color legs, or that pin is not being driven in the sketch",
+        "check": "Use a multimeter to check continuity from the Arduino pin through the resistor to the LED leg, and confirm the sketch writes to that pin"
+      },
+      {
+        "symptom": "Colors look dim or washed out",
+        "likely_cause": "Resistor value is too high, or the PWM duty cycle in the sketch is too low",
+        "check": "Measure voltage across the LED leg while PWM is active, and compare the resistor's value to the typical 220 ohm reference"
+      },
+      {
+        "symptom": "One color is noticeably dimmer than the others at the same PWM level",
+        "likely_cause": "Different color dies have different forward voltages, red is lower than green or blue, so identical resistors make red appear brighter or dimmer than the others depending on wiring",
+        "check": "This can be normal behavior, try a different resistor value on the mismatched color leg to balance perceived brightness"
+      }
     ],
     "how_to_test_with_a_multimeter": "Set the multimeter to diode-test mode. Put the black (COM) probe on the longest leg (the common cathode) and touch the red probe to each of the other three legs in turn. Each color die should light dimly and the meter should show a forward-voltage-like reading, red typically the lowest, green and blue typically similar and a bit higher. If a color die does not light during this test, that die is likely damaged or that leg was misidentified."
   },
   "market": {
-    "unit_price_usd": 2.30,
+    "unit_price_usd": 2.3,
     "price_source_url": "https://www.sparkfun.com/products/105",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["SparkFun", "ELEGOO (bundled in kit, not sold separately)", "Amazon (generic multi-packs)"]
+    "typical_suppliers": [
+      "SparkFun",
+      "ELEGOO (bundled in kit, not sold separately)",
+      "Amazon (generic multi-packs)"
+    ]
   },
   "sources": [
-    { "title": "RGB LED Pinout, Features, Circuit & Datasheet - components101.com", "url": "https://components101.com/diodes/rgb-led-pinout-configuration-circuit-datasheet", "type": "wiki", "used_for": "Pin order (R, common cathode/GND, G, B), forward voltage per color, forward current per color (20 mA)" },
-    { "title": "LED - RGB Clear Common Cathode - SparkFun Electronics", "url": "https://www.sparkfun.com/products/105", "type": "retailer", "used_for": "Confirms common-cathode type, 4-pin count, that the common cathode leg is the longest lead, pin 3=Green/pin 4=Blue ordering, forward voltage per color, luminous intensity per color, and unit price in USD" }
+    {
+      "title": "RGB LED Pinout, Features, Circuit & Datasheet - components101.com",
+      "url": "https://components101.com/diodes/rgb-led-pinout-configuration-circuit-datasheet",
+      "type": "wiki",
+      "used_for": "Pin order (R, common cathode/GND, G, B), forward voltage per color, forward current per color (20 mA)"
+    },
+    {
+      "title": "LED - RGB Clear Common Cathode - SparkFun Electronics",
+      "url": "https://www.sparkfun.com/products/105",
+      "type": "retailer",
+      "used_for": "Confirms common-cathode type, 4-pin count, that the common cathode leg is the longest lead, pin 3=Green/pin 4=Blue ordering, forward voltage per color, luminous intensity per color, and unit price in USD"
+    }
   ],
   "confidence": {
     "overall": "medium",

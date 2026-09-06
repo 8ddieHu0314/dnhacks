@@ -1,14 +1,24 @@
 {
   "id": "dupont-fm",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 10 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 10
+  },
   "identity": {
     "name_on_kit": "Female-to-Male Dupont Wire",
     "canonical_name": "female-to-male Dupont jumper wire",
-    "aliases": ["Dupont wire", "M-F jumper wire", "female to male jumper cable"],
+    "aliases": [
+      "Dupont wire",
+      "M-F jumper wire",
+      "female to male jumper cable"
+    ],
     "category": "wiring",
     "manufacturer": "unbranded/generic, packaged and sold by ELEGOO as part of this kit",
     "manufacturer_part_number": "not applicable, generic wire with no manufacturer part number",
-    "generic_equivalents": ["any 2.54 mm pitch Dupont-style male-to-female jumper wire"],
+    "generic_equivalents": [
+      "any 2.54 mm pitch Dupont-style male-to-female jumper wire"
+    ],
     "serial_number": "not_applicable",
     "package": "single-conductor wire, female socket housing on one end and a bare male pin on the other"
   },
@@ -20,7 +30,12 @@
   "pins": {
     "pin_count": 1,
     "pinout": [
-      { "pin": 1, "name": "single conductor", "role": "carries whatever signal, power, or ground line it is wired to, it has no fixed role of its own", "notes": "one end terminates in a female socket housing, the other end is a bare male pin" }
+      {
+        "pin": 1,
+        "name": "single conductor",
+        "role": "carries whatever signal, power, or ground line it is wired to, it has no fixed role of its own",
+        "notes": "one end terminates in a female socket housing, the other end is a bare male pin"
+      }
     ],
     "pin_1_identification": "This part carries only one wire, so there is no 'pin 1'. Instead, look for the two different ends: the female end has a small rectangular plastic housing with a hole in the tip, made to slide over a pin. The male end is a bare metal pin sticking out of a smaller housing, made to push into a breadboard hole or a female housing.",
     "polarity_sensitive": false
@@ -43,25 +58,54 @@
     "shape_and_size": "A single thin, flexible wire roughly 20 cm (about 8 inches) long. One end has a small rectangular black plastic housing about 6-8 mm long with a socket hole in the tip. The other end has a similar small housing but with a bare metal pin, about 3 mm long, sticking straight out.",
     "color_and_markings": "Usually sold in an assortment of solid colors (red, black, yellow, blue, green, etc). No printed text or markings on the wire or housings.",
     "printed_text_to_look_for": "none, these wires are unmarked",
-    "easily_confused_with": ["breadboard jumper wire (jumper-wire, solid pins on both ends, no socket)", "male-to-male Dupont wire (bare pin on both ends)", "female-to-female Dupont wire (socket housing on both ends)"]
+    "easily_confused_with": [
+      "breadboard jumper wire (jumper-wire, solid pins on both ends, no socket)",
+      "male-to-male Dupont wire (bare pin on both ends)",
+      "female-to-female Dupont wire (socket housing on both ends)"
+    ]
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "female socket end", "uno_pin": "plugs onto a module's header pin (for example, the DHT11 sensor's data pin) or directly onto an Arduino UNO digital or analog pin" },
-      { "part_pin": "male pin end", "uno_pin": "pushes into any breadboard hole in the row you want to connect" }
+      {
+        "part_pin": "female socket end",
+        "uno_pin": "plugs onto a module's header pin (for example, the DHT11 sensor's data pin) or directly onto an Arduino UNO digital or analog pin"
+      },
+      {
+        "part_pin": "male pin end",
+        "uno_pin": "pushes into any breadboard hole in the row you want to connect"
+      }
     ],
-    "required_extra_parts": ["a breadboard, or a module/board with header pins to plug into"],
+    "required_extra_parts": [
+      "a breadboard, or a module/board with header pins to plug into"
+    ],
     "arduino_library": "none, it is a passive wire"
   },
   "safety": {
-    "hazards": ["none at the low voltages used in this kit (5-12V)", "could short two circuit nodes together if both bare ends touch the same exposed metal at once"],
-    "handling_notes": ["pull on the plastic housing, not the wire itself, when unplugging it", "avoid bending the same spot repeatedly, the thin strand inside can fatigue and break invisibly under the insulation"],
-    "common_mistakes": ["plugging the male end into the wrong header pin, always check which signal you are connecting before powering on", "assuming a broken connection is a code bug when it is actually a bent or broken pin inside the wire"]
+    "hazards": [
+      "none at the low voltages used in this kit (5-12V)",
+      "could short two circuit nodes together if both bare ends touch the same exposed metal at once"
+    ],
+    "handling_notes": [
+      "pull on the plastic housing, not the wire itself, when unplugging it",
+      "avoid bending the same spot repeatedly, the thin strand inside can fatigue and break invisibly under the insulation"
+    ],
+    "common_mistakes": [
+      "plugging the male end into the wrong header pin, always check which signal you are connecting before powering on",
+      "assuming a broken connection is a code bug when it is actually a bent or broken pin inside the wire"
+    ]
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "sensor or module does not respond at all", "likely_cause": "the wire looks connected but the strand inside is broken, common after repeated bending", "check": "gently wiggle the wire while the circuit is running and watch for the connection to cut in and out, or swap in a different wire" },
-      { "symptom": "intermittent or noisy readings", "likely_cause": "a worn-out female socket that no longer grips the pin tightly", "check": "try to wiggle the connector where it sits on the pin, if it moves easily the socket has worn out" }
+      {
+        "symptom": "sensor or module does not respond at all",
+        "likely_cause": "the wire looks connected but the strand inside is broken, common after repeated bending",
+        "check": "gently wiggle the wire while the circuit is running and watch for the connection to cut in and out, or swap in a different wire"
+      },
+      {
+        "symptom": "intermittent or noisy readings",
+        "likely_cause": "a worn-out female socket that no longer grips the pin tightly",
+        "check": "try to wiggle the connector where it sits on the pin, if it moves easily the socket has worn out"
+      }
     ],
     "how_to_test_with_a_multimeter": "Set the multimeter to continuity or resistance mode. Touch one probe to the metal at the male end and the other probe inside the opening of the female socket. A working wire beeps or reads near 0 ohms. A broken wire reads infinite resistance (often shown as 'OL' or '1')."
   },
@@ -70,11 +114,24 @@
     "price_source_url": "",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["ELEGOO (bundled in this kit)", "generic electronics retailers such as Amazon and eBay sell female-to-male Dupont wire packs separately"]
+    "typical_suppliers": [
+      "ELEGOO (bundled in this kit)",
+      "generic electronics retailers such as Amazon and eBay sell female-to-male Dupont wire packs separately"
+    ]
   },
   "sources": [
-    { "title": "DuPont Connector (2.54mm): Complete Guide to Crimping, Male vs Female, Wire Size & Arduino Wiring", "url": "https://keszoox.com/blogs/news/dupont-connector-complete-guide", "type": "wiki", "used_for": "electrical.max_current, electrical.absolute_max_voltage, key_specs.connector_pitch_mm, key_specs.wire_gauge_awg_typical, key_specs.operating_temperature_c, pins.pin_1_identification (male vs female contact definition)" },
-    { "title": "Multicolored Dupont Wire Kit for Arduino (ELEGOO US product page)", "url": "https://us.elegoo.com/products/elegoo-multicolored-dupont-wire-kit", "type": "manufacturer", "used_for": "identity.manufacturer (confirms ELEGOO packages and sells Dupont wire products); page loaded but did not list numeric specs" }
+    {
+      "title": "DuPont Connector (2.54mm): Complete Guide to Crimping, Male vs Female, Wire Size & Arduino Wiring",
+      "url": "https://keszoox.com/blogs/news/dupont-connector-complete-guide",
+      "type": "wiki",
+      "used_for": "electrical.max_current, electrical.absolute_max_voltage, key_specs.connector_pitch_mm, key_specs.wire_gauge_awg_typical, key_specs.operating_temperature_c, pins.pin_1_identification (male vs female contact definition)"
+    },
+    {
+      "title": "Multicolored Dupont Wire Kit for Arduino (ELEGOO US product page)",
+      "url": "https://us.elegoo.com/products/elegoo-multicolored-dupont-wire-kit",
+      "type": "manufacturer",
+      "used_for": "identity.manufacturer (confirms ELEGOO packages and sells Dupont wire products); page loaded but did not list numeric specs"
+    }
   ],
   "confidence": {
     "overall": "medium",

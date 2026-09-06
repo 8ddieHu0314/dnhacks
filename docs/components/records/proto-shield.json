@@ -1,14 +1,26 @@
 {
   "id": "proto-shield",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
   "identity": {
     "name_on_kit": "Prototype Expansion Module",
     "canonical_name": "UNO prototype shield with SYB-170 mini breadboard",
-    "aliases": ["proto shield", "prototyping shield", "expansion board"],
+    "aliases": [
+      "proto shield",
+      "prototyping shield",
+      "expansion board"
+    ],
     "category": "tool",
     "manufacturer": "generic; no single named manufacturer confirmed. Sold under many OEM brands (HiLetgo, ProtoSupplies house brand, and similar) with an essentially identical design; ELEGOO does not sell this piece as its own standalone SKU",
     "manufacturer_part_number": "generic proto shield with SYB-170 mini breadboard (no standardized MPN found)",
-    "generic_equivalents": ["HiLetgo UNO R3 Proto Shield", "ProtoSupplies Uno Proto Shield with SYB-170 Breadboard", "any \"SYB-170 mini breadboard\" prototype shield for Arduino Uno"],
+    "generic_equivalents": [
+      "HiLetgo UNO R3 Proto Shield",
+      "ProtoSupplies Uno Proto Shield with SYB-170 Breadboard",
+      "any \"SYB-170 mini breadboard\" prototype shield for Arduino Uno"
+    ],
     "serial_number": "not_applicable",
     "package": "module (shield PCB that stacks on the Uno via pin headers, with a mini breadboard stuck to the top)"
   },
@@ -20,38 +32,198 @@
   "pins": {
     "pin_count": 32,
     "pinout": [
-      { "pin": 1, "name": "NC", "role": "not connected / reserved", "notes": "mirrors UNO power header pin 1 (unconnected position, present on the R3 8-pin power header)" },
-      { "pin": 2, "name": "IOREF", "role": "reference voltage output, matches the Uno's logic level (5V on a standard Uno)", "notes": "mirrors UNO power header IOREF pin" },
-      { "pin": 3, "name": "RESET", "role": "reset input, active low", "notes": "mirrors UNO power header RESET pin" },
-      { "pin": 4, "name": "3V3", "role": "regulated 3.3V power output, max 50mA", "notes": "mirrors UNO power header +3V3 pin" },
-      { "pin": 5, "name": "5V", "role": "regulated 5V power output", "notes": "mirrors UNO power header +5V pin" },
-      { "pin": 6, "name": "GND", "role": "ground", "notes": "mirrors UNO power header GND pin (first of two GND pins on this header)" },
-      { "pin": 7, "name": "GND", "role": "ground", "notes": "mirrors UNO power header GND pin (second of two GND pins on this header)" },
-      { "pin": 8, "name": "VIN", "role": "unregulated power input, 6-20V", "notes": "mirrors UNO power header VIN pin" },
-      { "pin": 9, "name": "A0", "role": "analog input (also usable as digital pin D14)", "notes": "mirrors UNO ANALOG IN header A0 pin" },
-      { "pin": 10, "name": "A1", "role": "analog input (also usable as digital pin D15)", "notes": "mirrors UNO ANALOG IN header A1 pin" },
-      { "pin": 11, "name": "A2", "role": "analog input (also usable as digital pin D16)", "notes": "mirrors UNO ANALOG IN header A2 pin" },
-      { "pin": 12, "name": "A3", "role": "analog input (also usable as digital pin D17)", "notes": "mirrors UNO ANALOG IN header A3 pin" },
-      { "pin": 13, "name": "A4", "role": "analog input (also usable as digital pin D18)", "notes": "mirrors UNO ANALOG IN header A4 pin; shares the same microcontroller pin (PC4) as the SDA pin on the digital header" },
-      { "pin": 14, "name": "A5", "role": "analog input (also usable as digital pin D19)", "notes": "mirrors UNO ANALOG IN header A5 pin; shares the same microcontroller pin (PC5) as the SCL pin on the digital header" },
-      { "pin": 15, "name": "SCL", "role": "I2C clock line", "notes": "mirrors UNO digital header SCL pin (D19/SCL); electrically the same net as A5" },
-      { "pin": 16, "name": "SDA", "role": "I2C data line", "notes": "mirrors UNO digital header SDA pin (D18/SDA); electrically the same net as A4" },
-      { "pin": 17, "name": "AREF", "role": "analog reference voltage input", "notes": "mirrors UNO digital header AREF pin" },
-      { "pin": 18, "name": "GND", "role": "ground", "notes": "mirrors UNO digital header GND pin" },
-      { "pin": 19, "name": "D13", "role": "digital I/O; also SPI SCK clock line; drives the Uno's own onboard LED", "notes": "mirrors UNO digital header D13 pin" },
-      { "pin": 20, "name": "D12", "role": "digital I/O; also SPI CIPO/MISO data line", "notes": "mirrors UNO digital header D12 pin" },
-      { "pin": 21, "name": "D11", "role": "digital I/O, PWM capable; also SPI COPI/MOSI data line", "notes": "mirrors UNO digital header D11 (~) pin" },
-      { "pin": 22, "name": "D10", "role": "digital I/O, PWM capable; also SPI SS (slave select) line", "notes": "mirrors UNO digital header D10 (~) pin" },
-      { "pin": 23, "name": "D9", "role": "digital I/O, PWM capable", "notes": "mirrors UNO digital header D9 (~) pin" },
-      { "pin": 24, "name": "D8", "role": "digital I/O", "notes": "mirrors UNO digital header D8 pin" },
-      { "pin": 25, "name": "D7", "role": "digital I/O", "notes": "mirrors UNO digital header D7 pin" },
-      { "pin": 26, "name": "D6", "role": "digital I/O, PWM capable", "notes": "mirrors UNO digital header D6 (~) pin" },
-      { "pin": 27, "name": "D5", "role": "digital I/O, PWM capable", "notes": "mirrors UNO digital header D5 (~) pin" },
-      { "pin": 28, "name": "D4", "role": "digital I/O", "notes": "mirrors UNO digital header D4 pin" },
-      { "pin": 29, "name": "D3", "role": "digital I/O, PWM capable", "notes": "mirrors UNO digital header D3 (~) pin" },
-      { "pin": 30, "name": "D2", "role": "digital I/O", "notes": "mirrors UNO digital header D2 pin" },
-      { "pin": 31, "name": "D1/TX", "role": "digital I/O; UART transmit (serial TX)", "notes": "mirrors UNO digital header D1/TX pin" },
-      { "pin": 32, "name": "D0/RX", "role": "digital I/O; UART receive (serial RX)", "notes": "mirrors UNO digital header D0/RX pin" }
+      {
+        "pin": 1,
+        "name": "NC",
+        "role": "not connected / reserved",
+        "notes": "mirrors UNO power header pin 1 (unconnected position, present on the R3 8-pin power header)"
+      },
+      {
+        "pin": 2,
+        "name": "IOREF",
+        "role": "reference voltage output, matches the Uno's logic level (5V on a standard Uno)",
+        "notes": "mirrors UNO power header IOREF pin"
+      },
+      {
+        "pin": 3,
+        "name": "RESET",
+        "role": "reset input, active low",
+        "notes": "mirrors UNO power header RESET pin"
+      },
+      {
+        "pin": 4,
+        "name": "3V3",
+        "role": "regulated 3.3V power output, max 50mA",
+        "notes": "mirrors UNO power header +3V3 pin"
+      },
+      {
+        "pin": 5,
+        "name": "5V",
+        "role": "regulated 5V power output",
+        "notes": "mirrors UNO power header +5V pin"
+      },
+      {
+        "pin": 6,
+        "name": "GND",
+        "role": "ground",
+        "notes": "mirrors UNO power header GND pin (first of two GND pins on this header)"
+      },
+      {
+        "pin": 7,
+        "name": "GND",
+        "role": "ground",
+        "notes": "mirrors UNO power header GND pin (second of two GND pins on this header)"
+      },
+      {
+        "pin": 8,
+        "name": "VIN",
+        "role": "unregulated power input, 6-20V",
+        "notes": "mirrors UNO power header VIN pin"
+      },
+      {
+        "pin": 9,
+        "name": "A0",
+        "role": "analog input (also usable as digital pin D14)",
+        "notes": "mirrors UNO ANALOG IN header A0 pin"
+      },
+      {
+        "pin": 10,
+        "name": "A1",
+        "role": "analog input (also usable as digital pin D15)",
+        "notes": "mirrors UNO ANALOG IN header A1 pin"
+      },
+      {
+        "pin": 11,
+        "name": "A2",
+        "role": "analog input (also usable as digital pin D16)",
+        "notes": "mirrors UNO ANALOG IN header A2 pin"
+      },
+      {
+        "pin": 12,
+        "name": "A3",
+        "role": "analog input (also usable as digital pin D17)",
+        "notes": "mirrors UNO ANALOG IN header A3 pin"
+      },
+      {
+        "pin": 13,
+        "name": "A4",
+        "role": "analog input (also usable as digital pin D18)",
+        "notes": "mirrors UNO ANALOG IN header A4 pin; shares the same microcontroller pin (PC4) as the SDA pin on the digital header"
+      },
+      {
+        "pin": 14,
+        "name": "A5",
+        "role": "analog input (also usable as digital pin D19)",
+        "notes": "mirrors UNO ANALOG IN header A5 pin; shares the same microcontroller pin (PC5) as the SCL pin on the digital header"
+      },
+      {
+        "pin": 15,
+        "name": "SCL",
+        "role": "I2C clock line",
+        "notes": "mirrors UNO digital header SCL pin (D19/SCL); electrically the same net as A5"
+      },
+      {
+        "pin": 16,
+        "name": "SDA",
+        "role": "I2C data line",
+        "notes": "mirrors UNO digital header SDA pin (D18/SDA); electrically the same net as A4"
+      },
+      {
+        "pin": 17,
+        "name": "AREF",
+        "role": "analog reference voltage input",
+        "notes": "mirrors UNO digital header AREF pin"
+      },
+      {
+        "pin": 18,
+        "name": "GND",
+        "role": "ground",
+        "notes": "mirrors UNO digital header GND pin"
+      },
+      {
+        "pin": 19,
+        "name": "D13",
+        "role": "digital I/O; also SPI SCK clock line; drives the Uno's own onboard LED",
+        "notes": "mirrors UNO digital header D13 pin"
+      },
+      {
+        "pin": 20,
+        "name": "D12",
+        "role": "digital I/O; also SPI CIPO/MISO data line",
+        "notes": "mirrors UNO digital header D12 pin"
+      },
+      {
+        "pin": 21,
+        "name": "D11",
+        "role": "digital I/O, PWM capable; also SPI COPI/MOSI data line",
+        "notes": "mirrors UNO digital header D11 (~) pin"
+      },
+      {
+        "pin": 22,
+        "name": "D10",
+        "role": "digital I/O, PWM capable; also SPI SS (slave select) line",
+        "notes": "mirrors UNO digital header D10 (~) pin"
+      },
+      {
+        "pin": 23,
+        "name": "D9",
+        "role": "digital I/O, PWM capable",
+        "notes": "mirrors UNO digital header D9 (~) pin"
+      },
+      {
+        "pin": 24,
+        "name": "D8",
+        "role": "digital I/O",
+        "notes": "mirrors UNO digital header D8 pin"
+      },
+      {
+        "pin": 25,
+        "name": "D7",
+        "role": "digital I/O",
+        "notes": "mirrors UNO digital header D7 pin"
+      },
+      {
+        "pin": 26,
+        "name": "D6",
+        "role": "digital I/O, PWM capable",
+        "notes": "mirrors UNO digital header D6 (~) pin"
+      },
+      {
+        "pin": 27,
+        "name": "D5",
+        "role": "digital I/O, PWM capable",
+        "notes": "mirrors UNO digital header D5 (~) pin"
+      },
+      {
+        "pin": 28,
+        "name": "D4",
+        "role": "digital I/O",
+        "notes": "mirrors UNO digital header D4 pin"
+      },
+      {
+        "pin": 29,
+        "name": "D3",
+        "role": "digital I/O, PWM capable",
+        "notes": "mirrors UNO digital header D3 (~) pin"
+      },
+      {
+        "pin": 30,
+        "name": "D2",
+        "role": "digital I/O",
+        "notes": "mirrors UNO digital header D2 pin"
+      },
+      {
+        "pin": 31,
+        "name": "D1/TX",
+        "role": "digital I/O; UART transmit (serial TX)",
+        "notes": "mirrors UNO digital header D1/TX pin"
+      },
+      {
+        "pin": 32,
+        "name": "D0/RX",
+        "role": "digital I/O; UART receive (serial RX)",
+        "notes": "mirrors UNO digital header D0/RX pin"
+      }
     ],
     "pin_1_identification": "There is no dedicated pin 1. Orientation is fixed because the header spacing only stacks onto an Uno one way, keyed against the USB/power-jack end of the Uno like any other shield. Pin 1 of the power header (NC) sits nearest the USB connector end of the board.",
     "polarity_sensitive": false
@@ -74,25 +246,54 @@
     "shape_and_size": "A rectangular PCB the same footprint as the Uno (about 7cm x 5.5cm) with two rows of female header sockets on the underside that plug straight down onto the Uno's pins, and a small breadboard (about 4.8cm x 3.4cm) stuck on top with its own grid of tiny insertion holes.",
     "color_and_markings": "PCB color usually matches other boards in the kit (commonly blue or red); the mini breadboard on top is white plastic with a printed red stripe (positive rail) and blue stripe (negative rail) along its edges. The header sockets are silkscreened with the mirrored Uno pin names: SCL, SDA, AREF, GND, 13 down to 8 on one row, 7 down to 0 continuing it, and IOREF, RESET, 3V3, 5V, GND, GND, VIN plus 0 through 5 (analog) along the opposite edge.",
     "printed_text_to_look_for": "A grid of prototyping pads near the header edges, plus a small reset button and an unlabeled general-purpose push button near one corner, and the pin names above each header row (SCL/SDA/AREF/GND/13-8/7-0 on the digital side, IOREF/RESET/3V3/5V/GND/GND/VIN/A0-A5 on the power/analog side).",
-    "easily_confused_with": ["A full-size solderless breadboard (much bigger, no header pins to plug into a board)", "A bare Uno shield with no breadboard on top", "A perfboard/stripboard (bare copper pads, no adhesive breadboard on top)"]
+    "easily_confused_with": [
+      "A full-size solderless breadboard (much bigger, no header pins to plug into a board)",
+      "A bare Uno shield with no breadboard on top",
+      "A perfboard/stripboard (bare copper pads, no adhesive breadboard on top)"
+    ]
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "breadboard + (positive) rail", "uno_pin": "5V (shield header pin 5, mirrors Uno 5V)" },
-      { "part_pin": "breadboard - (negative) rail", "uno_pin": "GND (shield header pin 6 or 7, mirrors Uno GND)" }
+      {
+        "part_pin": "breadboard + (positive) rail",
+        "uno_pin": "5V (shield header pin 5, mirrors Uno 5V)"
+      },
+      {
+        "part_pin": "breadboard - (negative) rail",
+        "uno_pin": "GND (shield header pin 6 or 7, mirrors Uno GND)"
+      }
     ],
-    "required_extra_parts": ["jumper wires or direct component leads to use the mini breadboard or solder pads"],
+    "required_extra_parts": [
+      "jumper wires or direct component leads to use the mini breadboard or solder pads"
+    ],
     "arduino_library": "none; it is a passive board"
   },
   "safety": {
-    "hazards": ["Misaligning the header pins when pressing the shield onto the Uno can bend a pin", "Careless soldering on the prototyping grid can bridge adjacent pads and short a signal to power or ground"],
-    "handling_notes": ["Line up the header sockets carefully before pressing down; press evenly, not on one corner", "Unplug USB power before attaching or removing the shield"],
-    "common_mistakes": ["Assuming the mini breadboard's power rails are automatically connected to the Uno's 5V/GND (they are not, until you jumper them yourself)", "Forgetting the shield adds height, which can make some enclosures not fit"]
+    "hazards": [
+      "Misaligning the header pins when pressing the shield onto the Uno can bend a pin",
+      "Careless soldering on the prototyping grid can bridge adjacent pads and short a signal to power or ground"
+    ],
+    "handling_notes": [
+      "Line up the header sockets carefully before pressing down; press evenly, not on one corner",
+      "Unplug USB power before attaching or removing the shield"
+    ],
+    "common_mistakes": [
+      "Assuming the mini breadboard's power rails are automatically connected to the Uno's 5V/GND (they are not, until you jumper them yourself)",
+      "Forgetting the shield adds height, which can make some enclosures not fit"
+    ]
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "Nothing on the shield's breadboard works", "likely_cause": "The breadboard's power rails were never jumpered to the Uno's 5V/GND pins", "check": "Run a jumper wire from a 5V pin on the shield header to the breadboard's + rail, and GND to the - rail, then re-check" },
-      { "symptom": "Uno stops responding after attaching the shield", "likely_cause": "A bent or misaligned header pin is shorting two signals together", "check": "Remove the shield and inspect the header pins for bending before reseating" }
+      {
+        "symptom": "Nothing on the shield's breadboard works",
+        "likely_cause": "The breadboard's power rails were never jumpered to the Uno's 5V/GND pins",
+        "check": "Run a jumper wire from a 5V pin on the shield header to the breadboard's + rail, and GND to the - rail, then re-check"
+      },
+      {
+        "symptom": "Uno stops responding after attaching the shield",
+        "likely_cause": "A bent or misaligned header pin is shorting two signals together",
+        "check": "Remove the shield and inspect the header pins for bending before reseating"
+      }
     ],
     "how_to_test_with_a_multimeter": "With the shield seated and the Uno powered, measure continuity between any GND point on the shield's header and the Uno's own GND pin; you should read near 0 ohm, confirming a solid connection."
   },
@@ -101,14 +302,44 @@
     "price_source_url": "https://protosupplies.com/product/uno-proto-shield-syb-170-breadboard/",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["ProtoSupplies (US retailer, verified $2.95 on 2026-09-05)", "Amazon (HiLetgo and similar generic brands)", "Robot Pi Shop (previously seen at $3.99, not re-checked this pass)", "eBay"]
+    "typical_suppliers": [
+      "ProtoSupplies (US retailer, verified $2.95 on 2026-09-05)",
+      "Amazon (HiLetgo and similar generic brands)",
+      "Robot Pi Shop (previously seen at $3.99, not re-checked this pass)",
+      "eBay"
+    ]
   },
   "sources": [
-    { "title": "Elegoo Uno Project Super Starter Kit Unboxing & Review", "url": "https://the-diy-life.com/elegoo-uno-project-super-starter-kit-unboxing-review/", "type": "tutorial", "used_for": "function, confirming the ELEGOO kit's proto shield has a mini breadboard on top with labeled header pin strips" },
-    { "title": "UNO Proto Shield Prototype Expansion Board with SYB-170 Mini Breadboard - Robot Pi Shop", "url": "https://robotpishop.com/products/uno-proto-shield-prototype-expansion-board-with-syb-170-mini-breadboard", "type": "retailer", "used_for": "key_specs (breadboard tie points, board and breadboard dimensions, onboard LEDs/buttons/capacitors, ICSP pass-through header); corroborating source from a prior research pass, not re-fetched this pass, price superseded by the ProtoSupplies listing below" },
-    { "title": "Arduino UNO Rev3 official pinout diagram", "url": "https://content.arduino.cc/assets/Pinout-UNOrev3_latest.pdf", "type": "manufacturer", "used_for": "pins.pin_count, pins.pinout: confirms the exact 32-pin header layout the shield mirrors 1:1 (8-pin power header NC/IOREF/RESET/3V3/5V/GND/GND/VIN, 6-pin ANALOG IN header A0-A5, 18-pin digital header SCL/SDA/AREF/GND/D13-D8/D7-D0), plus the separate 2x3 ICSP header pin order (CIPO/+5V/SCK/COPI/RESET/GND)" },
-    { "title": "Adafruit Proto Shield for Arduino (product guide PDF)", "url": "https://cdn-learn.adafruit.com/downloads/pdf/adafruit-proto-shield-arduino.pdf", "type": "manufacturer", "used_for": "cross-checks pins.pinout: the fabrication print and product photos show a UNO proto shield's own silkscreen (SDA/SCL/AREF/GND/13-8/7-0 on the digital side, IOREF/RESET/3V3/5V/GND/GND/VIN plus Analog In 0-5 on the power/analog side, and a pass-through ICSP header) mirroring the Uno's header 1:1, matching the official Arduino pinout" },
-    { "title": "Uno Proto Shield and SYB-170 Breadboard - ProtoSupplies", "url": "https://protosupplies.com/product/uno-proto-shield-syb-170-breadboard/", "type": "retailer", "used_for": "market.unit_price_usd, price_source_url; cross-check on board_dimensions_mm (this US retailer's listing gives 69 x 53mm vs. 70 x 54mm from the Robot Pi Shop listing, a small variance typical across generic-brand clones); confirms the shield mounts with the same header pinout as the Uno" }
+    {
+      "title": "Elegoo Uno Project Super Starter Kit Unboxing & Review",
+      "url": "https://the-diy-life.com/elegoo-uno-project-super-starter-kit-unboxing-review/",
+      "type": "tutorial",
+      "used_for": "function, confirming the ELEGOO kit's proto shield has a mini breadboard on top with labeled header pin strips"
+    },
+    {
+      "title": "UNO Proto Shield Prototype Expansion Board with SYB-170 Mini Breadboard - Robot Pi Shop",
+      "url": "https://robotpishop.com/products/uno-proto-shield-prototype-expansion-board-with-syb-170-mini-breadboard",
+      "type": "retailer",
+      "used_for": "key_specs (breadboard tie points, board and breadboard dimensions, onboard LEDs/buttons/capacitors, ICSP pass-through header); corroborating source from a prior research pass, not re-fetched this pass, price superseded by the ProtoSupplies listing below"
+    },
+    {
+      "title": "Arduino UNO Rev3 official pinout diagram",
+      "url": "https://content.arduino.cc/assets/Pinout-UNOrev3_latest.pdf",
+      "type": "manufacturer",
+      "used_for": "pins.pin_count, pins.pinout: confirms the exact 32-pin header layout the shield mirrors 1:1 (8-pin power header NC/IOREF/RESET/3V3/5V/GND/GND/VIN, 6-pin ANALOG IN header A0-A5, 18-pin digital header SCL/SDA/AREF/GND/D13-D8/D7-D0), plus the separate 2x3 ICSP header pin order (CIPO/+5V/SCK/COPI/RESET/GND)"
+    },
+    {
+      "title": "Adafruit Proto Shield for Arduino (product guide PDF)",
+      "url": "https://cdn-learn.adafruit.com/downloads/pdf/adafruit-proto-shield-arduino.pdf",
+      "type": "manufacturer",
+      "used_for": "cross-checks pins.pinout: the fabrication print and product photos show a UNO proto shield's own silkscreen (SDA/SCL/AREF/GND/13-8/7-0 on the digital side, IOREF/RESET/3V3/5V/GND/GND/VIN plus Analog In 0-5 on the power/analog side, and a pass-through ICSP header) mirroring the Uno's header 1:1, matching the official Arduino pinout"
+    },
+    {
+      "title": "Uno Proto Shield and SYB-170 Breadboard - ProtoSupplies",
+      "url": "https://protosupplies.com/product/uno-proto-shield-syb-170-breadboard/",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, price_source_url; cross-check on board_dimensions_mm (this US retailer's listing gives 69 x 53mm vs. 70 x 54mm from the Robot Pi Shop listing, a small variance typical across generic-brand clones); confirms the shield mounts with the same header pinout as the Uno"
+    }
   ],
   "confidence": {
     "overall": "medium",

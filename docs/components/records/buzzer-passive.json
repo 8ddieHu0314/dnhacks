@@ -1,14 +1,24 @@
 {
   "id": "buzzer-passive",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
   "identity": {
     "name_on_kit": "Passive Buzzer",
     "canonical_name": "passive piezo buzzer (no built-in oscillator)",
-    "aliases": ["PWM buzzer", "tone buzzer"],
+    "aliases": [
+      "PWM buzzer",
+      "tone buzzer"
+    ],
     "category": "actuator",
     "manufacturer": "unbranded / generic",
     "manufacturer_part_number": "none published by ELEGOO; functionally equivalent to Adafruit Piezo Buzzer PS1240 (PID 160)",
-    "generic_equivalents": ["Adafruit Piezo Buzzer PS1240 (PID 160)", "Handson Technology KY-006-style Passive Buzzer Module core element (SKU MDU1126)"],
+    "generic_equivalents": [
+      "Adafruit Piezo Buzzer PS1240 (PID 160)",
+      "Handson Technology KY-006-style Passive Buzzer Module core element (SKU MDU1126)"
+    ],
     "serial_number": "not_applicable",
     "package": "12mm round through-hole piezo buzzer, 2 pins"
   },
@@ -20,8 +30,18 @@
   "pins": {
     "pin_count": 2,
     "pinout": [
-      { "pin": 1, "name": "+", "role": "signal input, positive", "notes": "red wire in ELEGOO's own wiring diagram; connects to UNO digital pin 8" },
-      { "pin": 2, "name": "-", "role": "ground", "notes": "black wire in ELEGOO's own wiring diagram; connects to GND" }
+      {
+        "pin": 1,
+        "name": "+",
+        "role": "signal input, positive",
+        "notes": "red wire in ELEGOO's own wiring diagram; connects to UNO digital pin 8"
+      },
+      {
+        "pin": 2,
+        "name": "-",
+        "role": "ground",
+        "notes": "black wire in ELEGOO's own wiring diagram; connects to GND"
+      }
     ],
     "pin_1_identification": "ELEGOO's tutorial states explicitly: red (positive) wire to pin 8, black (negative) wire to GND. On the bare part, the positive lead is the longer of the two pins.",
     "polarity_sensitive": true
@@ -42,44 +62,98 @@
     "shape_and_size": "Small round can about 12mm in diameter, with two pins sticking out of the bottom.",
     "color_and_markings": "Shows a visible green circuit board (PCB) on the back/bottom, unlike the active buzzer's solid black sealed back.",
     "printed_text_to_look_for": "None typically visible; component markings may be printed on the small green PCB.",
-    "easily_confused_with": ["Active buzzer (near-identical size and shape, but has a solid black seal instead of a visible green PCB, and does not need a changing signal to sound)"]
+    "easily_confused_with": [
+      "Active buzzer (near-identical size and shape, but has a solid black seal instead of a visible green PCB, and does not need a changing signal to sound)"
+    ]
   },
   "wiring_to_uno": {
     "example_connections": [
-      { "part_pin": "+", "uno_pin": "Digital pin 8 (per ELEGOO's Lesson 7 wiring diagram)" },
-      { "part_pin": "-", "uno_pin": "GND" }
+      {
+        "part_pin": "+",
+        "uno_pin": "Digital pin 8 (per ELEGOO's Lesson 7 wiring diagram)"
+      },
+      {
+        "part_pin": "-",
+        "uno_pin": "GND"
+      }
     ],
-    "required_extra_parts": ["2 female-to-male jumper wires (per ELEGOO's Lesson 7)", "the pitches.h Arduino library used by the example sketch"],
+    "required_extra_parts": [
+      "2 female-to-male jumper wires (per ELEGOO's Lesson 7)",
+      "the pitches.h Arduino library used by the example sketch"
+    ],
     "arduino_library": "pitches.h (defines note-frequency constants; used together with the built-in tone() function)"
   },
   "safety": {
-    "hazards": ["None significant; a low-voltage, low-current part"],
-    "handling_notes": ["Do not drive with analogWrite(); its fixed 500 Hz rate will not produce the intended musical tones", "Observe polarity for a reliable connection, though piezo elements are less sensitive to reversal than active buzzers"],
-    "common_mistakes": ["Wiring it like an active buzzer (steady digitalWrite HIGH) and getting no sound or just a click", "Forgetting to install the pitches.h library before uploading the example sketch"]
+    "hazards": [
+      "None significant; a low-voltage, low-current part"
+    ],
+    "handling_notes": [
+      "Do not drive with analogWrite(); its fixed 500 Hz rate will not produce the intended musical tones",
+      "Observe polarity for a reliable connection, though piezo elements are less sensitive to reversal than active buzzers"
+    ],
+    "common_mistakes": [
+      "Wiring it like an active buzzer (steady digitalWrite HIGH) and getting no sound or just a click",
+      "Forgetting to install the pitches.h library before uploading the example sketch"
+    ]
   },
   "troubleshooting": {
     "symptoms_and_causes": [
-      { "symptom": "No sound when using an active-buzzer style sketch", "likely_cause": "Passive buzzers need a changing signal, not steady power", "check": "Confirm the sketch calls tone() rather than just digitalWrite(pin, HIGH)" },
-      { "symptom": "Sketch will not compile", "likely_cause": "Missing pitches.h library", "check": "Reinstall the pitches library as described in Lesson 1 of the ELEGOO tutorial" },
-      { "symptom": "Sound is distorted or very quiet", "likely_cause": "Wrong wiring, or a genuinely faulty piezo element", "check": "Verify the red wire is on D8 and the black wire is on GND, then swap in a known-good buzzer to compare" }
+      {
+        "symptom": "No sound when using an active-buzzer style sketch",
+        "likely_cause": "Passive buzzers need a changing signal, not steady power",
+        "check": "Confirm the sketch calls tone() rather than just digitalWrite(pin, HIGH)"
+      },
+      {
+        "symptom": "Sketch will not compile",
+        "likely_cause": "Missing pitches.h library",
+        "check": "Reinstall the pitches library as described in Lesson 1 of the ELEGOO tutorial"
+      },
+      {
+        "symptom": "Sound is distorted or very quiet",
+        "likely_cause": "Wrong wiring, or a genuinely faulty piezo element",
+        "check": "Verify the red wire is on D8 and the black wire is on GND, then swap in a known-good buzzer to compare"
+      }
     ],
     "how_to_test_with_a_multimeter": "A piezo element behaves like a capacitor, not a resistor, so a standard resistance reading is not meaningful. The simplest multimeter check is AC voltage mode across the two pins while a tone() sketch runs; a small fluctuating AC voltage confirms the UNO is actually driving it."
   },
   "market": {
-    "unit_price_usd": 1.50,
+    "unit_price_usd": 1.5,
     "price_source_url": "https://www.adafruit.com/product/160",
     "price_checked_on": "2026-09-05",
     "lifecycle_status": "active",
-    "typical_suppliers": ["ELEGOO (bundled in kit only)", "Adafruit", "generic electronics retailers/AliExpress"]
+    "typical_suppliers": [
+      "ELEGOO (bundled in kit only)",
+      "Adafruit",
+      "generic electronics retailers/AliExpress"
+    ]
   },
   "sources": [
-    { "title": "Elegoo Super Starter Kit for UNO tutorial PDF (Lesson 7: Passive Buzzer)", "url": "https://www.uastem.com/wp-content/uploads/2021/10/Elegoo_Super_Starter_Kit_for_UNO_V1.0.2019.09.17.pdf", "type": "tutorial", "used_for": "confirms exact UNO wiring (red to pin 8, black to GND), function, the note frequencies used in the example, and the pitches.h library requirement" },
-    { "title": "Passive Buzzer Module datasheet, Handson Technology", "url": "https://www.handsontec.com/dataspecs/module/passive%20buzzer.pdf", "type": "datasheet", "used_for": "generic-equivalent electrical specs: operating_voltage and frequency_range_hz" },
-    { "title": "Piezo Buzzer - PS1240, Adafruit product #160", "url": "https://www.adafruit.com/product/160", "type": "retailer", "used_for": "bare 2-pin generic equivalent confirming drive voltage range, physical size, and unit_price_usd" }
+    {
+      "title": "Elegoo Super Starter Kit for UNO tutorial PDF (Lesson 7: Passive Buzzer)",
+      "url": "https://www.uastem.com/wp-content/uploads/2021/10/Elegoo_Super_Starter_Kit_for_UNO_V1.0.2019.09.17.pdf",
+      "type": "tutorial",
+      "used_for": "confirms exact UNO wiring (red to pin 8, black to GND), function, the note frequencies used in the example, and the pitches.h library requirement"
+    },
+    {
+      "title": "Passive Buzzer Module datasheet, Handson Technology",
+      "url": "https://www.handsontec.com/dataspecs/module/passive%20buzzer.pdf",
+      "type": "datasheet",
+      "used_for": "generic-equivalent electrical specs: operating_voltage and frequency_range_hz"
+    },
+    {
+      "title": "Piezo Buzzer - PS1240, Adafruit product #160",
+      "url": "https://www.adafruit.com/product/160",
+      "type": "retailer",
+      "used_for": "bare 2-pin generic equivalent confirming drive voltage range, physical size, and unit_price_usd"
+    }
   ],
   "confidence": {
     "overall": "high",
-    "fields_uncertain": ["electrical.typical_current", "electrical.max_current", "electrical.absolute_max_voltage"],
+    "fields_uncertain": [
+      "electrical.typical_current",
+      "electrical.max_current",
+      "electrical.absolute_max_voltage"
+    ],
     "notes": "Wiring to the UNO (pin 8, GND) and the visual identification (green PCB vs black seal) both come directly from ELEGOO's own tutorial text. Voltage/frequency specs use a similar Handson Technology module datasheet as the closest available generic reference, since no datasheet exists for a bare 2-pin unbranded buzzer, so treat current draw figures as approximate."
   }
 }
