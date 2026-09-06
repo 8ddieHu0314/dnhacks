@@ -417,16 +417,20 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
         definitions = self._target_circuit["verification_checks"]
         allowed = {item["id"] for item in definitions}
         reported = {item.check_id: item for item in debug.checks if item.check_id in allowed}
-        checks = [reported.get(item["id"]) or EvidenceCheckResult(
-            check_id=item["id"], status="pending", evidence_source="unknown",
-            evidence="No acceptable evidence has been reported yet.") for item in definitions]
-        blocking = [item for item in definitions if item["blocks_power"]]
         submitted = self._debug_evidence.get(session_id, {})
-        safe = all((result := reported.get(item["id"])) is not None
-                   and result.status == "pass" and result.evidence_source == item["required_evidence"]
-                   and (item["required_evidence"] == "visual"
-                        or submitted.get(item["id"], {}).get("evidence_source") == item["required_evidence"])
-                   for item in blocking)
+        def accepted(item: dict[str, Any], result: EvidenceCheckResult | None) -> bool:
+            source = item["required_evidence"]
+            return bool(result and result.status == "pass" and result.evidence_source == source
+                        and (source == "visual" or submitted.get(item["id"], {}).get("evidence_source") == source))
+        checks = []
+        for item in definitions:
+            result = reported.get(item["id"])
+            if result is None or (result.status == "pass" and not accepted(item, result)):
+                result = EvidenceCheckResult(check_id=item["id"], status="pending", evidence_source="unknown",
+                    evidence=f"Waiting for accepted {item['required_evidence']} evidence.")
+            checks.append(result)
+        blocking = [item for item in definitions if item["blocks_power"]]
+        safe = all(accepted(item, reported.get(item["id"])) for item in blocking)
         steps = debug.steps
         if not safe:
             power_action = r"\b(connect (?:usb )?power|turn on|power on|apply power|energize)\b"
