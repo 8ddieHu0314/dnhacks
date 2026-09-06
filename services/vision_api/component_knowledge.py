@@ -156,3 +156,33 @@ mains/high-voltage work. Every proposed action requires_confirmation=true. Put c
 wiring feedback, questions, and caveats in analysis.component_guidance.\n\nWorkflow:\n{instruction_for(frame)}
 \n\nUser request: {frame.metadata.user_request or 'identify the part and give safe context.'}
 \n\nCandidate records:\n{json.dumps(records, ensure_ascii=True)}"""
+
+    @staticmethod
+    def _ground(output: VisionOutput, matches: list[ComponentMatch]) -> VisionOutput:
+        summaries = ComponentKnowledgeBase.summaries(matches)
+        allowed_ids = {summary.component_id for summary in summaries}
+        analysis = output.analysis or VisionAnalysis(summary="Component candidates are available for review.")
+        guidance = analysis.component_guidance or ComponentGuidance()
+        caveats = list(guidance.data_caveats)
+        for summary in summaries:
+            if summary.data_confidence != "high":
+                caveat = f"{summary.canonical_name} has {summary.data_confidence}-confidence kit data; confirm critical values."
+                if caveat not in caveats:
+                    caveats.append(caveat)
+        guidance = guidance.model_copy(update={
+            "retrieved_components": summaries,
+            "identified_components": [item for item in guidance.identified_components if item.component_id in allowed_ids],
+            "data_caveats": caveats[:5],
+        })
+        return output.model_copy(update={"analysis": analysis.model_copy(update={"component_guidance": guidance})})
+
+    async def analyze(self, frame: Frame) -> VisionOutput:
+        scene = SceneDescription.model_validate(await self._complete(
+            system=self._scene_prompt(frame.metadata.user_request), text="Describe this frame for retrieval.", frame=frame,
+        ))
+        matches = self._knowledge_base.search(scene.query(frame.metadata.user_request), limit=self._top_k)
+        records = self._knowledge_base.prompt_records(matches)
+        output = VisionOutput.model_validate(await self._complete(
+            system=self._guidance_prompt(frame, records), text="Give grounded component guidance.", frame=frame,
+        ))
+        return self._ground(output, matches)
