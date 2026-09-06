@@ -280,11 +280,34 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
         clarification = {"type": "object", "properties": {
             "target": {"type": "string"}, "requested_view": {"type": "string"}, "reason": {"type": "string"},
         }, "required": ["target", "requested_view", "reason"]}
+        connection = {"type": "object", "properties": {
+            "source": {"type": "string"}, "target": {"type": "string"},
+            "status": {"type": "string", "enum": ["visible", "inferred", "unclear"]},
+            "evidence": {"type": "string"},
+        }, "required": ["source", "target", "status", "evidence"]}
+        circuit = {"type": "object", "properties": {
+            "summary": {"type": "string"},
+            "components": {"type": "array", "items": {"type": "string"}, "maxItems": 20},
+            "connections": {"type": "array", "items": connection, "maxItems": 24},
+            "unknowns": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        }, "required": ["summary", "components", "connections", "unknowns", "confidence"]}
+        comparison = {"type": "object", "properties": {
+            "fits_purpose": {"type": "string", "enum": ["yes", "no", "uncertain"]},
+            "explanation": {"type": "string"},
+            "matches": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
+            "mismatches": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
+            "missing_or_unclear": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
+            "safety_issues": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
+        }, "required": ["fits_purpose", "explanation", "matches", "mismatches",
+                        "missing_or_unclear", "safety_issues"]}
         debug = {"type": "object", "properties": {
             "status": {"type": "string", "enum": ["needs_context", "in_progress", "ready_to_test", "resolved"]},
             "problem": {"type": "string"}, "steps": {"type": "array", "items": step, "maxItems": 8},
             "visual_clarification": {"anyOf": [clarification, {"type": "null"}]},
-        }, "required": ["status", "problem", "steps", "visual_clarification"]}
+            "observed_circuit": circuit, "comparison": comparison,
+        }, "required": ["status", "problem", "steps", "visual_clarification",
+                        "observed_circuit", "comparison"]}
         analysis = {"type": "object", "properties": {"mode": {"type": "string", "enum": ["identification", "debug"]},
             "summary": {"type": "string"}, "observations": string_list, "safety_alerts": string_list,
             "component_guidance": guidance, "debug_guidance": debug},
