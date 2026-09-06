@@ -382,6 +382,7 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
         self._debug_components: dict[str, list[str]] = {}
         self._debug_history: dict[str, dict[str, Any]] = {}
         self._debug_evidence: dict[str, dict[str, Any]] = {}
+        self._debug_request: dict[str, str] = {}
         target_path = Path(__file__).with_name("circuit_definitions") / "motor-fan-button-relay.json"
         self._target_circuit = json.loads(target_path.read_text())
         lines = []
@@ -446,7 +447,8 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
             "checks": checks, "safe_to_energize": safe, "phase": phase, "steps": steps})})
 
     async def _debug_breadboard(self, frame: Frame) -> VisionOutput:
-        request = frame.metadata.user_request or "Find visible wiring problems and give the next safe check."
+        pending = self._debug_request.pop(frame.session_id, "")
+        request = frame.metadata.user_request or pending or "Find visible wiring problems and give the next safe check."
         metadata = frame.metadata.model_copy(update={
             "user_request": f"DEBUG MODE: Breadboard jumper-wire circuit. {request}",
         })
@@ -496,6 +498,7 @@ that gate opens. The observed_circuit and comparison objects are mandatory even 
                 self._debug_components.pop(frame.session_id, None)
                 self._debug_history.pop(frame.session_id, None)
                 self._debug_evidence.pop(frame.session_id, None)
+                self._debug_request.pop(frame.session_id, None)
                 return VisionOutput(analysis=VisionAnalysis(
                     mode="identification", summary="Debug mode ended. Show me a component to identify."
                 ))
@@ -524,6 +527,8 @@ that gate opens. The observed_circuit and comparison objects are mandatory even 
         mode = "debug" if record["id"] == "breadboard-830" else "identification"
         if mode == "debug":
             self._debug_sessions.add(frame.session_id)
+            if frame.metadata.user_request:
+                self._debug_request[frame.session_id] = frame.metadata.user_request
             if frame.metadata.reported_evidence:
                 self._debug_evidence[frame.session_id] = {
                     item.check_id: item.model_dump(mode="json") for item in frame.metadata.reported_evidence}

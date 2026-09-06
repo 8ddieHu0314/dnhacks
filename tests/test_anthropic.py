@@ -157,6 +157,7 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Configured target circuit", calls[1]["system"])
         self.assertIn("PN2222 base", calls[1]["system"])
         self.assertIn("external 5V +", calls[1]["system"])
+        self.assertIn("What is wrong?", calls[1]["system"])
         debug_schema = calls[1]["tools"][0]["input_schema"]["properties"]["analysis"]["properties"]["debug_guidance"]
         self.assertIn("observed_circuit", debug_schema["required"])
         updated_frame = follow_up.__class__(follow_up.session_id,
