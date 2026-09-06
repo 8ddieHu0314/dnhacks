@@ -175,9 +175,21 @@ class CircuitComparison(BaseModel):
     safety_issues: list[str] = Field(default_factory=list, max_length=12)
 
 
+class EvidenceCheckResult(BaseModel):
+    """Evidence reported for one configured verification checkpoint."""
+
+    check_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,62}$")
+    status: Literal["pending", "pass", "fail"]
+    evidence_source: Literal["visual", "user_report", "measurement", "unknown"]
+    evidence: str = Field(min_length=1, max_length=500)
+
+
 class DebugGuidance(BaseModel):
     status: Literal["needs_context", "in_progress", "ready_to_test", "resolved"]
+    phase: Literal["inspect_unpowered", "verify_unpowered", "ready_to_power", "test_powered", "resolved"] = "inspect_unpowered"
+    safe_to_energize: bool = False
     problem: str = Field(min_length=1, max_length=1_000)
+    checks: list[EvidenceCheckResult] = Field(default_factory=list, max_length=12)
     steps: list[DebugStep] = Field(default_factory=list, max_length=8)
     visual_clarification: VisualClarification | None = None
     observed_circuit: CircuitUnderstanding | None = None
