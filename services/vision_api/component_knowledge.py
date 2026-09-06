@@ -185,7 +185,8 @@ mains/high-voltage work. Every proposed action requires_confirmation=true. Put c
 wiring feedback, questions, and caveats in analysis.component_guidance. Keep every list to three
 brief items or fewer. If the user request starts DEBUG MODE, set mode=debug and add debug_guidance:
 state the apparent problem, give ordered reversible steps with the reason and expected evidence,
-and mark every step requires_confirmation=true. Put the safest high-information check first. If a
+and mark every step requires_confirmation=true. List only remaining steps and put the current next
+action first. Preserve a prior plan unless new visual or user-reported evidence changes it. If a
 connection, marking, polarity, or rail break is not visible, do not guess: request one precise
 alternative view in visual_clarification and explain how to frame it. Treat continuity and voltage
 measurements as user-reported evidence, never visual facts.\n\nWorkflow:\n{instruction_for(frame)}
@@ -345,6 +346,7 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
         self._debugger = AnthropicComponentKnowledgeVLM(base_url=base_url, **kwargs)
         self._debug_sessions: set[str] = set()
         self._debug_components: dict[str, list[str]] = {}
+        self._debug_history: dict[str, dict[str, Any]] = {}
         lines = []
         for record in self._knowledge_base._records:
             visual = record.get("details", {}).get("visual_identification", {})
@@ -381,12 +383,18 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
                    if (record := self._knowledge_base.record_for(item)) is not None]
         records = self._knowledge_base.prompt_records(matches)
         debug_frame = replace(frame, metadata=metadata)
+        previous = self._debug_history.get(frame.session_id)
+        task = "Build or update the debug plan."
+        if previous:
+            task += " Previous plan: " + json.dumps(previous, ensure_ascii=True)
         output = VisionOutput.model_validate(await self._debugger._complete(
-            system=self._debugger._guidance_prompt(debug_frame, records), text="Build or update the debug plan.",
+            system=self._debugger._guidance_prompt(debug_frame, records), text=task,
             frame=debug_frame, schema=self._debugger._guidance_schema(ids),
         ))
         output = self._debugger._ground(output, matches)
         analysis = output.analysis or VisionAnalysis(summary="Show the breadboard wiring clearly.")
+        if analysis.debug_guidance is not None:
+            self._debug_history[frame.session_id] = analysis.debug_guidance.model_dump(mode="json")
         return output.model_copy(update={"analysis": analysis.model_copy(update={"mode": "debug"})})
 
     async def analyze(self, frame: Frame) -> VisionOutput:
@@ -395,6 +403,7 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
             if any(command in request for command in ("exit debug mode", "stop debugging", "identification mode")):
                 self._debug_sessions.discard(frame.session_id)
                 self._debug_components.pop(frame.session_id, None)
+                self._debug_history.pop(frame.session_id, None)
                 return VisionOutput(analysis=VisionAnalysis(
                     mode="identification", summary="Debug mode ended. Show me a component to identify."
                 ))
