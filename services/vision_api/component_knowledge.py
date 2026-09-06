@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import math
 import re
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -17,6 +19,13 @@ _TOKEN = re.compile(r"[a-z0-9]+")
 def _tokens(value: str) -> list[str]:
     return _TOKEN.findall(value.lower())
 
+
+def _searchable_record(record: dict[str, Any]) -> str:
+    details = record.get("details", {})
+    selected = {key: record.get(key, "") for key in ("id", "canonical_name", "name_on_kit", "category", "pins", "interface", "function")}
+    selected["details"] = {key: details.get(key, {}) for key in ("identity", "function", "visual_identification")}
+    return json.dumps(selected, ensure_ascii=True).lower()
+
 @dataclass(frozen=True, slots=True)
 class ComponentMatch:
     record: dict[str, Any]
@@ -30,7 +39,11 @@ class ComponentKnowledgeBase:
         self._by_id = {str(record["id"]): record for record in records}
         if len(self._by_id) != len(records):
             raise ValueError("Component ids must be unique")
-        self._search_text = [json.dumps(record, ensure_ascii=True).lower() for record in records]
+        self._search_text = [_searchable_record(record) for record in records]
+        self._term_counts = [Counter(_tokens(text)) for text in self._search_text]
+        document_frequency = Counter(term for counts in self._term_counts for term in counts)
+        count = len(self._term_counts)
+        self._idf = {term: math.log(1 + (count - frequency + 0.5) / (frequency + 0.5)) for term, frequency in document_frequency.items()}
 
     @classmethod
     def from_path(cls, path: Path) -> ComponentKnowledgeBase:
@@ -46,10 +59,10 @@ class ComponentKnowledgeBase:
         return self._by_id.get(component_id)
 
     def search(self, query: str, *, limit: int = 3) -> list[ComponentMatch]:
-        terms = _tokens(query)
+        terms = set(_tokens(query))
         if limit < 1 or not terms:
             return []
-        scores = [sum(text.count(term) for term in terms) for text in self._search_text]
+        scores = [sum(self._idf.get(term, 0.0) * counts[term] / (counts[term] + 1) for term in terms) for counts in self._term_counts]
         exact = [index for index, record in enumerate(self._records) if record["id"] in query.lower()]
         order = exact + sorted((i for i, score in enumerate(scores) if score and i not in exact), key=scores.__getitem__, reverse=True)
         return [ComponentMatch(self._records[index], max(float(scores[index]), 100.0 if index in exact else 0.0)) for index in order[:limit]]
