@@ -1,6 +1,41 @@
-# Ray-Ban Meta live vision scaffold
+# Glasses Inspector
 
-This repository starts the server side of a hands-free industrial/field-vision
+Hands-free part identification for Ray-Ban Meta glasses, built at DNHacks 2026 (Energy &
+Industrialization track). The wearer looks at an electronic component; the glasses say its
+name within about two seconds, and a dashboard on the Mac shows what the system saw.
+
+![Glasses Inspector pipeline: glasses to iPhone app to Mac relay to Claude and ElevenLabs and back to the glasses](docs/pipeline.svg)
+
+## What runs today
+
+- `clients/ios/GlassesInspector`: iPhone app (fork of Meta's DAT `CameraAccess` sample). It
+  streams the glasses camera to the Mac over a WebSocket and plays the Mac's speech into the
+  glasses.
+- `services/relay_receiver`: the Mac relay. A local YOLOv8 detector on every frame, Claude
+  identification against the part catalog, ElevenLabs voice, and a live dashboard on `:8787`.
+  Setup, endpoints, and tuning live in
+  [`services/relay_receiver/README.md`](services/relay_receiver/README.md).
+- `docs/components`: the researched part catalog (`components.json`, 47 parts) the relay loads
+  at startup, plus query and merge scripts and a small retrieval eval.
+- `docs/meta-glasses-field-notes.md`: hardware facts, measurements, and root causes of past
+  outages. `docs/TEAM_PLAN.md`: the three tracks and the phone<->Mac interface contract.
+
+Quick start on the Mac (put `ANTHROPIC_API_KEY` in `services/relay_receiver/.env`, or use
+`INSPECT_FAKE=1` for canned answers):
+
+```bash
+services/relay_receiver/run.sh
+```
+
+Then run the iOS app from Xcode, pick the receiver from the Bonjour list in the gear menu, and
+press Preview.
+
+Everything below documents `services/vision_api`, the earlier server-side scaffold that the
+phone app does not use yet.
+
+## Ray-Ban Meta live vision scaffold (`services/vision_api`)
+
+This service starts the server side of a hands-free industrial/field-vision
 prototype: receive a wearer’s point-of-view frames, keep latency bounded, run a
 segmentation model, and return structured regions to a mobile client.
 
@@ -102,9 +137,13 @@ and [OSHA's LED interpretation](https://www.osha.gov/laws-regs/standardinterpret
 ```bash
 cp .env.example .env
 python3 -m venv .venv
-.venv/bin/pip install -e '.[dev]'
+.venv/bin/pip install fastapi httpx pydantic-settings 'uvicorn[standard]' pytest pytest-asyncio
 PYTHONPATH=services .venv/bin/uvicorn vision_api.main:app --reload
 ```
+
+(`pip install -e '.[dev]'` currently fails: setuptools sees both `clients/` and `services/`
+at the repo root and refuses flat-layout auto-discovery. Installing the dependencies directly,
+as above, is the workaround.)
 
 Create a session:
 
@@ -116,10 +155,11 @@ Then open a WebSocket to the returned session’s `/frames` URL. Send one
 `FrameMetadata` JSON message, then the matching JPEG/PNG/WebP bytes. The server
 responds with an acknowledgement; read `/results` for segmentation output.
 
-Run the initial test:
+Run the tests (either runner works; pyproject sets `pythonpath = ["services"]`):
 
 ```bash
 PYTHONPATH=services .venv/bin/python -m unittest discover -s tests -v
+.venv/bin/pytest
 ```
 
 Docker is also available after creating `.env`:
@@ -154,16 +194,20 @@ To support another provider or an on-device runtime, implement the
 ## Arduino context node
 
 [`firmware/context_node/context_node.ino`](firmware/context_node/context_node.ino)
-uses only the Arduino core and the starter-kit parts: a photoresistor on A0,
-tilt switch on D3, active buzzer on D8, and HC-SR04 on D9/D10. It prints one
-JSON observation every 250 ms at 115200 baud. The photoresistor reports the
-brightness of an indicator light; it is not a voltage sensor.
+uses only the Arduino core and the starter-kit parts. The current sketch reads a
+capacitive touch/proximity antenna on A0 (two PN2222s as a Darlington amplifier; circuit,
+readings, and the current upload blocker are in
+[`TOUCH_SENSOR_DEMO.md`](firmware/context_node/TOUCH_SENSOR_DEMO.md)) and prints one JSON
+observation every 500 ms at 115200 baud. The tilt switch (D3), buzzer (D8), and HC-SR04
+(D9/D10) pins are still declared, but their JSON fields are fixed at `false` / `-1` while the
+antenna is being characterised. It is a context signal only, never a voltage sensor.
 
 To use it in VS Code, install the **PlatformIO IDE** extension, then open
 `firmware/context_node` as the folder. Select the `uno` environment, use
 **Build**, then **Upload**, and open the PlatformIO serial monitor at 115200.
 The included `platformio.ini` supplies the Uno configuration. The threshold at
-the top of the sketch should be calibrated from the actual light readings.
+the top of the sketch should be calibrated from the actual antenna readings (idle near
+1023, touch samples below about 850).
 
 From a terminal, the equivalent commands are:
 

@@ -4,38 +4,95 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-DNHacks 2026 project: a hands-free field-inspection copilot for Ray-Ban Meta glasses. Three
-independent pieces live here, and only two of them talk to each other:
+DNHacks 2026 project: a hands-free copilot for Ray-Ban Meta glasses that identifies the
+electronic part in the wearer's hand and speaks it into their ear. The pieces, and who talks to
+whom:
 
 | Path | What | Talks to |
 |---|---|---|
-| `clients/ios/GlassesInspector` | iPhone app (fork of Meta's DAT `CameraAccess` sample). Pulls the glasses camera stream, relays JPEGs to the Mac, speaks Claude's answers into the glasses. | `services/relay_receiver` |
-| `services/relay_receiver` | Single-file FastAPI receiver on the Mac (`:8787`). Live dashboard, Claude vision on the latest frame, spoken results back to the phone. | the iOS app, browsers |
+| `clients/ios/GlassesInspector` | iPhone app (fork of Meta's DAT `CameraAccess` sample). Pulls the glasses camera stream, relays JPEGs to the Mac, plays the Mac's speech into the glasses. | `services/relay_receiver` |
+| `services/relay_receiver` | FastAPI receiver on the Mac (`:8787`): `app.py` (sockets, dashboard, Describe/Scene narration, speech queue), `identify.py` (catalog-bound part identification, reactive loop), `detect.py` (local YOLOv8 ONNX in front of Claude), `tts_elevenlabs.py` (voice rendered on the Mac). | the iOS app, browsers, `docs/components/components.json`, `weights/` |
+| `docs/components` | The part catalog: 47 researched records (`records/*.json`) merged into `components.json`, plus query/merge scripts and a small RAG eval. The relay loads `components.json` at startup. | `services/relay_receiver` |
 | `services/vision_api` | Earlier, tested FastAPI scaffold: sessions, versioned workflow packages, bounded latest-frame queue, pluggable `VisionEngine`. Not wired to the phone app. | nothing yet |
+| `docs/datacenter` | Curated vendor-doc links for data center hardware (future vector DB). Not wired to anything. | nothing yet |
+| `firmware/context_node` | Arduino Uno sketch: a capacitive touch/proximity context signal over serial JSON. Not wired to anything; never a voltage sensor. | nothing yet |
+| `weights/` | The committed 12 MB component detector ONNX plus its class list. Everything else there is gitignored. | `detect.py` |
 
-Two docs matter as much as the code:
+Docs that matter as much as the code:
 
 - `docs/meta-glasses-field-notes.md` is the running log: hardware/firmware facts, SDK
   constraints, measurements, root causes of past outages, and the backlog. Read it before
   touching the iOS or relay code, and append dated entries there when something changes.
-- `docs/TEAM_PLAN.md` splits the demo into three tracks (phone, Mac brain, demo/story) on
-  branches `track-phone`, `track-brain`, `track-demo` off `meta-glasses-display-access`, and
-  pins the phone<->Mac interfaces. Change an interface only with the other side's owner in
-  the loop, and record the change there.
+- `docs/TEAM_PLAN.md` splits the demo into three tracks (phone, Mac brain, demo/story) and pins
+  the phone<->Mac interfaces. Change an interface only with the other side's owner in the loop,
+  and record the change there. The protocol section below is the current superset of it.
+- `services/relay_receiver/README.md` documents the hands-free modes, the three models, the
+  voice path, and the detector in depth, including measured timings.
+- `docs/components/AGENT_BRIEF.md` and `spec_extraction_prompt.md` define the record schema and
+  the research rules (every number sourced, never guess a pinout, plain English, no em dashes).
+- `docs/pipeline.html` is the source of the architecture diagram in the README (made with the
+  `diagram-design` skill, default skin). Edit the HTML and re-export `docs/pipeline.svg` from
+  it; never hand-edit the SVG.
 
-Hardware fact that shapes everything: the user's glasses are Ray-Ban Meta (camera + BT
-headset, **no display**), so Meta's Web Apps / display path does not apply despite the branch
-name. All feedback to the wearer is audio.
+Hardware fact that shapes everything: the glasses are Ray-Ban Meta (camera + BT headset,
+**no display**), so Meta's Web Apps / display path does not apply despite the
+`meta-glasses-display-access` branch name. All feedback to the wearer is audio.
 
 Things you may see that are not part of this branch: `clients/ios/StockSample/` (gitignored)
 is Meta's untouched sample kept only for A/B lag comparisons against the fork. The remote
 `feat/gabe-*` and `feat/live-webcam-demo` branches carry a separate PPE-detection server
 (`app.py`, `server.py`, `core/` at the repo root) that speaks the same `/ws/ingest` wire
-format; they diverge from `main` (vision_api tests removed), so do not merge them blindly.
+format; they diverge from `main` (vision_api tests removed), so do not merge them blindly. The
+PPE model is deliberately never loaded in the relay (it fires on hands and faces).
 
 ## Commands
 
-### vision_api (root pyproject)
+### relay_receiver (separate venv, separate requirements, no tests)
+
+```bash
+services/relay_receiver/run.sh            # creates .venv, installs requirements.txt, sources .env, starts :8787
+INSPECT_FAKE=1 services/relay_receiver/run.sh   # canned Claude output for every path, no API key
+SPEAK=1 services/relay_receiver/run.sh          # also `say` Describe results on the Mac
+DETECT=0 services/relay_receiver/run.sh         # skip the local detector (settle-rule triggers only)
+```
+
+Secrets and knobs go in `services/relay_receiver/.env` (gitignored): `ANTHROPIC_API_KEY`,
+`ELEVENLABS_API_KEY` (+ `ELEVENLABS_VOICE_ID`, `_MODEL`, `_GAIN`, `_SPEED`, `_STABILITY`, `_STYLE`),
+`INSPECT_MODEL` (Describe, default `claude-opus-5`), `NARRATE_MODEL` (Scene, default
+`claude-sonnet-5`), `IDENTIFY_MODEL` (Parts, default `claude-sonnet-5`), `IDENTIFY_MAX_SIDE` (512),
+`DETECT_CONF` (0.45), `DETECT_IOU` (0.5), `DETECT_ONNX`, `DETECT_CLASSES`. Keep the
+`--ws websockets --ws-ping-timeout 90` flags in `run.sh`; the phone socket stalls without them.
+Ask before restarting it on the demo Mac; it holds the phone's socket.
+
+Everything else is switchable at runtime from the dashboard (http://localhost:8787), the phone's
+gear menu, or curl:
+
+```bash
+curl -s localhost:8787/health | python3 -m json.tool          # models, detector, tts, triggers, agreement
+curl -s localhost:8787/debug/tasks                             # detector / reactive / narration / speech loops alive?
+curl -X POST localhost:8787/reactive -H 'content-type: application/json' -d '{"enabled":true,"mode":"parts","preannounce":true}'
+curl -X POST localhost:8787/models   -H 'content-type: application/json' -d '{"identify":"opus","scene":"sonnet"}'
+curl -X POST localhost:8787/voice    -H 'content-type: application/json' -d '{"provider":"apple"}'
+curl -X POST localhost:8787/identify                           # one-shot identification of the latest frame, no speech
+curl -X POST localhost:8787/catalog/reload                     # after editing docs/components/components.json
+curl -X POST localhost:8787/frame --data-binary @photo.jpg     # laptop/webcam demo mode: any JPEG is a frame
+```
+
+### Component catalog (stdlib unless noted)
+
+```bash
+python3 docs/components/query.py --search relay              # substring over all fields; --id hc-sr04 --json for one record
+python3 docs/components/merge_records.py                      # records/*.json -> components.json + REPORT.md (validates pins, sources, qty)
+cd docs/components/rag && python3 search.py --mode bm25 "blue cube five legs"   # bm25 is stdlib; embed/hybrid need torch+transformers
+cd docs/components/rag && python3 build_index.py              # re-embed after the catalog changes (MiniLM, local)
+python3 docs/datacenter/query_links.py --search "hot swap"    # the data center link set
+```
+
+Edit `records/<id>.json`, never `components.json` by hand; merge regenerates it. Per
+`rag/EVAL_RESULTS.md`, BM25 beats embeddings for camera-style descriptions, which is why the relay
+gives Claude the whole catalog index in a cached prompt instead of retrieving.
+
+### vision_api (root pyproject, root `.venv`)
 
 ```bash
 cp .env.example .env                      # Settings reads .env from the CWD
@@ -52,10 +109,9 @@ table to `pyproject.toml` if you want the editable install back. The Dockerfile 
 because it copies only `pyproject.toml` before `pip install .`.
 
 Tests are `unittest`-style (`IsolatedAsyncioTestCase`); pyproject configures pytest with
-`pythonpath = ["services"]`, so both runners work:
+`pythonpath = ["services"]`, so both runners work (7 tests, all passing):
 
 ```bash
-PYTHONPATH=services python3 -m unittest discover -s tests -v
 pytest                                    # all
 pytest tests/test_pipeline.py -k failure  # one test by keyword
 PYTHONPATH=services python3 -m unittest tests.test_vlm -v   # one module
@@ -63,20 +119,6 @@ PYTHONPATH=services python3 -m unittest tests.test_vlm -v   # one module
 
 Use the root `.venv` for these, not `services/relay_receiver/.venv`; the relay venv lacks
 `httpx` and `pydantic-settings`, so every test module fails to import there.
-
-### relay_receiver (separate venv, separate requirements)
-
-```bash
-services/relay_receiver/run.sh            # creates .venv, installs requirements.txt, sources .env, starts :8787
-INSPECT_FAKE=1 services/relay_receiver/run.sh   # canned Claude output, no API key
-SPEAK=1 services/relay_receiver/run.sh          # also `say` results on the Mac
-```
-
-`ANTHROPIC_API_KEY` goes in `services/relay_receiver/.env` (gitignored). `INSPECT_MODEL`
-overrides the model (default `claude-opus-5`). Dashboard: http://localhost:8787. Keep the
-`--ws websockets --ws-ping-timeout 90` flags in `run.sh`; the phone socket stalls without them.
-There are no tests for this service. Ask before restarting it on the demo Mac; it holds the
-phone's socket.
 
 ### iOS app
 
@@ -95,6 +137,16 @@ The DAT SDK is an SPM dependency pinned in `Package.resolved` (0.9.0). Meta ship
 plugins for it (`claude plugin marketplace add facebook/meta-wearables-dat-ios`) and an MCP
 endpoint at https://mcp.developer.meta.com/wearables.
 
+### Firmware
+
+```bash
+cd firmware/context_node && pio run                          # PlatformIO, env `uno` (`uno-legacy` for 57600 upload)
+pio run --target upload --upload-port /dev/cu.usbmodemXXXX && pio device monitor --baud 115200
+```
+
+`TOUCH_SENSOR_DEMO.md` records the circuit, readings, and the current blocker (the Uno on hand
+will not accept uploads).
+
 ## Architecture
 
 ### Phone <-> Mac wire protocol (FrameRelay.swift <-> relay_receiver/app.py)
@@ -104,15 +156,34 @@ Changing either side means changing both. Everything rides one WebSocket from th
 
 - Phone -> Mac binary: 8-byte big-endian capture timestamp (ms since epoch) + JPEG bytes. The
   server treats a message starting with `FF D8` as a bare JPEG with no timestamp.
-- Phone -> Mac text (JSON): `{"type":"inspect","question"?:...}`, `{"type":"narrate","enabled":bool,"interval":s}`.
-- Mac -> Phone text: `{"type":"speak","text":sentence}` per finished sentence, then
-  `{"type":"speak_end"}`; `{"type":"narration","enabled","interval"}` on connect and on change.
+- Phone -> Mac text (JSON) commands, each handled in its own task so ingest never blocks:
+  `{"type":"inspect","question"?}`, `{"type":"narrate","enabled","interval"}`,
+  `{"type":"reactive","enabled","mode":"parts"|"scene","preannounce"}`,
+  `{"type":"models","identify","scene"}` (values `sonnet`/`opus` or full model ids),
+  `{"type":"voice","provider":"apple"|"elevenlabs"}`.
+- Mac -> Phone speech: `{"type":"speak","text"}` per finished sentence, then `{"type":"speak_end"}`.
+  With ElevenLabs active the `speak` carries `"id"` and `"audio":true` (caption only, no local
+  synthesis) and is followed by `{"type":"audio","id","rate":24000,"pcm":<base64 s16 mono>}` chunks
+  of about 200 ms and `{"type":"audio_end","id"}`. `{"type":"speak_fallback","id","text"}` means
+  ElevenLabs failed before any audio played, so the phone reads it with Apple's voice.
+  `{"type":"speak_stop"}` cuts playback and clears the caption.
+- Mac -> Phone status: `{"type":"narration","enabled","interval"}` and `{"type":"reactive",...}`
+  (the full `_reactive_public()` dict: mode, status, voice, models, catalog size, triggers,
+  agreement, preannounce) on connect and after every change. The first `reactive` after a
+  connect is the Mac's hello; the phone answers by re-sending its saved voice, models, and
+  reactive preferences. So the phone's settings win over anything set on the dashboard whenever
+  it reconnects, and the Mac holds no preferences across restarts. `{"type":"detected",...}` is
+  also sent to phones but ignored by the app today.
 - Mac -> Browser (`/ws/view`): binary frames from a latest-only queue (maxsize 1), plus
-  `{"type":"stats",...}` every 0.5 s and `{"type":"caption","text","final"}` while Claude streams.
-- Mac HTTP: `POST /inspect {question?}`, `POST`/`GET /narrate {enabled, interval}`, `GET /report`,
-  `GET /health`, `GET /latest.jpg`, `GET /frames/{name}`, dashboard on `/`. `POST /frame` (raw
-  JPEG body, optional `x-capture-ts` ms header) is the ingest fallback and the laptop-webcam
-  demo mode.
+  `{"type":"stats",...}` (the `/health` dict) every 0.5 s, `{"type":"caption","text","final"}` while
+  Claude streams, `{"type":"detections","ts","ms","boxes"}` per detected frame (normalized
+  x1,y1,x2,y2), `{"type":"detected",...}` the instant a box qualifies as a trigger, and
+  `{"type":"identified",...}` with Claude's parsed answer and the catalog record.
+- Mac HTTP: `POST /inspect {question?}`, `POST`/`GET /narrate`, `POST`/`GET /reactive`,
+  `POST /models`, `POST /voice`, `POST /identify`, `GET /detections`, `POST /catalog/reload`,
+  `GET /report`, `GET /health`, `GET /debug/tasks`, `GET /latest.jpg`, `GET /frames/{name}`,
+  dashboard on `/`. `POST /frame` (raw JPEG body, optional `x-capture-ts` ms header) is the ingest
+  fallback and the laptop-webcam demo mode.
 - Discovery: the Mac advertises `_glassesrelay._tcp` via zeroconf with TXT `urls` (comma list of
   `http://ip:8787`, refreshed every 10 s) and `server="<host>.local."`. The SRV target must be a
   plain hostname; iOS refuses to resolve the zeroconf default and the connection sits in
@@ -132,11 +203,14 @@ in two files plus small hooks:
   `FrameRelay.shared` is a singleton with a private init: the sample creates `CameraViewModel`
   more than once per run (`FrameRelay.viewModelsCreated` counts them), so anything with a
   lifetime (socket, browser, speaker, stats task) hangs off the shared instance, never the view
-  model. Settings persist in `UserDefaults` under `relay*` keys; server text messages are parsed
-  in `handleServerText`.
-- `CameraAccess/Media/Speaker.swift`: `AVSpeechSynthesizer` on a `.playback/.spokenAudio`
-  session so speech routes to the glasses over A2DP. It deliberately leaves a `.playAndRecord`
-  session alone when the sample is recording.
+  model. Settings persist in `UserDefaults` (`relay*` keys for transport, plus `handsFreeMode`
+  off/parts/scene, `voiceProvider`, `partsModel`, `sceneModel`, `preannounce`); each setter
+  sends the matching command, and `announcePrefs()` replays them on the Mac's hello. Server
+  text messages are parsed in `handleServerText`.
+- `CameraAccess/Media/Speaker.swift`: `AVSpeechSynthesizer` for `speak`/`speak_fallback` and
+  `PCMStreamPlayer` (`AVAudioEngine` + `AVAudioPlayerNode`) for ElevenLabs PCM, both on a
+  `.playback/.spokenAudio` session so audio routes to the glasses over A2DP. It deliberately
+  leaves a `.playAndRecord` session alone when the sample is recording.
 - `CameraViewModel` holds `frameRelay = FrameRelay.shared`. Inside the toolkit's
   `videoFramePublisher` callback (off the main actor) it decodes the HEVC frame, calls
   `frameRelay.push(previewImage)`, and drops the image into a single-slot `previewSlot` so at
@@ -147,8 +221,8 @@ in two files plus small hooks:
 - `VideoFrameDecoder` prefers hardware VideoToolbox decode and a GPU `CIContext`; software HEVC
   decode was the dominant CPU cost.
 - `CameraView` shows the relay chip, caption overlay, Describe/Hush buttons, and the
-  `RelaySettingsView` sheet. `WearablesViewModel.deviceStatusText` is the per-device
-  link/compat line shown there.
+  `RelaySettingsView` sheet (hands-free mode, model pickers, voice, pre-announce, test voice).
+  `WearablesViewModel.deviceStatusText` is the per-device link/compat line shown there.
 - `Info.plist` must keep `UISupportedExternalAccessoryProtocols = [com.meta.ar.wearable]` and
   the `external-accessory` background mode. That is what lets DAT stream over Bluetooth Classic
   on a free Apple team. The Wi-Fi (SoftAP) path needs HotspotConfiguration and wifi-info
@@ -157,16 +231,81 @@ in two files plus small hooks:
 
 ### relay_receiver internals
 
-Module-level `state` dict (latest JPEG, fps/latency windows, report), `phones` and
-`viewer_sockets` sets. `analyze()` streams Claude (`AsyncAnthropic`, image + prompt, beta
-server-side fallbacks), splits on sentence boundaries, and pushes each sentence to phones as it
-lands so speech starts early. Prompt tuning lives in the `SYSTEM_PROMPT` and `NARRATION_PROMPT`
-constants. `_narration_loop` runs only while the latest frame is under 3 s old, re-runs with the
-previous narration as context, suppresses the literal reply `no change`, and clamps the interval
-to at least 3 s. Every analysis appends to `report.jsonl` and saves the frame under `frames/`
-(both gitignored). Only one analysis runs at a time: `narration["busy"]` guards `/inspect`, phone
-commands, and the loop. Bonjour registration retries for about 90 s because a just-killed
-instance's record lingers as a name conflict.
+Three Claude call sites, three independently switchable models, one prompt each:
+
+| Path | Trigger | Model (default) | Prompt / code |
+|---|---|---|---|
+| Describe | phone `inspect`, `POST /inspect` | `models["describe"]` (Opus) | `SYSTEM_PROMPT`, `analyze()` in `app.py` |
+| Scene | hands-free `scene` mode, or legacy `narrate` loop | `models["scene"]` (Sonnet) | `NARRATION_PROMPT`, `analyze(narrate=True)`; previous narration passed as context, literal `no change` suppressed |
+| Parts | hands-free `parts` mode, `POST /identify` | `identify.state["model"]` (Sonnet) | `identify.system_prompt()`: catalog index in a `cache_control` system block |
+
+`app.py` keeps module-level dicts: `state` (latest JPEG, fps/latency windows, `report` reloaded
+from `report.jsonl` at startup), `phones`, `viewers` + `viewer_sockets`, `narration`, `detector`,
+`speech`, `voice`, `models`. `analyze()` streams Claude, splits on sentence boundaries, and
+`_say()`s each sentence as it lands so speech starts early. The server-side-fallback beta is only
+sent to Opus/Fable models (`_supports_fallbacks`); do not add it to Sonnet calls. `narration["busy"]` is the
+single guard for every `analyze()` path; identification has its own `_busy` in `identify.py`.
+
+Speech: `_say()` estimates playback seconds (exact for cached ElevenLabs audio) so the reactive
+loop knows when the glasses go quiet (`announce_until`). With ElevenLabs active, sentences enter
+`speech["queue"]` and one `_tts_worker` streams them in order; `tts_elevenlabs.py` renders
+`eleven_flash_v2_5` as raw 24 kHz PCM with gain applied, caches by text hash in `tts_cache/`
+(gitignored), and `_warm()` pre-renders every catalog spoken line at startup so announcements
+are cache hits. `_drop_pending_speech()` + `speak_stop` is how an interrupt keeps stale audio
+from following. The starter plan is 30,000 characters a month; `/health` reports usage.
+
+`identify.py`: `load_catalog()` reads `docs/components/components.json` (falls back to a sibling
+`components.json`) and builds one index line per part from `id`, `canonical_name`,
+`details.visual_identification` (printed text, shape, color, easily confused with). Claude
+answers in exactly two lines, `<catalog id or none> <confidence>` then evidence; `_stream_model`
+fires `on_first_line` as soon as line 1 is complete so the glasses hear the name before the
+evidence finishes streaming. Frames are cropped to the detector box with 25% padding when there
+is one, then downscaled to 512 px. `resolve()` tolerates near-miss ids. `spoken_short()` (name +
+pins/voltage) is what the glasses hear by default; `spoken_for()` adds one caution, is spoken
+when `short_spoken` is off, and is what the report and dashboard store as `spoken`.
+`warm_cache()` sends a tiny call per model at startup so the first real call reads the cached
+prompt.
+
+`reactive_loop()` runs at 20 Hz while hands-free is on and has two triggers feeding the same
+call: the detector path (top box persisted `stable_frames`=2 frames with IoU > 0.4 and it is a
+new label or the scene changed; identifies the exact frame the boxes came from) and the settle
+path (no usable box; thumbnail diff vs the last identified scene exceeds `change_threshold`, and
+either motion stopped for `settle_seconds` or the frame is already sharp by Laplacian variance).
+`_interrupt_policy` decides per early id whether to announce, interrupt (only above
+`interrupt_confidence`), hold as `pending` until audio ends, or ignore (same id, low
+confidence). With `preannounce` on, `on_detected` speaks the detector's catalog display name
+before Claude is called, and `agreement` counts whether Claude's id matched the hint. Scene mode
+reuses the same settle detection but calls `narrate_scene` instead. The thresholds live in
+`identify.state`; `POST /reactive` exposes the main ones (`min_confidence`, `settle_seconds`,
+`cooldown_seconds`, `interrupt_confidence`, `det_min_conf`, `stable_frames`, `short_spoken`,
+`preannounce`, `mode`), the motion/change/sharpness thresholds only via `identify.set_enabled`.
+
+`detect.py`: YOLOv8n ONNX (`weights/components_yolov8.onnx`, Roboflow `arduino-lcxdx` v3,
+CC BY 4.0, 14 Arduino-kit classes with Spanish labels) on `CPUExecutionProvider` (CoreML is not
+faster), about 30 ms per frame in `_detect_loop` via `asyncio.to_thread`, latest frame wins.
+`CATALOG_HINT` maps labels to catalog ids; `bind_catalog()` validates each hint against the
+loaded catalog at startup and takes the record's `name_on_kit` as the display name so boxes,
+banner, pre-announcement, and Claude use the same words. If weights are missing or inference
+throws, the detector marks itself unavailable and the relay falls back to the settle path.
+`/debug/tasks` shows whether the loop died.
+
+Every analysis appends to `report.jsonl` and saves the frame under `frames/` (both gitignored;
+reactive frames are `identify-<ts>.jpg` and the entry records `trigger`, `det`, `agrees`).
+Bonjour registration retries for about 90 s because a just-killed instance's record lingers as
+a name conflict.
+
+### Component catalog contract
+
+`components.json` is `{"_meta", "components": [...]}`; each record has flat seed fields (`id`,
+`name_on_kit`, `canonical_name`, `mpn`, `category`, `kit`, `qty`, `pin_count`, `voltage`,
+`key_specs`, `price_usd`, `status`, `confidence`) and the full researched record under `details`
+(`identity`, `function`, `pins`, `electrical`, `visual_identification`, `wiring_to_uno`, `safety`,
+`troubleshooting`, `market`, `sources`, `confidence`). The relay depends on `id`, `name_on_kit`,
+`canonical_name`, `pin_count`, `voltage`, `details.visual_identification`, `details.safety.hazards`,
+and `details.wiring_to_uno.example_connections`; `detect.CATALOG_HINT` depends on the ids. Renaming
+any of those means touching `identify._index_line` / `_spoken_line` and `detect.bind_catalog`.
+`merge_records.py` refuses records without a datasheet/manufacturer source and flags pin-count
+mismatches, so keep new records in that schema rather than patching the merged file.
 
 ### vision_api internals
 
@@ -185,15 +324,24 @@ and returns the per-session dropped count -> one worker task calls `VisionEngine
 instruction with the session's workflow instructions and checkpoints. New engines implement
 `analyze` and register in `build_vision_engine`.
 
-Design invariant across this service: nothing here authorizes work. Workflows shape model
-context only, `ActionProposal.requires_confirmation` defaults to true, and advisory field signals
-are observations that can warn but never establish a deenergized state (see README for the OSHA
-basis). Keep that boundary when adding endpoints or workflow definitions.
+Design invariant across the whole repo: nothing here authorizes work. Workflows shape model
+context only, `ActionProposal.requires_confirmation` defaults to true, advisory field signals
+(and the Arduino context node) are observations that can warn but never establish a
+deenergized state (see README for the OSHA basis), and the relay's detector stays
+component-only. Keep that boundary when adding endpoints, workflow definitions, or models.
 
 ## Environment quirks
 
 - `Settings` (pydantic-settings) reads `.env` relative to the working directory, so run
   `uvicorn` and tests from the repo root.
+- `INSPECT_FAKE=1` fakes all three Claude paths (identify cycles `hc-sr04`, `rtc-ds3231`,
+  `relay-5v`, or follows the detector hint) and skips prompt warming, but the detector and
+  ElevenLabs still run for real. Use it to test the audio path and the dashboard without a key.
+- The phone re-asserts its saved preferences every time it connects, so a model/voice/mode
+  change made on the dashboard is undone by the next phone reconnect unless you also change it
+  in the phone's gear menu.
+- Deleting `tts_cache/` costs ElevenLabs characters on the next start (every catalog line is
+  re-rendered).
 - The Mac's LAN and USB link-local addresses change during the day; always pick the receiver
   from the Bonjour list on the phone rather than typing an IP.
 - Do not let the Mac hold the glasses over Bluetooth (headset pairing) while testing the phone

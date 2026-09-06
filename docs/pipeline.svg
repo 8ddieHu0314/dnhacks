@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="glasses-pipeline-title glasses-pipeline-desc">
+      <title id="glasses-pipeline-title">Glasses Inspector pipeline</title>
+      <desc id="glasses-pipeline-desc">Architecture diagram showing camera frames flowing from Ray-Ban Meta glasses through the iPhone app to a Mac relay, where a local detector and a part catalog feed Claude, and ElevenLabs speech returns through the phone to the wearer.</desc>
+      <defs>
+        <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+      </defs>
+
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+      <!-- Zones (painted first) -->
+      <rect x="40" y="200" width="320" height="112" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="162" y="204" width="76" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="200" y="213" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">ON THE WEARER</text>
+
+      <rect x="384" y="72" width="352" height="376" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="528" y="76" width="64" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="560" y="85" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">ON THE MAC</text>
+
+      <rect x="760" y="200" width="160" height="248" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="808" y="204" width="64" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="840" y="213" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">CLOUD APIS</text>
+
+      <!-- Arrows (behind nodes) -->
+      <!-- a. glasses -> phone: video -->
+      <line x1="176" y1="252" x2="224" y2="252" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- k. phone -> glasses: voice (accent) -->
+      <line x1="224" y1="276" x2="176" y2="276" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+      <!-- b. phone -> relay: frames -->
+      <line x1="344" y1="252" x2="408" y2="252" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- j. relay -> phone: speech (return, dashed) -->
+      <line x1="408" y1="276" x2="344" y2="276" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+      <!-- e. catalog -> relay -->
+      <line x1="480" y1="168" x2="480" y2="232" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- c. relay -> detector: each frame (right, then up into detector bottom) -->
+      <path d="M 552,244 H 624 Q 632,244 632,236 V 168" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- d. detector -> relay: boxes (down, then left into relay right edge; dashed return) -->
+      <path d="M 680,168 V 252 Q 680,260 672,260 H 552" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+      <!-- f. relay -> claude: identify (API call) -->
+      <line x1="552" y1="276" x2="776" y2="276" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+      <!-- h. relay -> elevenlabs: sentences (down, right, down into top edge) -->
+      <path d="M 536,296 V 324 Q 536,332 544,332 H 832 Q 840,332 840,340 V 360" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+      <!-- l. relay -> dashboard -->
+      <line x1="448" y1="296" x2="448" y2="360" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+      <!-- Arrow labels (masked, 6-10px off the stroke) -->
+      <rect x="182" y="234" width="36" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="200" y="243" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">VIDEO</text>
+
+      <rect x="182" y="282" width="36" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="200" y="291" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">VOICE</text>
+
+      <rect x="356" y="234" width="40" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="376" y="243" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">FRAMES</text>
+
+      <rect x="356" y="282" width="40" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="376" y="291" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">SPEECH</text>
+
+      <rect x="416" y="194" width="52" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="442" y="203" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">47 PARTS</text>
+
+      <rect x="564" y="196" width="60" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="594" y="205" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">EACH FRAME</text>
+
+      <rect x="688" y="196" width="36" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="706" y="205" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">BOXES</text>
+
+      <rect x="634" y="282" width="52" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="660" y="291" fill="#2e5aa8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">IDENTIFY</text>
+
+      <rect x="672" y="312" width="56" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="700" y="321" fill="#2e5aa8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">SENTENCES</text>
+
+      <!-- Node: Ray-Ban Meta glasses (human-facing) -->
+      <rect x="56" y="232" width="120" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="56" y="232" width="120" height="64" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+      <rect x="64" y="240" width="40" height="12" rx="2" fill="transparent" stroke="rgba(122,131,153,0.40)" stroke-width="0.8"/>
+      <text x="84" y="249" fill="#7a8399" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">DEVICE</text>
+      <text x="116" y="268" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Ray-Ban Meta</text>
+      <text x="116" y="284" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">camera · BT audio</text>
+
+      <!-- Node: iPhone app (process) -->
+      <rect x="224" y="232" width="120" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="224" y="232" width="120" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="232" y="240" width="28" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+      <text x="246" y="249" fill="#2d3142" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">IOS</text>
+      <text x="284" y="268" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">iPhone app</text>
+      <text x="284" y="284" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">DAT SDK · WebSocket</text>
+
+      <!-- Node: Part catalog (store) -->
+      <rect x="408" y="104" width="144" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="408" y="104" width="144" height="64" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+      <rect x="416" y="112" width="32" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.50)" stroke-width="0.8"/>
+      <text x="432" y="121" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">JSON</text>
+      <text x="480" y="140" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Part catalog</text>
+      <text x="480" y="156" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">components.json</text>
+
+      <!-- Node: Mac relay (focal) -->
+      <rect x="408" y="232" width="144" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="408" y="232" width="144" height="64" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <rect x="416" y="240" width="28" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.50)" stroke-width="0.8"/>
+      <text x="430" y="249" fill="#eb6c36" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">MAC</text>
+      <text x="480" y="268" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Mac relay</text>
+      <text x="480" y="284" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">FastAPI :8787</text>
+
+      <!-- Node: Dashboard (human-facing) -->
+      <rect x="408" y="360" width="144" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="408" y="360" width="144" height="64" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+      <rect x="416" y="368" width="28" height="12" rx="2" fill="transparent" stroke="rgba(122,131,153,0.40)" stroke-width="0.8"/>
+      <text x="430" y="377" fill="#7a8399" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">WEB</text>
+      <text x="480" y="396" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Dashboard</text>
+      <text x="480" y="412" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">browser · /ws/view</text>
+
+      <!-- Node: Local detector (process) -->
+      <rect x="584" y="104" width="144" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="584" y="104" width="144" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="592" y="112" width="32" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+      <text x="608" y="121" fill="#2d3142" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">ONNX</text>
+      <text x="656" y="140" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Local detector</text>
+      <text x="656" y="156" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">YOLOv8n · 30 ms</text>
+
+      <!-- Node: Claude (cloud API) -->
+      <rect x="776" y="232" width="128" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="776" y="232" width="128" height="64" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+      <rect x="784" y="240" width="28" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.22)" stroke-width="0.8"/>
+      <text x="798" y="249" fill="#7a8399" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
+      <text x="840" y="268" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Claude</text>
+      <text x="840" y="284" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">Sonnet 5 · Opus 5</text>
+
+      <!-- Node: ElevenLabs (cloud API) -->
+      <rect x="776" y="360" width="128" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="776" y="360" width="128" height="64" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+      <rect x="784" y="368" width="28" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.22)" stroke-width="0.8"/>
+      <text x="798" y="377" fill="#7a8399" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
+      <text x="840" y="396" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">ElevenLabs</text>
+      <text x="840" y="412" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">24 kHz PCM</text>
+
+      <!-- Legend strip -->
+      <line x1="40" y1="512" x2="920" y2="512" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="528" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text>
+
+      <rect x="40" y="544" width="14" height="10" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="60" y="552" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Focal: the brain</text>
+
+      <rect x="160" y="544" width="14" height="10" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="180" y="552" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Process</text>
+
+      <rect x="248" y="544" width="14" height="10" rx="2" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="268" y="552" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Data</text>
+
+      <rect x="320" y="544" width="14" height="10" rx="2" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+      <text x="340" y="552" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Cloud API</text>
+
+      <rect x="416" y="544" width="14" height="10" rx="2" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+      <text x="436" y="552" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Human-facing</text>
+
+      <line x1="536" y1="549" x2="564" y2="549" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+      <text x="572" y="552" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">API call</text>
+
+      <line x1="640" y1="549" x2="668" y2="549" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+      <text x="676" y="552" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Voice to the wearer</text>
+
+      <line x1="792" y1="549" x2="820" y2="549" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+      <text x="828" y="552" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Return / async</text>
+    </svg>

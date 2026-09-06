@@ -3,7 +3,8 @@
 Minimal receiver used during the hackathon to prove the glasses -> phone -> laptop pipeline.
 Accepts frames from the iOS app over `WS /ws/ingest` (also `WS /`), fans them out to browsers on
 `WS /ws/view`, serves a live dashboard on `/` (canvas, rotate/fit, latency HUD), and exposes
-`POST /inspect` (Claude vision on the latest frame; needs `ANTHROPIC_API_KEY`).
+`POST /inspect` (Claude vision on the latest frame; needs `ANTHROPIC_API_KEY`). On top of that
+sit the hands-free modes, the ElevenLabs voice, and the local component detector described below.
 
     ./run.sh          # venv + deps, listens on 0.0.0.0:8787, advertises _glassesrelay._tcp via Bonjour
 
@@ -15,6 +16,37 @@ never needs a typed IP. `--ws-ping-timeout 90` matters: the phone's socket stall
 finished sentence to the connected phone(s) as `{"type":"speak","text":...}` then `{"type":"speak_end"}`; the iOS
 app speaks them into the glasses. Put `ANTHROPIC_API_KEY=...` in `services/relay_receiver/.env` (gitignored);
 `INSPECT_FAKE=1 ./run.sh` streams canned sentences to test the audio path without a key.
+
+## Hands-free modes and models
+
+`POST /reactive {"enabled":true,"mode":"parts","preannounce":true}` (also the phone's gear menu
+and the dashboard's Hands-free picker) starts the reactive loop in `identify.py`:
+
+- `parts`: identify the component in view against `docs/components/components.json` and speak
+  its catalog name the moment it changes. Two triggers feed the same Claude call: the local
+  detector (a box stable for 2 frames, sent as a crop plus a hint) and the settle rule (the
+  scene changed and the frame is sharp or motion stopped). A different part only cuts in on a
+  running announcement above `interrupt_confidence`; otherwise it waits for the audio to end.
+  Extra knobs in the same body: `min_confidence`, `settle_seconds`, `cooldown_seconds`,
+  `interrupt_confidence`, `det_min_conf`, `stable_frames`, `short_spoken`.
+- `scene`: free-text narration of what changed, spoken sentence by sentence.
+
+Three Claude call sites, each with its own model, switchable at runtime with
+`POST /models {"identify":"sonnet","scene":"sonnet","describe":"opus"}` (full model ids are
+accepted too; env defaults are `IDENTIFY_MODEL`, `NARRATE_MODEL`, `INSPECT_MODEL`):
+
+| Path | Default | Why |
+|---|---|---|
+| Parts (`identify`) | `claude-sonnet-5` | about 1.8 s to the id (Opus about 3.5 s); both read markings well |
+| Scene (`scene`) | `claude-sonnet-5` | latency first |
+| Describe button and `POST /inspect` (`describe`) | `claude-opus-5` | one shot, quality first |
+
+`POST /voice {"provider":"apple"}` or `"elevenlabs"` switches the voice. The phone re-sends its
+saved mode, models, and voice every time it connects, so a change made on the dashboard is
+undone by the next phone reconnect unless it is also changed in the phone's gear menu.
+`GET /reactive` and `GET /health` report the active settings, `POST /catalog/reload` re-reads
+the catalog after an edit, and `POST /identify` runs one identification of the latest frame
+without speaking.
 
 ## Voice: ElevenLabs on the Mac, Apple voice as fallback
 
@@ -30,7 +62,7 @@ Without the key, behaviour is unchanged: plain `speak` messages, Apple voice on 
     ELEVENLABS_VOICE_ID=mqlDiDxS84MhnMijtd3t    # Christopher, Friendly American
     ELEVENLABS_MODEL=eleven_flash_v2_5          # optional
     ELEVENLABS_GAIN=2.0                         # louder for the glasses; 1.0 = as rendered, clips above ~2.4
-    ELEVENLABS_SPEED=1.0                        # 0.7 to 1.2
+    ELEVENLABS_SPEED=1.1                        # 0.7 to 1.2
     ELEVENLABS_STABILITY=0.5                    # lower = more expressive
     ELEVENLABS_STYLE=0.0                        # style exaggeration, adds latency above 0
 
@@ -80,8 +112,10 @@ What it does:
   disables the detector, `DETECT_CONF` (0.45) and `DETECT_IOU` (0.5) set the raw NMS thresholds,
   `DETECT_ONNX` points at another model.
 
-Weights are gitignored. Fetch them once with the Roboflow key in the repo-root `.env`
-(Roboflow publishes no `.pt`, only this ONNX bundle through its inference cache):
+The weights are committed (`weights/components_yolov8.onnx`, 12 MB, plus the class list), so
+a fresh clone runs the detector with no download. To re-export them from Roboflow (it
+publishes no `.pt`, only this ONNX bundle through its inference cache), use the Roboflow key
+in the repo-root `.env`:
 
     cd <repo>
     .venv-inf/bin/python -c "import os; from dotenv import load_dotenv; load_dotenv('.env'); \
@@ -90,4 +124,5 @@ Weights are gitignored. Fetch them once with the Roboflow key in the repo-root `
     cp -L "$d/weights.onnx" weights/components_yolov8.onnx
     cp -L "$d/class_names.txt" weights/components_yolov8.classes.txt
 
-Without the files the relay logs `weights missing` and behaves exactly as before.
+With `DETECT=0`, or if the files are missing, the relay logs the reason in `/health` and
+behaves exactly as before.
