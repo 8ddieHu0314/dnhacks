@@ -6,10 +6,34 @@ from pathlib import Path
 import httpx
 
 from vision_api.component_knowledge import AnthropicCatalogIdentificationVLM, AnthropicComponentKnowledgeVLM, ComponentKnowledgeBase
-from vision_api.models import Frame, FrameMetadata
+from vision_api.models import Frame, FrameMetadata, VisionAnalysis
 
 
 class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
+    def test_power_gate_requires_every_expected_evidence_source(self) -> None:
+        knowledge = ComponentKnowledgeBase.from_path(Path(__file__).parents[1] / "docs/components/components.json")
+        engine = AnthropicCatalogIdentificationVLM(base_url="https://model.example", api_key="test-key",
+            model="claude-test", timeout_seconds=1, knowledge_base=knowledge)
+        debug = {"status": "ready_to_test", "phase": "ready_to_power", "safe_to_energize": True,
+            "problem": "Test the fan.", "checks": [{"check_id": "power-disconnected", "status": "pass",
+                "evidence_source": "visual", "evidence": "The cables look absent."}],
+            "steps": [{"instruction": "Turn on USB power.", "reason": "Test it.",
+                "expected_evidence": "Relay clicks.", "requires_confirmation": True}]}
+        gated = engine._enforce_power_gate(VisionAnalysis.model_validate(
+            {"summary": "Ready.", "mode": "debug", "debug_guidance": debug}))
+
+        self.assertFalse(gated.debug_guidance.safe_to_energize)
+        self.assertEqual(gated.debug_guidance.phase, "verify_unpowered")
+        self.assertEqual(len(gated.debug_guidance.checks), 7)
+        self.assertNotIn("Turn on", gated.debug_guidance.steps[0].instruction)
+
+        debug["checks"] = [{"check_id": item["id"], "status": "pass",
+            "evidence_source": item["required_evidence"], "evidence": "Confirmed."}
+            for item in engine._target_circuit["verification_checks"]]
+        allowed = engine._enforce_power_gate(VisionAnalysis.model_validate(
+            {"summary": "Ready.", "mode": "debug", "debug_guidance": debug}))
+        self.assertTrue(allowed.debug_guidance.safe_to_energize)
+
     def test_accepts_json_surrounded_by_model_text(self) -> None:
         payload = AnthropicComponentKnowledgeVLM._json_object("Here is the result: {\"ok\": true}")
         self.assertEqual(payload, {"ok": True})
