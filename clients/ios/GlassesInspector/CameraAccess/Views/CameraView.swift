@@ -645,6 +645,8 @@ struct RelaySettingsView: View {
   @AppStorage("streamResolution") private var streamResolution: String = "low"
   @AppStorage("streamFPS") private var streamFPS: Int = 24
   @Environment(\.dismiss) private var dismiss
+  @State private var evidenceCheck = "power-disconnected"
+  @State private var evidenceValue = ""
 
   var body: some View {
     NavigationStack {
@@ -724,6 +726,23 @@ struct RelaySettingsView: View {
             .font(.caption).foregroundStyle(.secondary)
           Text("Mac: \(relay.reactiveEnabled ? "\(relay.reactiveMode) · \(relay.reactiveStatus)" : "off")")
             .font(.caption.monospaced()).foregroundStyle(.secondary)
+        }
+        Section("Circuit evidence") {
+          Picker("Check", selection: $evidenceCheck) {
+            Text("Power disconnected").tag("power-disconnected")
+            Text("Relay pin map").tag("relay-pin-map")
+            Text("No supply short").tag("no-supply-short")
+            Text("Button operation").tag("button-operation")
+            Text("Powered function").tag("powered-function")
+          }
+          TextField("Confirmation or meter reading", text: $evidenceValue, axis: .vertical)
+          Button("Send with next frame") {
+            relay.submitDebugEvidence(checkID: evidenceCheck, value: evidenceValue)
+            evidenceValue = ""
+          }
+          .disabled(evidenceValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+          Text("Use exact meter readings where requested. Visual wiring and diode checks come from the camera; Claude will ask for another angle when they are unclear.")
+            .font(.caption).foregroundStyle(.secondary)
         }
         Section("Models") {
           Picker("Parts", selection: $relay.partsModel) {
