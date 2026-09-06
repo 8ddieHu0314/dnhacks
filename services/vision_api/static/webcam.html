@@ -32,7 +32,7 @@ async function tick(){
     const sent=await fetch(`/v1/sessions/${sessionId}/frames`,{method:"POST",headers:{"x-frame-metadata":JSON.stringify(metadata)},body:blob});
     if(!sent.ok) throw new Error(await sent.text());
     await pause(150); const response=await fetch(`/v1/sessions/${sessionId}/results/latest`);
-    if(response.ok){const latest=await response.json(); result.textContent=JSON.stringify(latest.analysis,null,2);}
+    if(response.status===200){const latest=await response.json(); result.textContent=JSON.stringify(latest.analysis,null,2);}
   }catch(error){status.textContent=`Camera test error: ${error.message}`;running=false;return;}
   setTimeout(tick,1000);
 }
