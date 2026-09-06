@@ -7,12 +7,23 @@
 <p>This same-origin harness sends one JPEG at a time and waits for its model result. In local mock mode, the typed cue drives retrieval; it does not identify pixels.</p>
 <input id="question" size="48" placeholder="Visible marking or question, e.g. HC-SR04">
 <button id="camera">Enable camera</button><button id="start">Start test</button><button id="stop">Stop</button>
-<p id="status">Camera disabled.</p><video id="video" autoplay playsinline muted></video><canvas id="canvas" hidden></canvas><img id="sent" alt="Exact JPEG submitted to the API"><pre id="result">No result yet.</pre>
+<p id="status">Camera disabled.</p><video id="video" autoplay playsinline muted></video><canvas id="canvas" hidden></canvas><img id="sent" alt="Exact JPEG submitted to the API">
+<section id="circuit" hidden><h2>Observed circuit</h2><pre id="diagram"></pre></section>
+<h2>Full analysis</h2><pre id="result">No result yet.</pre>
 </main>
 <script>
 const $=id=>document.getElementById(id), video=$("video"), canvas=$("canvas"), sent=$("sent"), status=$("status"), result=$("result");
 let stream, sessionId, sentUrl, running=false;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function renderCircuit(analysis){
+  const debug=analysis?.debug_guidance, observed=debug?.observed_circuit, comparison=debug?.comparison;
+  if(!observed){$("circuit").hidden=true;return;}
+  const edges=observed.connections.map(edge=>`[${edge.source}] --${edge.status}--> [${edge.target}]\n  ${edge.evidence}`);
+  const unknowns=observed.unknowns.length?`\n\nUnknowns:\n- ${observed.unknowns.join("\n- ")}`:"";
+  const mismatches=comparison?.mismatches?.length?`\n\nMismatches:\n- ${comparison.mismatches.join("\n- ")}`:"";
+  $("diagram").textContent=`${observed.summary}\nConfidence: ${Math.round(observed.confidence*100)}%\n\n${edges.join("\n")}\n\nPurpose fit: ${comparison?.fits_purpose||"uncertain"}\n${comparison?.explanation||""}${mismatches}${unknowns}`;
+  $("circuit").hidden=false;
+}
 async function enableCamera(){
   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
   video.srcObject=stream; await video.play(); status.textContent="Camera ready.";
@@ -40,7 +51,7 @@ async function tick(){
     const frameId=crypto.randomUUID(), metadata={frame_id:frameId,captured_at:new Date().toISOString(),width,height,encoding:"jpeg",user_request:$("question").value||null};
     const frameResponse=await fetch(`/v1/sessions/${sessionId}/frames`,{method:"POST",headers:{"x-frame-metadata":JSON.stringify(metadata)},body:blob});
     if(!frameResponse.ok) throw new Error(await frameResponse.text());
-    const latest=await latestResult(frameId); result.textContent=JSON.stringify(latest.analysis,null,2);
+    const latest=await latestResult(frameId); renderCircuit(latest.analysis); result.textContent=JSON.stringify(latest.analysis,null,2);
   }catch(error){status.textContent=`Camera test error: ${error.message}`;running=false;return;}
   setTimeout(tick,1000);
 }
