@@ -239,7 +239,11 @@ in three files plus small hooks:
   `ask`. The wake word barges in over playback; other utterances that end while the glasses are
   talking are dropped, and the recognizer context resets when playback ends (echo guard). The
   engine is rebuilt around Bluetooth route changes after waiting for the route to settle, so the
-  tap never installs against a stale format (that was an uncatchable crash).
+  tap never installs against a stale format (that was an uncatchable crash). Session and engine
+  calls run on a private serial `audioQueue`: driven from Swift concurrency they log
+  "unsafeForcedSync called from Swift Concurrent context" and stall the main thread during a
+  route switch. Empty tap buffers (a route mid-switch) are dropped, and a `startGen` token
+  makes a `stop()` during a slow `start()` win.
 - `CameraAccess/Media/Speaker.swift`: `AVSpeechSynthesizer` for `speak`/`speak_fallback` and
   `PCMStreamPlayer` (`AVAudioEngine` + `AVAudioPlayerNode`) for ElevenLabs PCM, both on a
   `.playback/.spokenAudio` session so audio routes to the glasses over A2DP. It deliberately

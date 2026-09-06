@@ -35,6 +35,7 @@ private final class RequestBox: @unchecked Sendable {
   private var request: SFSpeechAudioBufferRecognitionRequest?
   func set(_ r: SFSpeechAudioBufferRecognitionRequest?) { lock.lock(); request = r; lock.unlock() }
   func append(_ buffer: AVAudioPCMBuffer) {
+    guard buffer.frameLength > 0 else { return }   // empty buffers arrive while a Bluetooth route switches
     lock.lock(); let r = request; lock.unlock()
     r?.append(buffer)
   }
@@ -103,6 +104,20 @@ final class VoiceInput {
   private var armedUntil: Date = .distantPast
   private var lastText = ""
   private var observers: [NSObjectProtocol] = []
+  /// Bumped by stop(); a start() that resumes from an await after it must abandon its work.
+  private var startGen = 0
+  /// AVAudioSession and AVAudioEngine calls block, and called from Swift concurrency they log
+  /// "unsafeForcedSync called from Swift Concurrent context" and stall the main thread while a
+  /// Bluetooth route switches. They run on this serial queue instead.
+  private let audioQueue = DispatchQueue(label: "GlassesInspector.voice.audio", qos: .userInitiated)
+
+  private func onAudioQueue<T>(_ work: @escaping () throws -> T) async throws -> T {
+    try await withCheckedThrowingContinuation { (c: CheckedContinuation<T, Error>) in
+      audioQueue.async {
+        do { c.resume(returning: try work()) } catch { c.resume(throwing: error) }
+      }
+    }
+  }
 
   init() {
     let d = UserDefaults.standard
@@ -128,14 +143,18 @@ final class VoiceInput {
       return
     }
     recognizer = r
+    let gen = startGen
     do {
-      try configureSession()
+      let mic = self.mic
+      route = try await onAudioQueue { try Self.applySession(mic: mic) }
       await waitForRoute()
-      try startEngine()
+      guard gen == startGen, mode != .off else { return }   // stopped while we were starting
+      try await startEngine()
     } catch {
       status = "error: \(error.localizedDescription)"
       return
     }
+    guard gen == startGen, mode != .off else { tearDownEngine(); return }
     isListening = true
     status = "listening"
     startRequest()
@@ -152,15 +171,20 @@ final class VoiceInput {
     task?.cancel(); task = nil
     box.set(nil)                 // stop feeding the request before ending it
     request?.endAudio(); request = nil
+    startGen += 1
     tearDownEngine()
     isListening = false
     partial = ""
     lastText = ""
     status = "off"
-    // Hand the session back to playback so the glasses return to A2DP.
-    let s = AVAudioSession.sharedInstance()
-    try? s.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-    try? s.setActive(true)
+    // Hand the session back to playback so the glasses return to A2DP, unless the sample's
+    // video recording owns the session right now.
+    audioQueue.async {
+      let s = AVAudioSession.sharedInstance()
+      guard s.mode != .videoRecording else { return }
+      try? s.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+      try? s.setActive(true)
+    }
   }
 
   private func requestPermissions() async -> Bool {
@@ -171,7 +195,8 @@ final class VoiceInput {
     return speech == .authorized
   }
 
-  private func configureSession() throws {
+  /// Session category for the chosen mic. Runs on the audio queue; returns the input route.
+  nonisolated private static func applySession(mic: Mic) throws -> String {
     let s = AVAudioSession.sharedInstance()
     switch mic {
     case .glasses:
@@ -186,10 +211,10 @@ final class VoiceInput {
       }
     }
     try s.setActive(true)
-    route = s.currentRoute.inputs.map { "\($0.portName) (\($0.portType.rawValue))" }.joined(separator: ", ")
+    return s.currentRoute.inputs.map { "\($0.portName) (\($0.portType.rawValue))" }.joined(separator: ", ")
   }
 
-  private func err(_ text: String) -> Error {
+  nonisolated private static func err(_ text: String) -> Error {
     NSError(domain: "VoiceInput", code: 1, userInfo: [NSLocalizedDescriptionKey: text])
   }
 
@@ -209,34 +234,44 @@ final class VoiceInput {
 
   private func tearDownEngine() {
     if let o = engineObserver { NotificationCenter.default.removeObserver(o); engineObserver = nil }
-    if engine.isRunning { engine.stop() }
-    engine.inputNode.removeTap(onBus: 0)
+    let old = engine
+    audioQueue.async {
+      if old.isRunning { old.stop() }
+      old.inputNode.removeTap(onBus: 0)
+    }
   }
 
-  private func startEngine() throws {
+  /// Builds and starts a fresh engine with the mic tap. Runs on the audio queue.
+  nonisolated private static func makeEngine(box: RequestBox) throws -> AVAudioEngine {
     let session = AVAudioSession.sharedInstance()
     guard session.isInputAvailable else { throw err("no microphone on the current route") }
-    tearDownEngine()
-    engine = AVAudioEngine()
+    let engine = AVAudioEngine()
     let input = engine.inputNode
     // The hardware side of the input node. Zero means the route has no usable mic yet (or the
     // Bluetooth link is still switching); a tap installed then throws an uncatchable
     // Objective-C exception, so bail out here instead and let the route-change path retry.
     let hw = input.inputFormat(forBus: 0)
     guard hw.sampleRate > 0, hw.channelCount > 0 else { throw err("microphone route not ready") }
-    let box = self.box
     // format: nil makes the tap adopt the node's current format inside the call. Passing a
     // format read a moment earlier is what crashes when the route settles in between.
     input.installTap(onBus: 0, bufferSize: 1024, format: nil) { buffer, _ in
       box.append(buffer)
     }
+    engine.prepare()
+    try engine.start()
+    return engine
+  }
+
+  private func startEngine() async throws {
+    tearDownEngine()
+    let box = self.box
+    let fresh = try await onAudioQueue { try Self.makeEngine(box: box) }
+    engine = fresh
     engineObserver = NotificationCenter.default.addObserver(
-      forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
+      forName: .AVAudioEngineConfigurationChange, object: fresh, queue: .main
     ) { [weak self] _ in
       Task { @MainActor [weak self] in self?.restartEngine(reconfigure: false) }
     }
-    engine.prepare()
-    try engine.start()
   }
 
   /// Route or engine configuration changed (glasses connected or dropped), or the mic source
@@ -251,10 +286,13 @@ final class VoiceInput {
       guard let self else { return }
       self.tearDownEngine()
       do {
-        if reconfigure { try self.configureSession() }
+        if reconfigure {
+          let mic = self.mic
+          self.route = try await self.onAudioQueue { try Self.applySession(mic: mic) }
+        }
         await self.waitForRoute()
         guard self.isListening else { return }
-        try self.startEngine()
+        try await self.startEngine()
         self.startRequest()
         self.status = "listening"
       } catch {
