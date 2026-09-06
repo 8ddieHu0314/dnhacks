@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .models import RetrievedComponent
+
 _TOKEN = re.compile(r"[a-z0-9]+")
 
 def _tokens(value: str) -> list[str]:
@@ -47,3 +49,31 @@ class ComponentKnowledgeBase:
         exact = [index for index, record in enumerate(self._records) if record["id"] in query.lower()]
         order = exact + sorted((i for i, score in enumerate(scores) if score and i not in exact), key=scores.__getitem__, reverse=True)
         return [ComponentMatch(self._records[index], max(float(scores[index]), 100.0 if index in exact else 0.0)) for index in order[:limit]]
+
+    @staticmethod
+    def summaries(matches: list[ComponentMatch]) -> list[RetrievedComponent]:
+        summaries = []
+        for match in matches:
+            record = match.record
+            confidence = str(record.get("confidence", "low")).lower()
+            summaries.append(RetrievedComponent(
+                component_id=str(record["id"]), canonical_name=str(record["canonical_name"]),
+                data_confidence=confidence if confidence in {"high", "medium", "low"} else "low",
+                retrieval_score=max(0.0, match.score),
+            ))
+        return summaries
+
+    @staticmethod
+    def prompt_records(matches: list[ComponentMatch]) -> list[dict[str, Any]]:
+        fields = ("identity", "function", "visual_identification", "pins", "electrical",
+                  "wiring_to_uno", "safety", "troubleshooting")
+        records = []
+        for match in matches:
+            record, details = match.record, match.record.get("details", {})
+            records.append({
+                "id": record["id"], "canonical_name": record["canonical_name"],
+                "data_confidence": record.get("confidence", "low"),
+                "source_count": record.get("source_count", 0),
+                **{field: details.get(field, {}) for field in fields},
+            })
+        return records
