@@ -4,8 +4,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
+from fastapi.testclient import TestClient
 
 from vision_api.component_knowledge import ComponentKnowledgeBase, ComponentKnowledgeVLM
+from vision_api.main import app
 from vision_api.models import Frame, FrameMetadata
 
 
@@ -39,3 +41,11 @@ class ComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("hc-sr04", calls[1]["messages"][0]["content"])
         self.assertEqual(output.analysis.component_guidance.retrieved_components[0].component_id, "hc-sr04")
         self.assertEqual([item.component_id for item in output.analysis.component_guidance.identified_components], ["hc-sr04"])
+
+    def test_component_endpoints_search_and_return_a_record(self) -> None:
+        with TestClient(app) as client:
+            search = client.get("/v1/components/search", params={"q": "hc-sr04"})
+            record = client.get("/v1/components/hc-sr04")
+        self.assertEqual(search.status_code, 200)
+        self.assertEqual(search.json()[0]["component_id"], "hc-sr04")
+        self.assertEqual(record.json()["canonical_name"], "HC-SR04 ultrasonic distance sensor")
