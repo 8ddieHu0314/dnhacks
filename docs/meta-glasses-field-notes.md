@@ -220,3 +220,22 @@ Glasses camera -> (Meta AI app / DAT, BT+WiFi) -> iOS app GlassesInspector -> HT
   Phone: Speaker.swift (AVSpeechSynthesizer, playback/spokenAudio session -> glasses over A2DP), Describe button,
   caption overlay, settings: speak toggle, continuous narration + interval, test voice. Phone->Mac commands:
   {"type":"inspect"}, {"type":"narrate"}. Verified fake round trip: first sentence at 0.7 s, speak_end at 2.6 s.
+
+## 2026-09-05 (late) Local component detector in front of Claude
+
+- Wanted a bounding-box model around electronic components so the Claude identification can be
+  "optimistically loaded" and the dashboard shows boxes. No branch had one (the components branch
+  is a text catalog; the CNN work on `feat/gabe-dev` is PPE). Roboflow Universe search via the
+  API (`/universe/search?q=`) ranked `gab-qwrl3/arduino-lcxdx` v3 best: 3647 images, 14 kit-style
+  classes, mAP 96.8, CC BY 4.0. Pulled the ONNX bundle the same way as the tools model; 12 MB
+  yolov8n, 640x640 stretch RGB, output (1, 18, 8400). 37/40 validation labels recovered at a
+  mean 35 ms on CPU (CoreML EP splits the graph and is not faster).
+- Relay: `detect.py` + `_detect_loop` (latest frame wins, `asyncio.to_thread`), boxes to
+  `/ws/view` as `detections`, drawn on the canvas through the same rotate/fit transform. The
+  reactive identify loop now has two triggers: detector (2 stable frames, new label, crop +
+  hint to Claude) and the old settle rule as fallback. Fake-mode end-to-end: servo, LCD and
+  Uno scenes all identified via the detector path with the right catalog ids.
+- Not in the kit but in the model: drv8825, esp82, ttl. Kit parts the model does not know:
+  breadboard, jumper wires, relay, sensors other than HC-SR04, motors, RFID, keypad. Those still
+  go through the settle path. If we want boxes for them, fine-tune from `weights/yolo8s.pt` on
+  the export (yolov8 format, 692 MB, download recipe in the relay README) plus our own frames.

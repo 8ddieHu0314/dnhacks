@@ -21,3 +21,6 @@ clients/ios/GlassesInspector/server.log
 
 # untouched Meta sample used only for A/B lag testing
 clients/ios/StockSample/
+
+# model weights (fetched, see services/relay_receiver/README.md)
+weights/

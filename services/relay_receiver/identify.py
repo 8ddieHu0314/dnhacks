@@ -42,6 +42,10 @@ state = {
     "cooldown_seconds": 1.5,
     "last_id": None,
     "last_result": None,
+    "last_det_label": None,      # detector label of the box that triggered the last identification
+    "stable_frames": 2,          # detector path: consecutive frames a box must persist before Claude is called
+    "det_min_conf": 0.5,         # detector path: ignore boxes below this
+    "triggers": {"detector": 0, "settle": 0},
     "last_spoken_at": 0.0,
     "calls": 0,
     "task": None,
@@ -193,7 +197,19 @@ def _parse(text: str) -> dict:
     return obj
 
 
-async def _call_model(model: str, data: bytes, max_tokens: int = 160):
+def _hint_text(det: dict | None) -> str:
+    if not det:
+        return "Identify the component in view."
+    guess = det.get("catalog_hint")
+    hint = f"A local detector flagged this crop as: {det.get('name')} ({det.get('conf', 0):.0%})."
+    if guess:
+        hint += f" Likely catalog id: {guess}."
+    else:
+        hint += " That class is not in the catalog; it may be a non-kit part."
+    return hint + " Confirm or correct by reading the markings; the detector is only a hint."
+
+
+async def _call_model(model: str, data: bytes, max_tokens: int = 160, det: dict | None = None):
     """One vision call with the cached catalog prompt. Kwargs are assembled so the
     fallbacks parameter is only sent to models that accept it."""
     import anthropic
@@ -205,7 +221,7 @@ async def _call_model(model: str, data: bytes, max_tokens: int = 160):
         "system": [{"type": "text", "text": system_prompt(), "cache_control": {"type": "ephemeral"}}],
         "messages": [{"role": "user", "content": [
             {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
-            {"type": "text", "text": "Identify the component in view."}]}],
+            {"type": "text", "text": _hint_text(det)}]}],
     }
     if _supports_fallbacks(model):
         kwargs["betas"] = ["server-side-fallback-2026-07-01"]
@@ -216,17 +232,25 @@ async def _call_model(model: str, data: bytes, max_tokens: int = 160):
 _fake_cycle = ["hc-sr04", "rtc-ds3231", "relay-5v"]
 
 
-async def identify_frame(data: bytes) -> dict:
-    """One identification call on a frame. Returns the parsed JSON plus the catalog record."""
+async def identify_frame(data: bytes, det: dict | None = None) -> dict:
+    """One identification call on a frame. Returns the parsed JSON plus the catalog record.
+
+    With `det` (a detector box, see detect.py) Claude sees the padded crop around the box plus a
+    hint with the detector's label and likely catalog id. Without it, the whole frame."""
+    import detect
     state["calls"] += 1
+    image = detect.crop(data, det["box"]) if det else data
     if FAKE:
         await asyncio.sleep(1.2)
-        pid = _fake_cycle[state["calls"] % len(_fake_cycle)]
-        obj = {"id": pid, "name": pid.upper(), "confidence": 0.9, "evidence": "fake mode",
+        if det and det.get("catalog_hint") and det["catalog_hint"] in catalog:
+            pid = det["catalog_hint"]
+        else:
+            pid = _fake_cycle[state["calls"] % len(_fake_cycle)]
+        obj = {"id": pid, "name": pid.upper(), "confidence": 0.9, "evidence": "fake mode" + (" via detector" if det else ""),
                "spoken": f"This looks like the {pid.upper()} module. Fake mode."}
     else:
         import anthropic
-        resp = await _call_model(MODEL, data)
+        resp = await _call_model(MODEL, image, det=det)
         text = "".join(b.text for b in resp.content if b.type == "text")
         obj = _parse(text) if resp.stop_reason != "refusal" else {"id": None, "name": "declined", "confidence": 0, "spoken": ""}
         obj["usage"] = {"cache_read": getattr(resp.usage, "cache_read_input_tokens", 0), "out": resp.usage.output_tokens}
@@ -247,6 +271,9 @@ async def identify_frame(data: bytes) -> dict:
         obj["record"]["safety"] = (d.get("safety") or {}).get("hazards")
         obj["record"]["wiring"] = ((d.get("wiring_to_uno") or {}).get("example_connections"))
     obj["ts"] = time.time()
+    obj["trigger"] = "detector" if det else "settle"
+    if det:
+        obj["det"] = {k: det[k] for k in ("label", "name", "conf", "box")}
     return obj
 
 
@@ -263,9 +290,18 @@ def _diff(a, b) -> float:
     return float(np.abs(a - b).mean())
 
 
-async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption):
-    """get_latest() -> (bytes, ts) | (None, 0); on_result(obj); speak(text); speak_stop(); set_caption(text)."""
+async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, get_dets=None):
+    """get_latest() -> (bytes, ts) | (None, 0); on_result(obj); speak(text); speak_stop(); set_caption(text);
+    get_dets() -> (list[detection], frame_ts) from detect.py, or None when no detector is loaded.
+
+    Two triggers feed the same Claude call:
+    - detector: the top box has persisted for `stable_frames` frames and is a different label than the
+      last identification (or the scene changed). Fires early, before the wearer holds still, with
+      the crop and a hint. This is the optimistic path.
+    - settle: no boxes, so fall back to the original rule, identify the whole frame once motion stops.
+    """
     global _prev_thumb, _prev_frame_ts, _last_motion_at, _identified_thumb, _busy
+    stable_det, stable_n = None, 0
     while state["enabled"]:
         await asyncio.sleep(0.1)
         data, ts = get_latest()
@@ -276,23 +312,47 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption):
         thumb = _thumb(data)
         motion = _diff(thumb, _prev_thumb)
         _prev_thumb = thumb
-        if motion > state["motion_threshold"]:
-            _last_motion_at = now
-            state["status"] = "moving"
-            continue
-        if now - _last_motion_at < state["settle_seconds"]:
-            continue
-        state["status"] = "settled"
-        if _busy or _diff(thumb, _identified_thumb) < state["change_threshold"]:
-            continue
-        if now - state["last_spoken_at"] < state["cooldown_seconds"]:
-            continue
+        scene_changed = _diff(thumb, _identified_thumb) >= state["change_threshold"]
+
+        # ---- detector path
+        det = None
+        if get_dets is not None:
+            import detect
+            dets, dts = get_dets()
+            dets = [d for d in dets if d["conf"] >= state["det_min_conf"]] if now - dts < 1.0 else []
+            top = detect.primary(dets)
+            if top and stable_det and top["label"] == stable_det["label"] and detect.iou(top["box"], stable_det["box"]) > 0.4:
+                stable_n += 1
+            else:
+                stable_n = 1 if top else 0
+            stable_det = top
+            if top and stable_n >= state["stable_frames"]:
+                new_part = top["label"] != state["last_det_label"] or scene_changed
+                if new_part and not _busy and now - state["last_spoken_at"] >= state["cooldown_seconds"]:
+                    det = top
+        if det is None:
+            # ---- settle path (original behaviour), only when the detector has nothing to offer
+            if motion > state["motion_threshold"]:
+                _last_motion_at = now
+                state["status"] = "moving"
+                continue
+            if now - _last_motion_at < state["settle_seconds"]:
+                continue
+            state["status"] = "settled"
+            if stable_det is not None:
+                continue   # a box is in view but already identified; wait for a new part
+            if _busy or not scene_changed:
+                continue
+            if now - state["last_spoken_at"] < state["cooldown_seconds"]:
+                continue
         _busy = True
         state["status"] = "identifying"
-        await set_caption("Looking…", False)
+        state["triggers"]["detector" if det else "settle"] += 1
+        await set_caption(f"Looking… ({det['name']}?)" if det else "Looking…", False)
         try:
-            obj = await identify_frame(data)
+            obj = await identify_frame(data, det)
             _identified_thumb = thumb
+            state["last_det_label"] = det["label"] if det else None
             state["last_result"] = obj
             obj["_frame"] = data
             await on_result(obj)
@@ -318,10 +378,13 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption):
 
 def set_enabled(enabled: bool, **kw):
     global _identified_thumb
-    for k in ("min_confidence", "settle_seconds", "motion_threshold", "change_threshold", "cooldown_seconds"):
+    for k in ("min_confidence", "settle_seconds", "motion_threshold", "change_threshold", "cooldown_seconds", "det_min_conf"):
         if kw.get(k) is not None:
             state[k] = float(kw[k])
+    if kw.get("stable_frames") is not None:
+        state["stable_frames"] = max(1, int(kw["stable_frames"]))
     state["enabled"] = bool(enabled)
     if enabled:
         state["last_id"] = None
+        state["last_det_label"] = None
         _identified_thumb = None

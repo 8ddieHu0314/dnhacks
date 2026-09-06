@@ -15,6 +15,7 @@ import subprocess
 import time
 from pathlib import Path
 
+import detect
 import identify
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -54,6 +55,13 @@ def _lan_ips() -> list[str]:
 
 _zc = None
 _refresh_task = None
+
+
+@app.on_event("startup")
+async def _start_detector():
+    print("component detector:", detect.load())
+    if detect.state["available"]:
+        detector["task"] = asyncio.create_task(_detect_loop())
 
 
 @app.on_event("startup")
@@ -127,6 +135,7 @@ viewer_sockets: set[WebSocket] = set()   # for text (stats/caption) pushes
 phones: set[WebSocket] = set()           # ingest sockets: frames in, speech text out
 caption = {"text": "", "final": True}
 narration = {"enabled": False, "interval": 8.0, "busy": False, "last": "", "task": None}
+detector = {"task": None, "last_ts": 0.0}     # local YOLO boxes on every frame, see detect.py
 # ElevenLabs sentences queue up here and a single worker streams them to the phone in order.
 speech = {"queue": None, "task": None, "next_id": 0, "chars": 0, "errors": 0, "last_error": ""}
 
@@ -166,6 +175,9 @@ def _stats():
             "inspections": len(state["report"]), "narration": narration["enabled"], "interval": narration["interval"],
             "reactive": identify.state["enabled"], "reactive_status": identify.state["status"], "last_id": identify.state["last_id"],
             "catalog_parts": len(identify.catalog), "identify_model": identify.MODEL,
+            "triggers": identify.state["triggers"],
+            "detector": {"available": detect.state["available"], "model": detect.state["model"], "reason": detect.state["reason"],
+                         "ms": detect.state["ms"], "boxes": len(detect.state["latest"]), "frames": detect.state["frames"]},
             "tts": {"provider": "elevenlabs" if tts.enabled() else "apple", "chars": speech["chars"],
                     "errors": speech["errors"], "last_error": speech["last_error"]}}
 
@@ -317,6 +329,26 @@ async def analyze(question: str, *, narrate: bool = False, speak: bool = True) -
     if SPEAK and text.lower() != "no change":
         subprocess.Popen(["say", text])
     return entry
+
+
+async def _detect_loop():
+    """Run the local detector on every new frame (latest wins) and push boxes to the dashboards."""
+    while True:
+        await asyncio.sleep(0.02)
+        ts = state["latest_ts"]
+        data = state["latest"]
+        if not data or ts == detector["last_ts"]:
+            continue
+        detector["last_ts"] = ts
+        try:
+            dets = await asyncio.to_thread(detect.detect, data)
+        except Exception as e:
+            detect.state.update(available=False, reason=f"inference failed: {e}")
+            await _send_all(viewer_sockets, {"type": "detections", "ts": ts, "boxes": [], "error": str(e)})
+            return
+        detect.state["latest_ts"] = ts
+        if viewer_sockets:
+            await _send_all(viewer_sockets, {"type": "detections", "ts": ts, "ms": detect.state["ms"], "boxes": dets})
 
 
 async def _narration_loop():
@@ -477,7 +509,9 @@ def _reactive_public():
     st = identify.state
     return {"enabled": st["enabled"], "status": st["status"], "last_id": st["last_id"],
             "last_result": st["last_result"], "calls": st["calls"], "catalog": identify.catalog_source,
-            "parts": len(identify.catalog), "min_confidence": st["min_confidence"]}
+            "parts": len(identify.catalog), "min_confidence": st["min_confidence"],
+            "detector": detect.state["available"], "det_min_conf": st["det_min_conf"], "stable_frames": st["stable_frames"],
+            "triggers": st["triggers"]}
 
 
 def set_reactive(enabled: bool, **kw):
@@ -504,14 +538,15 @@ def set_reactive(enabled: bool, **kw):
         async def speak_stop():
             _drop_pending_speech()
             await _send_all(phones, {"type": "speak_stop"})
+        get_dets = (lambda: (detect.state["latest"], detect.state["latest_ts"])) if detect.state["available"] else None
         identify.state["task"] = asyncio.create_task(identify.reactive_loop(
-            lambda: (state["latest"], state["latest_ts"]), on_result, speak, speak_stop, _caption))
+            lambda: (state["latest"], state["latest_ts"]), on_result, speak, speak_stop, _caption, get_dets))
 
 
 @app.post("/reactive")
 async def reactive(request: Request):
     body = await request.json()
-    set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds")})
+    set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds", "det_min_conf", "stable_frames")})
     await _send_all(phones, {"type": "reactive", **_reactive_public()})
     return _reactive_public()
 
@@ -526,12 +561,34 @@ async def identify_once():
     """One-shot identification of the latest frame (no speech)."""
     if not state["latest"]:
         return JSONResponse({"error": "no frame yet"}, status_code=409)
+    top = detect.primary([d for d in detect.state["latest"] if d["conf"] >= identify.state["det_min_conf"]])
     try:
-        obj = await identify.identify_frame(state["latest"])
+        obj = await identify.identify_frame(state["latest"], top)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=503)
     await _send_all(viewer_sockets, {"type": "identified", **{k: v for k, v in obj.items() if k != "record"}, "record": obj.get("record")})
     return obj
+
+
+@app.get("/debug/tasks")
+def debug_tasks():
+    """Health of the background loops (detector, reactive identify, narration, speech)."""
+    def info(t):
+        if t is None:
+            return None
+        if not t.done():
+            return "running"
+        return f"done exc={t.exception()!r}" if not t.cancelled() else "cancelled"
+    return {"detector": info(detector["task"]), "reactive": info(identify.state.get("task")),
+            "narration": info(narration.get("task")), "speech": info(speech.get("task"))}
+
+
+@app.get("/detections")
+def detections():
+    """Latest local detector boxes (normalized x1,y1,x2,y2) plus detector status."""
+    return {"ts": detect.state["latest_ts"], "ms": detect.state["ms"], "boxes": detect.state["latest"],
+            "available": detect.state["available"], "reason": detect.state["reason"], "model": detect.state["model"],
+            "classes": detect.state["classes"]}
 
 
 @app.post("/catalog/reload")
@@ -568,6 +625,8 @@ body{font-family:system-ui;background:#111;color:#eee;margin:0;height:100vh;disp
 #hud{position:absolute;left:12px;top:10px;font:12px/1.5 ui-monospace,monospace;color:#9f9;background:rgba(0,0,0,.55);padding:6px 10px;border-radius:8px;white-space:pre}
 #tools{position:absolute;right:12px;top:10px;display:flex;gap:6px}
 #tools button{background:rgba(255,255,255,.12);color:#eee;border:0;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer}
+#detbar{position:absolute;left:12px;bottom:10px;font:12px/1.4 ui-monospace,monospace;color:#fc6;background:rgba(0,0,0,.55);padding:5px 10px;border-radius:8px}
+#detbar b{color:#6cf}
 aside{padding:16px;overflow:auto;border-left:1px solid #333;min-height:0}
 button.primary{font-size:16px;padding:10px 16px;background:#2b6;color:#000;border:0;border-radius:8px;cursor:pointer;width:100%}
 input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;color:#eee;border:1px solid #444;border-radius:6px}
@@ -575,7 +634,8 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 #out{margin-top:10px;white-space:pre-wrap;font-size:14px}
 </style></head><body>
 <div id=stage><canvas id=cv></canvas><div id=hud>connecting…</div>
-<div id=tools><button onclick="rot=(rot+90)%360;draw()">Rotate</button><button onclick="fit=!fit;draw()">Fit/Fill</button></div></div>
+<div id=tools><button onclick="rot=(rot+90)%360;draw()">Rotate</button><button onclick="fit=!fit;draw()">Fit/Fill</button><button id=boxbtn onclick="showBoxes=!showBoxes;this.style.opacity=showBoxes?1:.5;draw()">Boxes</button></div>
+<div id=detbar>detector: loading…</div></div>
 <aside>
 <input id=q placeholder="Question (optional)">
 <button class=primary onclick="inspect()">Inspect this frame</button>
@@ -593,6 +653,9 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 <script>
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),hud=document.getElementById('hud'),stage=document.getElementById('stage');
 let bmp=null,rot=0,fit=true,stats={},shown=0,lastShown=performance.now(),dispFps=0;
+let dets=[],detMs=0,showBoxes=true,ident=null;   // local detector boxes (normalized) and the last Claude identification
+const COLORS={arduino:'#4cf',lcd:'#4cf',servomotor:'#fc4','sensor ultrasonico':'#fc4','7-seg':'#c8f',led:'#f66',pot:'#8f8',resistencia:'#8f8',diodo:'#8f8',transistor:'#8f8',pulsador:'#8f8'};
+function iou(a,b){const ix=Math.max(0,Math.min(a[2],b[2])-Math.max(a[0],b[0])),iy=Math.max(0,Math.min(a[3],b[3])-Math.max(a[1],b[1]));const i=ix*iy;const u=(a[2]-a[0])*(a[3]-a[1])+(b[2]-b[0])*(b[3]-b[1])-i;return u>0?i/u:0}
 function draw(){
   if(!bmp)return;
   const rotated=rot%180!==0, iw=rotated?bmp.height:bmp.width, ih=rotated?bmp.width:bmp.height;
@@ -602,17 +665,40 @@ function draw(){
   cv.width=Math.min(w,W);cv.height=Math.min(h,H);
   ctx.save();ctx.translate(cv.width/2,cv.height/2);ctx.rotate(rot*Math.PI/180);
   ctx.drawImage(bmp,-bmp.width*s/2,-bmp.height*s/2,bmp.width*s,bmp.height*s);ctx.restore();
+  if(showBoxes)drawBoxes(s);
 }
+function drawBoxes(s){
+  // boxes are normalized to the image; map through the same rotate/fit transform as drawImage
+  const bw=bmp.width*s,bh=bmp.height*s,cx=cv.width/2,cy=cv.height/2,a=rot*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a);
+  const tp=(nx,ny)=>{const x=nx*bw-bw/2,y=ny*bh-bh/2;return [cx+x*ca-y*sa,cy+x*sa+y*ca]};
+  const fresh=ident&&(Date.now()/1000-ident.ts)<10;
+  for(const d of dets){
+    const [x1,y1,x2,y2]=d.box;const pts=[tp(x1,y1),tp(x2,y1),tp(x2,y2),tp(x1,y2)];
+    const hit=fresh&&ident.det&&iou(ident.det.box,d.box)>0.4;
+    const col=hit?'#2b6':(COLORS[d.label]||'#fc6');
+    ctx.save();ctx.lineWidth=hit?4:2;ctx.strokeStyle=col;ctx.beginPath();ctx.moveTo(...pts[0]);for(const p of pts.slice(1))ctx.lineTo(...p);ctx.closePath();ctx.stroke();
+    const top=pts.reduce((m,p)=>p[1]<m[1]?p:m);const label=hit?`${ident.name} · ${Math.round(ident.confidence*100)}%`:`${d.name} ${Math.round(d.conf*100)}%`;
+    ctx.font=(hit?'bold 14px':'12px')+' system-ui';const tw=ctx.measureText(label).width+10;
+    ctx.fillStyle=col;ctx.fillRect(top[0],top[1]-20,tw,20);ctx.fillStyle='#000';ctx.fillText(label,top[0]+5,top[1]-6);
+    if(hit&&ident.spoken){ctx.font='12px system-ui';const sp=ident.spoken.slice(0,90);const sw=ctx.measureText(sp).width+10;const bot=pts.reduce((m,p)=>p[1]>m[1]?p:m);
+      ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(top[0],bot[1]+4,sw,20);ctx.fillStyle='#dfd';ctx.fillText(sp,top[0]+5,bot[1]+18);}
+    ctx.restore();
+  }
+}
+function renderDetbar(){const el=document.getElementById('detbar');const d=stats.detector||{};
+  if(!d.available){el.innerHTML=`detector: <b>off</b> ${d.reason||''}`;return}
+  const t=stats.triggers||{};el.innerHTML=`detector <b>${d.model}</b> · ${detMs||d.ms} ms · ${dets.length} box${dets.length===1?'':'es'}${dets.length?' · '+dets.map(x=>x.name+' '+Math.round(x.conf*100)+'%').join(', '):''} · claude via detector ${t.detector||0} / settle ${t.settle||0}`}
 function connect(){
   const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/view');
   ws.binaryType='blob';
   ws.onmessage=async e=>{
     if(typeof e.data==='string'){const m=JSON.parse(e.data);
-      if(m.type==='identified'){const c=document.getElementById('card');c.style.display='block';
-        c.innerHTML=`<b>${m.name||'?'}</b> <span style="color:#888">id=${m.id} · ${Math.round((m.confidence||0)*100)}%</span><div>${m.spoken||''}</div><div style="color:#888;font-size:12px">${m.evidence||''}</div>`+
+      if(m.type==='detections'){dets=m.boxes||[];detMs=m.ms||0;draw();renderDetbar();return;}
+      if(m.type==='identified'){ident=m;draw();const c=document.getElementById('card');c.style.display='block';
+        c.innerHTML=`<b>${m.name||'?'}</b> <span style="color:#888">id=${m.id} · ${Math.round((m.confidence||0)*100)}%</span> <span style="color:#6cf;font-size:12px">${m.trigger==='detector'?'⚡ via detector: '+m.det.name+' '+Math.round(m.det.conf*100)+'%':'via settle'}</span><div>${m.spoken||''}</div><div style="color:#888;font-size:12px">${m.evidence||''}</div>`+
         (m.record?`<pre style="white-space:pre-wrap;font-size:11px;color:#bbb;margin:6px 0 0">${JSON.stringify(m.record,null,1).slice(0,1200)}</pre>`:'');return;}
       if(m.type==='caption'){const out=document.getElementById('out');out.textContent=m.text||(m.final?'':'thinking…');out.style.opacity=m.final?1:0.7;if(m.final&&m.text)loadReport();return;}
-      stats=m;renderHud();document.getElementById('narr').checked=!!m.narration;
+      stats=m;renderHud();renderDetbar();document.getElementById('narr').checked=!!m.narration;
       document.getElementById('react').checked=!!m.reactive;document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
     try{const b=await createImageBitmap(e.data);if(bmp)bmp.close();bmp=b;draw();
       shown++;const now=performance.now();if(now-lastShown>1000){dispFps=shown*1000/(now-lastShown);shown=0;lastShown=now;}}catch(err){}
