@@ -236,6 +236,15 @@ For the glasses-style fast identification path, use
 prompt and returns a catalog ID, confidence, name, and visual evidence; use the
 regular component-knowledge backend when you need detailed wiring guidance.
 
+## Speech debugging and glasses demo
+
+Set `SPEECH_MODE=computer` to read each new analysis summary with the Mac's
+system voice. `SPEECH_MODE=glasses` sends the same text to a companion bridge on
+`WS /v1/sessions/{session_id}/speech` as `{"type":"speak","frame_id":"...","text":"..."}`;
+the bridge plays it through the glasses' selected audio route. Use `both` to
+compare the computer and glasses outputs during a demo. Repeated summaries are
+suppressed, and the default is `off`.
+
 ## Arduino context node
 
 [`firmware/context_node/context_node.ino`](firmware/context_node/context_node.ino)
