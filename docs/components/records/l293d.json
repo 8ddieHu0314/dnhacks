@@ -1,0 +1,104 @@
+{
+  "id": "l293d",
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "L293D IC",
+    "canonical_name": "L293D quadruple half-H bridge motor driver",
+    "aliases": ["L293DNE", "dual H-bridge driver", "motor driver IC"],
+    "category": "driver_ic",
+    "manufacturer": "Texas Instruments (originally a Unitrode design, also second-sourced by STMicroelectronics)",
+    "manufacturer_part_number": "L293DNE (TI's PDIP-16 part number)",
+    "generic_equivalents": ["STMicroelectronics L293D (PDIP-16)"],
+    "serial_number": "not_applicable",
+    "package": "PDIP-16 (through-hole, 16-pin dual in-line, with 4 internally tied ground/heat-sink pins)"
+  },
+  "function": {
+    "one_sentence_plain_english": "A chip that lets a small microcontroller pin safely control a motor that needs more current than the microcontroller can supply, and lets you reverse the motor's direction with software instead of by hand.",
+    "what_it_is_used_for": "Spinning one or two small DC motors (or one stepper motor) forward, backward, or at variable speed using PWM, controlled from UNO digital and PWM pins.",
+    "how_it_works_briefly": "Each of its two independent H-bridges acts like 4 switches arranged around the motor; turning on one diagonal pair of switches drives current one way through the motor, turning on the other diagonal pair reverses it. Built-in diodes absorb the voltage spike that happens whenever a motor is switched off."
+  },
+  "pins": {
+    "pin_count": 16,
+    "pinout": [
+      { "pin": 1, "name": "1,2EN", "role": "enable channels 1 and 2, active high", "notes": "must be HIGH for outputs 1Y/2Y to respond to inputs; can be PWM'd for speed control" },
+      { "pin": 2, "name": "1A", "role": "input 1 (drives output 1Y)", "notes": "digital input from the UNO" },
+      { "pin": 3, "name": "1Y", "role": "output 1", "notes": "connects to one motor terminal" },
+      { "pin": 4, "name": "GROUND", "role": "ground / heat sink", "notes": "connect to common ground and, where possible, a PCB ground plane" },
+      { "pin": 5, "name": "GROUND", "role": "ground / heat sink", "notes": "connect to common ground and, where possible, a PCB ground plane" },
+      { "pin": 6, "name": "2Y", "role": "output 2", "notes": "connects to the other terminal of the same motor as 1Y" },
+      { "pin": 7, "name": "2A", "role": "input 2 (drives output 2Y)", "notes": "digital input from the UNO" },
+      { "pin": 8, "name": "VCC2", "role": "motor power supply", "notes": "4.5V to 36V; powers the motor itself, separate from the logic power" },
+      { "pin": 9, "name": "3,4EN", "role": "enable channels 3 and 4, active high", "notes": "must be HIGH for outputs 3Y/4Y to respond to inputs; can be PWM'd for speed control" },
+      { "pin": 10, "name": "3A", "role": "input 3 (drives output 3Y)", "notes": "digital input from the UNO" },
+      { "pin": 11, "name": "3Y", "role": "output 3", "notes": "connects to one terminal of a second motor" },
+      { "pin": 12, "name": "GROUND", "role": "ground / heat sink", "notes": "connect to common ground and, where possible, a PCB ground plane" },
+      { "pin": 13, "name": "GROUND", "role": "ground / heat sink", "notes": "connect to common ground and, where possible, a PCB ground plane" },
+      { "pin": 14, "name": "4Y", "role": "output 4", "notes": "connects to the other terminal of the second motor" },
+      { "pin": 15, "name": "4A", "role": "input 4 (drives output 4Y)", "notes": "digital input from the UNO" },
+      { "pin": 16, "name": "VCC1", "role": "logic power supply", "notes": "5V; powers the chip's internal logic and must always be supplied even when VCC2 is a separate battery" }
+    ],
+    "pin_1_identification": "With the small notch at the top of the chip, pin 1 (1,2EN) is the top-left pin; pin numbers then run counter-clockwise around the package.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "VCC1 (logic) 4.5V to 7V, typically 5V; VCC2 (motor) can equal VCC1 or run as high as 36V",
+    "absolute_max_voltage": "VCC1 and VCC2 both max 36V",
+    "typical_current": "logic supply current (ICC1) typically 13-35 mA depending on output states (max 22-60 mA); logic input current is only a few to about 100 microamps per input (IIH/IIL)",
+    "max_current": "600 mA continuous output current per channel; 1.2 A peak, non-repetitive, up to 100 microseconds per channel",
+    "logic_level": "5V TTL-compatible inputs (VIH min about 2.3V, VIL max about 1.5V)",
+    "interface": "digital + PWM"
+  },
+  "key_specs": {
+    "channels": "4 half-H drivers, usable as 2 independent full H-bridges",
+    "built_in_flyback_diodes": "yes, only on the L293D variant; the plain L293 needs external diodes",
+    "thermal_shutdown": "yes"
+  },
+  "visual_identification": {
+    "shape_and_size": "Black rectangular plastic chip with 16 pins in two rows of 8, a standard 0.3-inch-wide DIP package about 20mm long.",
+    "color_and_markings": "Black plastic body printed with 'L293D' plus a manufacturer logo and date code (e.g. L293DNE); a small notch or dimple marks the pin-1 end.",
+    "printed_text_to_look_for": "L293D (sometimes with a manufacturer prefix/suffix such as L293DNE)",
+    "easily_confused_with": ["74HC595 (identical 16-pin DIP body size and colour, distinguishable only by the printed part number)", "ULN2003 driver chip (a different pinout but a similarly sized black DIP body)"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "1,2EN (pin 1)", "uno_pin": "5V (tied high), or a PWM pin (e.g. Digital 5) for speed control" },
+      { "part_pin": "1A (pin 2)", "uno_pin": "Digital pin (direction control, HIGH/LOW)" },
+      { "part_pin": "2A (pin 7)", "uno_pin": "Digital pin (direction control, opposite state of 1A)" },
+      { "part_pin": "VCC1 (pin 16)", "uno_pin": "5V" },
+      { "part_pin": "VCC2 (pin 8)", "uno_pin": "Power Supply Module output (per ELEGOO's Lesson 21), or the UNO's own 5V for light testing only" },
+      { "part_pin": "GROUND (pins 4, 5, 12, 13)", "uno_pin": "GND" }
+    ],
+    "required_extra_parts": ["Fan blade and 3-6V motor (or another small DC motor)", "830-point breadboard", "Power Supply Module plus a 9V adapter (recommended over powering the motor from the UNO)", "5 male-to-male jumper wires (per ELEGOO's Lesson 21)"],
+    "arduino_library": "none required; driven with plain digitalWrite()/analogWrite()"
+  },
+  "safety": {
+    "hazards": ["The chip can get noticeably warm driving a motor near its current limit; thermal shutdown protects it but repeated overheating shortens its life", "Never connect a motor directly to an UNO pin; always go through this chip or a similar driver"],
+    "handling_notes": ["Always connect VCC1 (logic) even when VCC2 (motor power) comes from a separate battery, or the chip will not respond to inputs", "Tie unused enable pins HIGH, not left floating", "Keep the four ground pins, which double as the heat sink, well connected to a solid ground for better heat dissipation"],
+    "common_mistakes": ["Forgetting to power VCC1 separately from VCC2 and assuming one supply covers both", "Leaving an enable pin floating or LOW and wondering why the motor will not move", "Exceeding 600 mA continuous per channel with a bigger motor than the kit's small fan motor"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "Motor does not move at all", "likely_cause": "The enable pin (1,2EN or 3,4EN) is LOW or unconnected, or VCC1 is not powered", "check": "Measure DC voltage at pin 1 (or pin 9) and at pin 16 with a multimeter; both should read close to 5V" },
+      { "symptom": "Motor spins one direction only and ignores commands to reverse", "likely_cause": "One of the two input pins (1A/2A) is stuck HIGH or LOW, often from a bad jumper", "check": "Probe 1A and 2A while the sketch toggles them, confirming both actually change state" },
+      { "symptom": "Chip gets very hot", "likely_cause": "The motor is drawing close to or beyond 600 mA per channel", "check": "Measure current in series with the motor supply line; if it is consistently near or above 600 mA, use a lower-current motor or a driver rated for more current" }
+    ],
+    "how_to_test_with_a_multimeter": "With the board powered and a test sketch running, use DC voltage mode to check VCC1 (pin 16) to GND reads about 5V, and VCC2 (pin 8) to GND reads the motor supply voltage. Then probe an output pin (e.g. 1Y) to GND while toggling its matching input; it should swing between about 0V and close to VCC2 as the input changes."
+  },
+  "market": {
+    "unit_price_usd": 8.95,
+    "price_source_url": "https://www.adafruit.com/product/807",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["DigiKey", "Mouser", "Adafruit"]
+  },
+  "sources": [
+    { "title": "L293x Quadruple Half-H Drivers datasheet, Texas Instruments (SLRS008D)", "url": "https://www.ti.com/lit/ds/symlink/l293.pdf", "type": "datasheet", "used_for": "full pin table, absolute maximum ratings, recommended operating conditions, and electrical characteristics (VOH/VOL, ICC1/ICC2, IIH/IIL, current limits)" },
+    { "title": "Elegoo Super Starter Kit for UNO tutorial PDF (Lesson 21: DC Motors)", "url": "https://www.uastem.com/wp-content/uploads/2021/10/Elegoo_Super_Starter_Kit_for_UNO_V1.0.2019.09.17.pdf", "type": "tutorial", "used_for": "confirms ELEGOO ships this exact chip paired with the fan motor and Power Supply Module, UNO wiring approach, and function" },
+    { "title": "Dual H-Bridge Motor Driver for DC or Steppers - 600mA - L293D, Adafruit product #807", "url": "https://www.adafruit.com/product/807", "type": "retailer", "used_for": "unit_price_usd and confirming current/voltage specs at retail" }
+  ],
+  "confidence": {
+    "overall": "high",
+    "fields_uncertain": [],
+    "notes": "All IC electrical specs come directly from TI's L293/L293D datasheet. ELEGOO's own product website could not be fetched directly (HTTP 403), so the kit SKU is carried over from the seed as unverified."
+  }
+}

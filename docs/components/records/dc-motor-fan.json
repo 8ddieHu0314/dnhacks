@@ -1,0 +1,86 @@
+{
+  "id": "dc-motor-fan",
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "Fan Blade and 3-6V Motor",
+    "canonical_name": "brushed DC motor with fan blade (130-size)",
+    "aliases": ["130 motor", "130-size DC motor", "hobby DC motor", "toy motor"],
+    "category": "actuator",
+    "manufacturer": "unbranded / generic (ELEGOO does not name a motor manufacturer for this part)",
+    "manufacturer_part_number": "none published by ELEGOO; commonly called a \"130-size\" brushed DC motor, comparable to Adafruit PID 711 and Handson Technology FAM1072",
+    "generic_equivalents": ["Adafruit DC Toy/Hobby Motor 130 Size (PID 711)", "Handson Technology 130 Brushed High Speed Mini DC Motor (SKU FAM1072)"],
+    "serial_number": "not_applicable",
+    "package": "130-size can motor with two solder-tab or bare-wire leads"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small electric motor that spins a plastic fan blade the moment it gets power.",
+    "what_it_is_used_for": "Teaches how to drive a simple DC motor, here used as a fan, through a motor driver chip instead of wiring it straight to a microcontroller pin.",
+    "how_it_works_briefly": "Current flowing through the internal coil, working against the motor's permanent magnets, makes the shaft spin. Swapping which of the two leads is positive reverses the spin direction. The plastic fan blade is press-fit onto the output shaft."
+  },
+  "pins": {
+    "pin_count": 2,
+    "pinout": [
+      { "pin": 1, "name": "Terminal A", "role": "motor lead (no fixed polarity)", "notes": "either lead can be wired to positive" },
+      { "pin": 2, "name": "Terminal B", "role": "motor lead (no fixed polarity)", "notes": "swapping the two leads reverses spin direction" }
+    ],
+    "pin_1_identification": "No fixed positive terminal on this class of motor. Either metal tab/lead can be wired as positive; swapping the two just reverses the spin direction rather than causing damage.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "3-6V DC (as printed on the ELEGOO kit tutorial for this part)",
+    "absolute_max_voltage": "not published by ELEGOO for this exact unit; generic 130-size motors are not usually run above about 9V",
+    "typical_current": "roughly 70-250 mA at rated voltage, no-load to lightly loaded (typical for this motor class, per the Adafruit PID 711 listing)",
+    "max_current": "roughly 500 mA to 1 A stall current (typical for this motor class, per Adafruit PID 711 and Handson Technology FAM1072 listings; varies by manufacturer)",
+    "logic_level": "none, this is a mechanical load, not a logic device",
+    "interface": "none"
+  },
+  "key_specs": {
+    "motor_size_class": "130-size brushed DC motor",
+    "no_load_speed_rpm": "roughly 9,000-26,000 RPM depending on supply voltage and the specific unit (per Adafruit PID 711 and Handson Technology FAM1072 listings)",
+    "shaft": "about 2mm round shaft; the fan blade press-fits directly onto it"
+  },
+  "visual_identification": {
+    "shape_and_size": "Small cylindrical metal can, roughly 20-28mm long and about 20mm in diameter, with a multi-blade plastic fan pressed onto a thin metal shaft at one end.",
+    "color_and_markings": "Plain silver or grey metal case with no printed text or brand markings.",
+    "printed_text_to_look_for": "Usually none. Occasionally a tiny voltage-rating sticker on the can, but ELEGOO's unit typically ships unmarked.",
+    "easily_confused_with": ["28BYJ-48 stepper motor (larger, blue plastic body with a 5-wire cable, not a bare metal can)", "SG90 servo motor (has a 3-wire cable and a gearbox housing, not a bare motor can)"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "Terminal A", "uno_pin": "L293D output pin (e.g. 1Y), never directly to an UNO pin" },
+      { "part_pin": "Terminal B", "uno_pin": "L293D output pin (e.g. 2Y), never directly to an UNO pin" }
+    ],
+    "required_extra_parts": ["L293D motor driver IC", "Power Supply Module (recommended over powering the motor from the UNO's own 5V pin)"],
+    "arduino_library": "none required; driven with plain digitalWrite()/analogWrite() through the L293D"
+  },
+  "safety": {
+    "hazards": ["Never wire the motor directly to a digital pin; switching it off induces a voltage spike that can damage the UNO", "A spinning fan blade can pinch skin or catch loose hair or wires at high RPM"],
+    "handling_notes": ["Always drive it through a motor driver IC (L293D) or a transistor with a flyback diode, never straight from a microcontroller pin", "Keep fingers and wires clear of the blade while powered"],
+    "common_mistakes": ["Wiring the motor directly to an UNO pin instead of through the L293D", "Expecting a fixed polarity; if the fan spins the 'wrong' way, just swap the two leads"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "Motor does not spin at all", "likely_cause": "No power reaching the L293D output, or its enable pin is left low", "check": "Measure DC voltage across the motor terminals with a multimeter while the sketch is running" },
+      { "symptom": "Motor spins the wrong direction", "likely_cause": "The two motor leads are swapped relative to what the sketch expects", "check": "Swap the two wires at the L293D output connections" },
+      { "symptom": "Motor spins weakly or stalls", "likely_cause": "Insufficient supply voltage/current from the Power Supply Module, or the blade is physically obstructed", "check": "Check the Power Supply Module's output jumper setting and confirm nothing is blocking the fan blade" }
+    ],
+    "how_to_test_with_a_multimeter": "With power off, set the multimeter to resistance mode and touch a probe to each terminal; a healthy motor reads a low, stable resistance of a few ohms. With power on and the motor commanded on, switch to DC voltage mode across the terminals to confirm the driver is actually delivering voltage."
+  },
+  "market": {
+    "unit_price_usd": 1.95,
+    "price_source_url": "https://www.adafruit.com/product/711",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["ELEGOO (bundled in kit only)", "Adafruit", "generic electronics retailers/AliExpress under \"130 motor\""]
+  },
+  "sources": [
+    { "title": "Elegoo Super Starter Kit for UNO tutorial PDF (Lesson 21: DC Motors)", "url": "https://www.uastem.com/wp-content/uploads/2021/10/Elegoo_Super_Starter_Kit_for_UNO_V1.0.2019.09.17.pdf", "type": "tutorial", "used_for": "confirms ELEGOO ships a 'Fan blade and 3-6v motor', that it is driven through the L293D and Power Supply Module, operating_voltage, function, and wiring context" },
+    { "title": "DC Toy / Hobby Motor - 130 Size, Adafruit product #711", "url": "https://www.adafruit.com/product/711", "type": "retailer", "used_for": "generic-equivalent electrical specs (typical_current, max_current, no_load_speed_rpm), physical dimensions, and unit_price_usd" },
+    { "title": "130 Brushed High Speed Mini DC Motor, Handson Technology datasheet", "url": "https://www.handsontec.com/dataspecs/motor_fan/130-Motor.pdf", "type": "datasheet", "used_for": "generic-equivalent key_specs (shaft diameter, no-load speed, operating current) for this motor class" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": ["electrical.typical_current", "electrical.max_current", "electrical.absolute_max_voltage", "key_specs.no_load_speed_rpm"],
+    "notes": "ELEGOO does not publish a datasheet or manufacturer part number for the bundled motor, only describing it as a '3-6V motor' on the kit tutorial. The current/speed numbers here come from generic 130-size motor listings (Adafruit #711, Handson Technology FAM1072), which vary between manufacturers, so treat them as typical-for-class rather than exact for the ELEGOO unit. ELEGOO's own product website could not be fetched (HTTP 403), so the kit SKU is carried over from the seed as unverified."
+  }
+}

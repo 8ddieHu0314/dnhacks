@@ -1,0 +1,106 @@
+{
+  "id": "74hc595",
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "74HC595 IC",
+    "canonical_name": "74HC595 8-bit serial-in, parallel-out shift register",
+    "aliases": ["SN74HC595N", "serial to parallel converter", "shift register IC"],
+    "category": "driver_ic",
+    "manufacturer": "Texas Instruments (this exact chip is second-sourced by many fabs; ELEGOO does not disclose which one is bundled)",
+    "manufacturer_part_number": "SN74HC595N (TI's PDIP-16 part number; other manufacturers' 74HC595 parts are pin- and function-compatible)",
+    "generic_equivalents": ["Nexperia 74HC595D", "Toshiba 74HC595D", "onsemi 74HC595", "STMicroelectronics 74HC595"],
+    "serial_number": "not_applicable",
+    "package": "PDIP-16 (through-hole, 16-pin dual in-line)"
+  },
+  "function": {
+    "one_sentence_plain_english": "A chip that turns 3 wires from the UNO into 8 separate on/off outputs, so you can control 8 LEDs (or more) without using up 8 of the UNO's own pins.",
+    "what_it_is_used_for": "Driving multiple LEDs or other simple digital loads (like 7-segment displays) from just 3 UNO pins; several 74HC595 chips can be chained together for even more outputs.",
+    "how_it_works_briefly": "You send it 8 bits one at a time on the data pin, pulsing the clock pin each time. Once all 8 bits are in, a pulse on the latch pin copies them all to the 8 output pins at once, so nothing flickers while new data is loading."
+  },
+  "pins": {
+    "pin_count": 16,
+    "pinout": [
+      { "pin": 1, "name": "QB", "role": "parallel output B", "notes": "" },
+      { "pin": 2, "name": "QC", "role": "parallel output C", "notes": "" },
+      { "pin": 3, "name": "QD", "role": "parallel output D", "notes": "" },
+      { "pin": 4, "name": "QE", "role": "parallel output E", "notes": "" },
+      { "pin": 5, "name": "QF", "role": "parallel output F", "notes": "" },
+      { "pin": 6, "name": "QG", "role": "parallel output G", "notes": "" },
+      { "pin": 7, "name": "QH", "role": "parallel output H", "notes": "" },
+      { "pin": 8, "name": "GND", "role": "ground", "notes": "connect to circuit ground" },
+      { "pin": 9, "name": "QH'", "role": "serial data output", "notes": "carries the overflow bit; connect to the SER pin of the next 74HC595 when chaining chips" },
+      { "pin": 10, "name": "SRCLR", "role": "shift register clear, active low", "notes": "tie HIGH (to VCC) if not used, so the register is never accidentally cleared" },
+      { "pin": 11, "name": "SRCLK", "role": "shift register clock", "notes": "pulse to shift each new data bit in; ELEGOO's own kit tutorial wires this to UNO Digital 9" },
+      { "pin": 12, "name": "RCLK", "role": "storage register clock (latch)", "notes": "pulse after 8 bits are shifted in to move them to the outputs; ELEGOO's own kit tutorial wires this to UNO Digital 11" },
+      { "pin": 13, "name": "OE", "role": "output enable, active low", "notes": "tie to GND to keep outputs always enabled; can be PWM'd for brightness control" },
+      { "pin": 14, "name": "SER", "role": "serial data input", "notes": "the incoming data bit stream; ELEGOO's own kit tutorial wires this to UNO Digital 12" },
+      { "pin": 15, "name": "QA", "role": "parallel output A", "notes": "" },
+      { "pin": 16, "name": "VCC", "role": "power supply", "notes": "2V to 6V supply; typically wired to the UNO's 5V pin" }
+    ],
+    "pin_1_identification": "With the small U-shaped notch at the top of the chip, pin 1 (QB) is the top-left pin; pin numbers then run counter-clockwise around the package.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "2V to 6V DC (VCC)",
+    "absolute_max_voltage": "-0.5V to 7V on VCC",
+    "typical_current": "quiescent supply current (ICC) is very low, max 80 microamps with no output loaded",
+    "max_current": "each output (QA-QH) can source or sink about 6 mA at 4.5V VCC, rated to drive up to 15 LSTTL loads",
+    "logic_level": "5V CMOS (VIH about 3.15V min, VIL about 1.35V max at VCC=4.5V)",
+    "interface": "SPI"
+  },
+  "key_specs": {
+    "logic_family": "high-speed CMOS (HC)",
+    "propagation_delay_typical": "13 ns",
+    "max_clock_frequency": "up to about 25 MHz at VCC=4.5V",
+    "chainable": "yes, via QH' (pin 9) to the next chip's SER pin"
+  },
+  "visual_identification": {
+    "shape_and_size": "Black rectangular plastic chip with 16 pins in two rows of 8, a standard 0.3-inch-wide DIP package about 19mm long.",
+    "color_and_markings": "Black plastic body printed with '74HC595' plus a manufacturer logo and date code; a small notch or dimple marks the pin-1 end.",
+    "printed_text_to_look_for": "74HC595 (sometimes prefixed, e.g. SN74HC595N or CD74HC595E, depending on the manufacturer)",
+    "easily_confused_with": ["L293D (same 16-pin DIP body size and colour; distinguishable only by the printed part number)", "other 74-series logic chips in the same size DIP package"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "SER (pin 14)", "uno_pin": "Digital 12" },
+      { "part_pin": "RCLK (pin 12)", "uno_pin": "Digital 11" },
+      { "part_pin": "SRCLK (pin 11)", "uno_pin": "Digital 9" },
+      { "part_pin": "OE (pin 13)", "uno_pin": "GND (tied low to keep outputs always on)" },
+      { "part_pin": "SRCLR (pin 10)", "uno_pin": "5V/VCC (tied high so the register is never cleared)" },
+      { "part_pin": "GND (pin 8)", "uno_pin": "GND" },
+      { "part_pin": "VCC (pin 16)", "uno_pin": "5V" }
+    ],
+    "required_extra_parts": ["8 LEDs", "8 x 220 ohm resistors (one per LED)", "830-point breadboard", "14 male-to-male jumper wires (per ELEGOO's Lesson 16)"],
+    "arduino_library": "none required for the basic lesson (uses plain shiftOut()); the SPI library can be used instead if SER/SRCLK are wired to the UNO's hardware MOSI/SCK pins"
+  },
+  "safety": {
+    "hazards": ["None significant; a low-voltage logic chip"],
+    "handling_notes": ["Handle by the edges; CMOS inputs are sensitive to static discharge (rated for 2000V HBM ESD)", "Insert with the notch oriented correctly; a chip placed backwards across a breadboard's centre gap will short VCC to GND pins"],
+    "common_mistakes": ["Forgetting to tie OE (pin 13) low, which leaves all outputs in a high-impedance 'off' state", "Leaving SRCLR (pin 10) floating or low, which keeps clearing the shift register", "Mixing up the latch (RCLK) and clock (SRCLK) pins, which are easy to swap since they sit next to each other"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "No LEDs light up at all", "likely_cause": "OE (pin 13) is not tied to GND, or VCC/GND is not connected", "check": "Measure DC voltage between pin 16 and pin 8 with a multimeter; it should read about 5V" },
+      { "symptom": "LEDs flicker or show garbage patterns", "likely_cause": "SRCLR (pin 10) is floating instead of tied to VCC", "check": "Confirm pin 10 has a solid connection to 5V, not just resting near it on the breadboard" },
+      { "symptom": "Only some LEDs work", "likely_cause": "A bad jumper wire or a burnt-out LED/resistor, not usually the chip itself", "check": "Swap the suspect LED and resistor to another known-good output pin and see if the fault follows" }
+    ],
+    "how_to_test_with_a_multimeter": "With the board powered, use DC voltage mode to probe pin 16 (VCC) to pin 8 (GND) and confirm about 5V. Then probe each Q output pin to GND while a test sketch drives that output on; a driven-high output should read close to VCC, a driven-low output close to 0V."
+  },
+  "market": {
+    "unit_price_usd": 0.98,
+    "price_source_url": "https://www.adafruit.com/product/450",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["DigiKey", "Mouser", "Adafruit", "Jameco"]
+  },
+  "sources": [
+    { "title": "SNx4HC595 8-Bit Shift Registers With 3-State Output Registers datasheet, Texas Instruments (SCLS041J)", "url": "https://www.ti.com/lit/ds/symlink/sn74hc595.pdf", "type": "datasheet", "used_for": "full pin table, absolute maximum ratings, recommended operating conditions, electrical characteristics (VOH/VOL/ICC), timing, and package/body-size info" },
+    { "title": "Elegoo Super Starter Kit for UNO tutorial PDF (Lesson 16: Eight LED with 74HC595)", "url": "https://www.uastem.com/wp-content/uploads/2021/10/Elegoo_Super_Starter_Kit_for_UNO_V1.0.2019.09.17.pdf", "type": "tutorial", "used_for": "confirms ELEGOO ships this exact chip for this lesson, the UNO wiring (Digital 12/11/9 to SER/RCLK/SRCLK), physical breadboard orientation, and function" },
+    { "title": "74HC595 Shift Register - 3 pack, Adafruit product #450", "url": "https://www.adafruit.com/product/450", "type": "retailer", "used_for": "unit_price_usd, computed as the $2.95 three-pack price divided by 3" }
+  ],
+  "confidence": {
+    "overall": "high",
+    "fields_uncertain": ["identity.manufacturer_part_number (ELEGOO does not disclose which specific manufacturer's chip is bundled; several second-source this exact part)"],
+    "notes": "Pin table, voltages, and timing all come directly from TI's SN74HC595/SN54HC595 datasheet. Price is a single-unit price computed from Adafruit's 3-pack price ($2.95 / 3 = $0.98 each); Adafruit does not sell this chip individually. ELEGOO's own product website could not be fetched (HTTP 403)."
+  }
+}
