@@ -1,248 +1,160 @@
-# Glasses Inspector
+# Vest Practices
 
-Hands-free part identification for Ray-Ban Meta glasses, built at DNHacks 2026 (Energy &
-Industrialization track). The wearer looks at an electronic component; the glasses say its
-name within about two seconds and answer spoken questions about it ("inspector, which wire is
-the signal?"), and a dashboard on the Mac shows what the system saw and heard.
+**A journeyman electrician in your ear, running on Ray-Ban Meta glasses.**
 
-![Glasses Inspector pipeline: glasses to iPhone app to Mac relay to Claude and ElevenLabs and back to the glasses](docs/pipeline.svg)
+Look at an electrical part. The glasses see it, the system finds it in a curated parts
+knowledge base, and a voice in the glasses tells you what it is, what its pins do, and what
+will break it. Hands stay on the work. Nothing to hold, nothing to type.
 
-## What runs today
+Built in one weekend at DNHacks 2026 for the Energy & Industrialization track.
 
-- `clients/ios/GlassesInspector`: iPhone app (fork of Meta's DAT `CameraAccess` sample). It
-  streams the glasses camera to the Mac over a WebSocket, transcribes the wearer's questions
-  from the glasses mic on the phone, and plays the Mac's speech into the glasses.
-- `services/relay_receiver`: the Mac relay. A local YOLOv8 detector on every frame, Claude
-  identification against the part catalog, ElevenLabs voice, and a live dashboard on `:8787`.
-  Setup, endpoints, and tuning live in
-  [`services/relay_receiver/README.md`](services/relay_receiver/README.md).
-- `docs/components`: the researched part catalog (`components.json`, 47 parts) the relay loads
-  at startup, plus query and merge scripts and a small retrieval eval.
-- `docs/meta-glasses-field-notes.md`: hardware facts, measurements, and root causes of past
-  outages. `docs/TEAM_PLAN.md`: the three tracks and the phone<->Mac interface contract.
+> Demo video: _[link goes here before submission]_
+> Website: https://vestpractices.vercel.app/
 
-Quick start on the Mac (put `ANTHROPIC_API_KEY` in `services/relay_receiver/.env`, or use
-`INSPECT_FAKE=1` for canned answers):
+## Why
 
-```bash
-services/relay_receiver/run.sh
-```
+The trade is taught one apprentice at a time, and there are not enough journeymen left to
+do the teaching. Skilled-labor shortages are the leading cause of construction delay in the
+United States (AGC of America 2025 workforce survey, 1,342 firms). The workers who are
+showing up often do not know the parts in front of them, and the person who could tell them
+is on another site.
 
-Then run the iOS app from Xcode, pick the receiver from the Bonjour list in the gear menu, and
-press Preview.
+Vest Practices is a personal trainer for that worker. It answers "what is this and how do I
+use it" at the moment the question comes up, from a knowledge base the team curated and
+cited. Because the reasoning layer is an AI model reading from that knowledge base, the same
+loop adapts to a new trade or a new employer's parts list by swapping the data, not the code.
 
-Everything below documents `services/vision_api`, the earlier server-side scaffold that the
-phone app does not use yet.
+## What it does today
 
-## Ray-Ban Meta live vision scaffold (`services/vision_api`)
+1. **Wear the glasses, open the app.** The iPhone app pulls the glasses camera stream and
+   relays frames to a Mac on the same Wi-Fi. The Mac is found automatically over Bonjour.
+2. **Look at a part.** A small detector on the Mac, fine-tuned on our own footage, spots
+   the component and waits for the wearer to hold still.
+3. **It finds the part.** The frame is matched against a 47-part knowledge base built from
+   the Elegoo Uno R3 kit: pinouts, electrical limits, wiring examples, and a source for each
+   spec. Fields nobody could verify are flagged, not guessed.
+4. **It speaks.** The name and one key spec are spoken into the glasses within a few
+   seconds. Ask "describe" and you get the fuller answer. It stays quiet while the part in
+   view has not changed.
+5. **It keeps a record.** Every identification is written to a session report with the
+   frame, the answer, and the confidence, so a supervisor can review the shift afterwards.
 
-This service starts the server side of a hands-free industrial/field-vision
-prototype: receive a wearer’s point-of-view frames, keep latency bounded, run a
-segmentation model, and return structured regions to a mobile client.
+There is also a scene mode that narrates a walk through a site, hazards first, and a
+laptop-webcam mode for demoing without the glasses.
 
-The [Meta Wearables Device Access Toolkit](https://developers.meta.com/blog/introducing-meta-wearables-device-access-toolkit/)
-gives preview developers access to glasses camera and audio functionality through
-their mobile apps. This project does **not** assume a private transport or API
-shape from Meta. Instead, it defines the server boundary immediately after the
-native companion app has obtained and decoded a camera frame.
-
-## Pipeline
+## How it is built
 
 ```text
-Meta glasses camera
-      │  Device Access Toolkit / native iOS or Android companion app
-      ▼
-Video transport adapter (WebRTC/H.264, when SDK details are available)
-      │  timestamped JPEG, PNG, or WebP frames
-      ▼
-FastAPI ingest service ──► bounded latest-frame queue ──► vision engine
-      │                                                        │
-      └──────── ACK / metrics ◄──── structured masks ◄─────────┘
+ Ray-Ban Meta glasses          iPhone                    Mac (:8787)
+ ┌──────────────────┐   BT    ┌───────────────┐  Wi-Fi  ┌─────────────────────────────┐
+ │ camera           │ ──────► │ Glasses       │ ──────► │ relay_receiver               │
+ │                  │         │ Inspector app │  JPEG   │  detector (YOLOv8n, ~43 ms)  │
+ │ speakers  ◄──────│ ◄────── │ text-to-speech│ ◄────── │  part identification         │
+ └──────────────────┘  audio  └───────────────┘ sentences│  parts knowledge base (47)   │
+                                                         │  live dashboard + report     │
+                                                         └─────────────────────────────┘
 ```
 
-The current service receives **decoded image frames**, not a raw video codec.
-That isolates vision and segmentation from the eventual glasses transport. A
-mobile bridge can initially sample video at 4–10 FPS, encode a JPEG/WebP frame,
-and send it over the WebSocket. A later WebRTC/H.264 adapter simply needs to
-emit the same `FrameMetadata + bytes` pair.
+| Piece | Where | What it is |
+|---|---|---|
+| Glasses app | `clients/ios/GlassesInspector` | Fork of Meta's Device Access Toolkit camera sample. Hardware video decode, throttled JPEG relay, USB-first then Wi-Fi transport, speech routed to the glasses over Bluetooth. |
+| Mac brain | `services/relay_receiver` | Single-file FastAPI server. Receives frames, runs the detector, identifies parts, streams spoken sentences back as they land, serves the dashboard and the session report. |
+| Component detector | `weights/components_v3.onnx`, `tools/components` | Single-class YOLOv8n at 960 px, fine-tuned on 553 of our own webcam frames plus 250 relabelled public images. Labels came from Grounding DINO proposals verified by a vision model, then audited by hand. |
+| Parts knowledge base | `docs/components` | 47 cited records for the Elegoo Uno R3 kit, a merge and validation script, and a retrieval layer with its own eval. |
+| Field notes | `docs/meta-glasses-field-notes.md` | The running log of every measurement, outage and root cause from the weekend. |
 
-## Modular workflows
+Numbers we measured, not guessed:
 
-The service is worker-agnostic. A stream session selects a versioned workflow;
-the selected package supplies the VLM context and is included in every result.
-Worker roles are therefore configuration, not code branches.
+| Measurement | Value |
+|---|---|
+| Phone to Mac, 504x896 over venue Wi-Fi | ~15 fps, 171 ms per frame |
+| Phone to Mac, 720x1280 | ~12 fps, 252 ms per frame |
+| Detector, CPU, 1280x720 frame | 43 ms |
+| Detector, held-out own frames | 53% box recall, 63% of frames boxed, ~0.15 stray boxes per empty frame |
+| Knowledge base retrieval, visual descriptions | 80% hit@1, 93% hit@3 (BM25, 30 queries) |
+| Fake round trip, first spoken sentence | 0.7 s |
 
-Workflow definitions are JSON files in `services/vision_api/workflow_definitions/`.
-Each contains an id, version, instructions, and observable checkpoints:
+## What we learned
 
-```json
-{
-  "id": "asset-inspection",
-  "version": "1.0.0",
-  "title": "Asset inspection",
-  "instructions": "Report evidence and uncertainty; do not authorize work.",
-  "checkpoints": [
-    {"id": "identify-asset", "title": "Identify asset", "evidence_prompt": "Read visible labels."}
-  ]
-}
-```
+**Streaming off the glasses is hard, and the weekend made it harder.** The glasses talk to
+the phone over Bluetooth Classic, and that link is the ceiling. Push it and Wi-Fi collapses
+while Bluetooth streams. A free Apple developer account cannot sign the Wi-Fi hotspot
+entitlement, so Bluetooth it is. On the phone, one main-thread hop per frame froze the UI at
+720p until every frame went through a single latest-frame slot instead. iOS refuses to
+resolve the default Bonjour hostname, so the Mac had to advertise itself by plain hostname
+or the phone sat in "preparing" forever. Each of these cost hours we did not have, and each
+one is written down in the field notes with the fix.
 
-`GET /v1/workflows` lists the available packages. Select one while creating a
-session; omitting it uses `generic-field-support`:
+**The detector was only as good as its labels.** The public Arduino-parts model fired on
+furniture and shirts and missed the real parts through a webcam. We built our own data
+instead. A label audit found 131 of 791 boxes were furniture, clothing or bare cable, and
+recall rose from 42% to 53% once the labels were honest. Overnight runs of bigger models did
+not beat the small one on the audited set, so the small one shipped.
+
+**A knowledge base should refuse to guess.** Every spec field in the parts records carries
+a source. Where the sources disagreed or no datasheet existed, the field is flagged as
+uncertain rather than filled in. The merge report lists every such field. A trainee's
+first wiring mistake should not come from a made-up pin.
+
+## What is next
+
+- **Step-by-step guidance.** "Show me a red wire. Land it on COIL+." The camera verifies
+  colour and placement before the next step. The state machine that advances steps is
+  designed, not yet built.
+- **Gear check before starting.** Eye protection and gloves confirmed across several
+  frames. Prototyped on a separate branch, not part of this demo.
+- **A second sense before danger.** A field-sensing probe on the temple arm confirms a
+  conductor reads ambient before the camera's "plug is out" is trusted. The Arduino probe
+  circuit exists in `firmware/context_node` and responds to touch, and its integration is
+  blocked on hardware.
+- **More trades, more parts.** The knowledge base format and the identification loop are
+  independent of the Arduino kit. A breaker panel catalog is the same pipeline with new records.
+
+## Run it
+
+You need a Mac, an iPhone, Ray-Ban Meta glasses paired to the Meta AI app, and Xcode 26.4 or
+newer. Without the glasses, the laptop-webcam mode still exercises everything on the Mac.
+
+Mac side:
 
 ```bash
-curl -X POST http://localhost:8000/v1/sessions \
-  -H 'content-type: application/json' \
-  -d '{"workflow_id":"asset-inspection"}'
+services/relay_receiver/run.sh              # creates a venv, installs, starts :8787
+INSPECT_FAKE=1 services/relay_receiver/run.sh   # canned answers, no API key needed
 ```
 
-Set `WORKFLOW_DEFINITIONS_DIR` to a directory of replacement JSON definitions
-to deploy a different customer, job, or procedure set without changing Python.
-The workflow shapes model context but never turns the model into an authority to
-clear hazardous work or execute a physical action.
+Put the vision model API key in `services/relay_receiver/.env`. Open http://localhost:8787
+for the live dashboard. Any JPEG posted to `POST /frame` shows up there, which is how the
+webcam demo works.
 
-## Advisory external signals
+Phone side: open `clients/ios/GlassesInspector/CameraAccess.xcodeproj` in Xcode, run it on
+the phone, pick the Mac from the receiver list, and press Preview. The relay chip shows fps
+and latency live.
 
-An Arduino or other companion device can record a non-contact field observation:
+Knowledge base:
 
 ```bash
-curl -X POST http://localhost:8000/v1/sessions/SESSION_ID/advisory-field-signals \
-  -H 'content-type: application/json' \
-  -d '{"level":8.5,"state":"field_detected"}'
+python3 docs/components/query.py --search i2c              # exact filters over the records
+python3 docs/components/rag/search.py "blue cube with 5 pins"   # fuzzy retrieval
+cd docs/components/rag && python3 eval.py                 # retrieval eval (downloads a small embedding model)
 ```
 
-This signal is deliberately named *advisory*: it can drive a warning or enrich
-the session log, but it cannot pass an isolation step or establish that equipment
-is deenergized. A visual lock/tag, VLM result, and non-contact sensor all remain
-observations. OSHA requires a qualified person to use test equipment before
-electrical equipment can be considered deenergized; its guidance also says an LED
-indicator alone is insufficient for isolation verification. See
-[29 CFR 1910.333](https://www.osha.gov/laws-regs/regulations/standardnumber/1910/1910.333)
-and [OSHA's LED interpretation](https://www.osha.gov/laws-regs/standardinterpretations/2012-12-12).
+Detector fine-tune and eval tooling is under `tools/components`, with the workflow written up
+in `services/relay_receiver/README.md`.
 
-## What is implemented
+## Also in this repo
 
-- `POST /v1/sessions` creates a short-lived stream session.
-- `GET /v1/workflows` exposes versioned workflow packages.
-- `WS /v1/sessions/{session_id}/frames` accepts alternating metadata JSON and
-  binary image messages.
-- `POST /v1/sessions/{session_id}/frames` is an HTTP fallback for native bridges.
-- A bounded queue drops old frames under load, keeping live guidance fresh.
-- The engine interface supports segmentation-only models and VLM/VLA reasoning.
-- The default deterministic mock backend exercises the contract without a GPU.
-- Result and metrics endpoints expose regions, observations, action proposals,
-  latency, and dropped-frame counts.
+- `services/vision_api`: an earlier, tested FastAPI scaffold with sessions, versioned
+  workflow packages and a pluggable vision engine. Not wired to the phone app. Its README is
+  in that folder.
+- `firmware/context_node`: the Arduino field-probe sketch and its bench notes.
 
-## Run locally
+## Team
 
-```bash
-cp .env.example .env
-python3 -m venv .venv
-.venv/bin/pip install fastapi httpx pydantic-settings 'uvicorn[standard]' pytest pytest-asyncio
-PYTHONPATH=services .venv/bin/uvicorn vision_api.main:app --reload
-```
+- [Henrik Gombos](https://www.linkedin.com/in/henrikgombos), design
+- [Anant Gupta](https://www.linkedin.com/in/anant0/), hardware
+- [Gabe Meredith](https://www.linkedin.com/in/gabriel-meredith/), machine learning
+- [Eddie Hu](https://www.linkedin.com/in/eddie-hu-6ab561270), Ray-Ban glasses and AI interaction
+- [Hari Gridharan](https://www.linkedin.com/in/harigridharan1/), product
 
-(`pip install -e '.[dev]'` currently fails: setuptools sees both `clients/` and `services/`
-at the repo root and refuses flat-layout auto-discovery. Installing the dependencies directly,
-as above, is the workaround.)
-
-Create a session:
-
-```bash
-curl -X POST http://localhost:8000/v1/sessions
-```
-
-Then open a WebSocket to the returned session’s `/frames` URL. Send one
-`FrameMetadata` JSON message, then the matching JPEG/PNG/WebP bytes. The server
-responds with an acknowledgement; read `/results` for segmentation output.
-
-Run the tests (either runner works; pyproject sets `pythonpath = ["services"]`):
-
-```bash
-PYTHONPATH=services .venv/bin/python -m unittest discover -s tests -v
-.venv/bin/pytest
-```
-
-Docker is also available after creating `.env`:
-
-```bash
-docker compose up --build
-```
-
-## Bring your VLM/VLA
-
-Set these values in `.env` to use a vision-capable model exposed through an
-OpenAI-compatible `/v1/chat/completions` endpoint:
-
-```bash
-VISION_BACKEND=openai_compatible
-VLM_BASE_URL=https://your-model-host/v1
-VLM_API_KEY=your-secret
-VLM_MODEL=your-vision-model
-```
-
-Each submitted image is sent as a base64 image message. The model must respond
-with JSON matching `VisionOutput`: `regions` plus optional `analysis` containing
-observations, safety alerts, and `proposed_actions`. A model can therefore act as
-a VLM (describe/inspect the frame) or as a VLA planner (propose a next action).
-The service never executes actions; every proposal is marked as requiring human
-confirmation so the mobile client can keep a human in the loop.
-
-To support another provider or an on-device runtime, implement the
-`VisionEngine.analyze(frame) -> VisionOutput` contract and register it in
-`build_vision_engine`.
-
-## Arduino context node
-
-[`firmware/context_node/context_node.ino`](firmware/context_node/context_node.ino)
-uses only the Arduino core and the starter-kit parts. The current sketch reads a
-capacitive touch/proximity antenna on A0 (two PN2222s as a Darlington amplifier; circuit,
-readings, and the current upload blocker are in
-[`TOUCH_SENSOR_DEMO.md`](firmware/context_node/TOUCH_SENSOR_DEMO.md)) and prints one JSON
-observation every 500 ms at 115200 baud. The tilt switch (D3), buzzer (D8), and HC-SR04
-(D9/D10) pins are still declared, but their JSON fields are fixed at `false` / `-1` while the
-antenna is being characterised. It is a context signal only, never a voltage sensor.
-
-To use it in VS Code, install the **PlatformIO IDE** extension, then open
-`firmware/context_node` as the folder. Select the `uno` environment, use
-**Build**, then **Upload**, and open the PlatformIO serial monitor at 115200.
-The included `platformio.ini` supplies the Uno configuration. The threshold at
-the top of the sketch should be calibrated from the actual antenna readings (idle near
-1023, touch samples below about 850).
-
-From a terminal, the equivalent commands are:
-
-```bash
-cd firmware/context_node
-pio run
-pio run --target upload --upload-port /dev/cu.usbmodemXXXX
-pio device monitor --port /dev/cu.usbmodemXXXX --baud 115200
-```
-
-## First integration steps
-
-1. **Mobile transport adapter:** In the iOS/Android app, request the applicable
-   camera permission and obtain frames through the Device Access Toolkit. For the
-   first demo, downscale to a fixed working size (for example 640px wide), sample
-   at 4–10 FPS, attach capture timestamps and rotation, then use this WebSocket.
-2. **Validate the latency budget:** Record capture-to-acknowledgement, queue wait,
-   model inference, and overlay-render times. The queue must remain small; stale
-   visual guidance is actively unsafe in a field setting.
-3. **Replace `MockSegmentationEngine`:** Add a SAM 2, YOLO-seg, or purpose-built
-   model adapter implementing `VisionEngine`. Return masks as normalized
-   polygons now; move to RLE masks only if fine boundaries demand it.
-4. **Send results back to the companion app:** Overlay the most recent result on
-   the source frame only when its timestamp is still recent enough. Never present
-   an old mask as live guidance.
-5. **Harden before a real field test:** require authenticated sessions, expire
-   sessions, use TLS, rate-limit ingest, avoid raw-frame persistence by default,
-   surface capture/recording state visibly, and obtain consent for every test.
-
-## Deliberate next decisions
-
-- Confirm the toolkit’s actual video-frame API and its supported encode/transport
-  options before implementing a WebRTC or H.264 decoder.
-- Pick the first segmentation target (workers/PPE, equipment, crop disease,
-  hazards, etc.) before selecting a model and collecting evaluation data.
-- Decide whether inference belongs on the phone, an edge gateway, or a GPU service
-  after measuring end-to-end latency and connectivity in the intended setting.
+Built on Meta's Wearables Device Access Toolkit. The public Arduino-parts dataset used for
+the detector's warm start is `arduino-lcxdx` on Roboflow Universe, CC BY 4.0.
