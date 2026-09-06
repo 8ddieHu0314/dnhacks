@@ -1,0 +1,99 @@
+{
+  "id": "rtc-ds3231",
+  "kit": { "name": "ELEGOO UNO R3 Most Complete Starter Kit", "sku": "EL-KIT-001 (confirmed)", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "Real Time Clock Module",
+    "canonical_name": "DS1307 real-time clock (RTC) module",
+    "aliases": ["RTC module", "Tiny RTC module", "DS3231 RTC module (initial seed guess, not confirmed)"],
+    "category": "sensor",
+    "manufacturer": "Timekeeping chip: Analog Devices (formerly Dallas Semiconductor / Maxim Integrated), DS1307 per ELEGOO's own kit tutorial text and library name. Breakout board manufacturer is generic/unconfirmed.",
+    "manufacturer_part_number": "DS1307, named directly in ELEGOO's own kit tutorial (both the lesson prose and the required code library are called \"DS1307\"). However, the same tutorial's wiring instructions describe a 6-pin header and say to \"ignore the 32K and SQW pins.\" The genuine DS1307 chip (per its Dallas/Analog Devices datasheet) has no separate 32K output pin, only a combined SQW/OUT pin; a board with both a 32K pin and a SQW pin is the standard pinout for a DS3231-based module. This is an unresolved contradiction between ELEGOO's own descriptive text and its own wiring diagram. We could not confirm from a fetched source which chip is actually populated on kits shipping today.",
+    "generic_equivalents": ["Any 6-pin I2C RTC breakout sharing this pinout, commonly sold as a \"Tiny RTC\" board, which is populated with either a DS1307 or a DS3231 chip on an otherwise identical PCB depending on the production run"],
+    "serial_number": "not_applicable",
+    "package": "module (small breakout PCB with a coin-cell battery holder, a crystal, and a 6-pin header)"
+  },
+  "function": {
+    "one_sentence_plain_english": "This module keeps track of the date and time, even when the Arduino is turned off, thanks to a small backup battery.",
+    "what_it_is_used_for": "Used any time a project needs to know or display the current date and time, such as a clock, a data logger that timestamps readings, or an alarm.",
+    "how_it_works_briefly": "A dedicated timekeeping chip counts seconds, minutes, hours, days, months, and years using its own crystal oscillator, and reports them to the Arduino over I2C. A small coin-cell battery keeps it running even when the Arduino's main power is unplugged."
+  },
+  "pins": {
+    "pin_count": 6,
+    "pinout": [
+      { "pin": 1, "name": "32K", "role": "clock output", "notes": "32.768 kHz square wave output pin, left unused in ELEGOO's tutorial wiring. This pin is documented for DS3231-family RTC chips; its presence on a board ELEGOO's tutorial text calls a \"DS1307\" module is part of why the true chip is uncertain here (see confidence notes)." },
+      { "pin": 2, "name": "SQW", "role": "square wave / interrupt output", "notes": "Programmable square-wave or interrupt output, left unused in ELEGOO's basic tutorial wiring. Open-drain and needs an external pull-up on the real DS1307 chip (per the DS1307 datasheet)." },
+      { "pin": 3, "name": "SCL", "role": "I2C clock", "notes": "Wire to the Arduino Uno's SCL pin (analog pin 5), per ELEGOO's own tutorial." },
+      { "pin": 4, "name": "SDA", "role": "I2C data", "notes": "Wire to the Arduino Uno's SDA pin (analog pin 4), per ELEGOO's own tutorial. Open-drain and needs an external pull-up resistor (per the DS1307 datasheet); most breakout boards include this pull-up onboard." },
+      { "pin": 5, "name": "VCC", "role": "power in", "notes": "Wire to the Arduino Uno's 5V pin, per ELEGOO's own tutorial. The DS1307 chip itself requires 4.5V to 5.5V (DS1307 datasheet), so this module is 5V only, not confirmed safe on 3.3V logic." },
+      { "pin": 6, "name": "GND", "role": "ground", "notes": "Wire to the Arduino Uno's GND pin." }
+    ],
+    "pin_1_identification": "No numbered pin 1. The six pins are printed left to right on the header as 32K, SQW, SCL, SDA, VCC, GND, per ELEGOO's own tutorial wiring diagram. A round coin-cell battery holder on the board is the other clear identifying feature.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "5V (DS1307 datasheet: VCC 4.5V to 5.5V; this module is not confirmed safe on a 3.3V logic board)",
+    "absolute_max_voltage": "-0.5V to +7.0V on any pin relative to ground (DS1307 datasheet, Dallas Semiconductor/Analog Devices)",
+    "typical_current": "up to 1.5 mA active supply current at 100 kHz SCL clocking (DS1307 datasheet); 300 nA typical battery-backup current at 25 degrees C with the oscillator running and SQW/OUT off (DS1307 datasheet)",
+    "max_current": "1.5 mA active supply current maximum, 200 microamp standby current maximum, 500 nA battery-backup current maximum at 25 degrees C (DS1307 datasheet)",
+    "logic_level": "5V; the SDA and SQW/OUT pins are open-drain and need an external pull-up, which is normally already present on the breakout board (DS1307 datasheet)",
+    "interface": "I2C"
+  },
+  "key_specs": {
+    "timekeeping_fields": "seconds, minutes, hours, day of week, date, month, year, with automatic leap-year correction valid through the year 2100 (DS1307 datasheet)",
+    "backup_ram": "56 bytes of battery-backed nonvolatile RAM built into the DS1307 chip (DS1307 datasheet)",
+    "oscillator": "external 32.768 kHz quartz crystal, 12.5 pF load capacitance (DS1307 datasheet)",
+    "i2c_speed": "up to 100 kHz, standard-mode I2C (DS1307 datasheet)",
+    "backup_battery": "a genuine ELEGOO spare-part listing for a \"DS1307 Module V03\" specifies a CR1220 lithium coin cell; ELEGOO's own kit tutorial for this exact kit does not state the cell size, so this figure is corroborated only by a separate retailer listing, not the kit tutorial itself"
+  },
+  "visual_identification": {
+    "shape_and_size": "Small rectangular PCB, roughly 2.7 cm x 2.8 cm, with a round coin-cell battery holder on one side and a 6-pin header along one edge.",
+    "color_and_markings": "PCB color not independently confirmed for the ELEGOO-bundled unit (generic clone boards of this design are commonly sold in red, blue, or purple); a shiny round coin-cell battery sits in a metal spring clip; a small 8-pin chip and a small silver crystal sit near the header.",
+    "printed_text_to_look_for": "Header pins printed 32K SQW SCL SDA VCC GND, left to right. Check the tiny printed part number on the black chip itself; it may read \"DS1307\" or \"DS3231\" depending on which chip is actually installed.",
+    "easily_confused_with": ["Generic \"Tiny RTC\" DS1307 modules", "DS3231 modules (identical board shape and pin layout; only the printed chip marking differs)"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "SCL", "uno_pin": "A5 (SCL)" },
+      { "part_pin": "SDA", "uno_pin": "A4 (SDA)" },
+      { "part_pin": "VCC", "uno_pin": "5V" },
+      { "part_pin": "GND", "uno_pin": "GND" }
+    ],
+    "required_extra_parts": ["4 female-to-male Dupont wires (per ELEGOO's own kit tutorial)", "a 3V lithium coin cell to keep time when unplugged, if one is not already installed"],
+    "arduino_library": "ELEGOO's own tutorial names a \"DS1307\" library. If the chip actually installed on a given unit turns out to be a DS3231 instead, the Adafruit RTClib library supports both chips."
+  },
+  "safety": {
+    "hazards": ["Reversed battery polarity can damage the coin-cell holder or the chip", "Exceeding 5.5V on VCC risks damage (DS1307 operating range tops out at 5.5V, though its absolute maximum pin rating is 7V)"],
+    "handling_notes": ["Handle the board by its edges", "Avoid touching the battery contacts with wet hands"],
+    "common_mistakes": ["Running this module from 3.3V logic; the DS1307 chip needs a full 5V supply to read and write over I2C", "Forgetting the backup battery, which causes the clock to reset to a default time whenever main power is removed"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "Clock keeps resetting to a default date/time", "likely_cause": "Missing or dead backup battery", "check": "Measure the coin-cell voltage directly with a multimeter; a healthy 3V lithium cell should read close to 3V" },
+      { "symptom": "No I2C response from the module", "likely_cause": "SDA and SCL swapped, or the module isn't getting 5V", "check": "Run an I2C scanner sketch and confirm the RTC answers at its address; verify 5V is reaching the VCC pin" }
+    ],
+    "how_to_test_with_a_multimeter": "With the Arduino powered, measure between the module's VCC and GND pins; expect a reading close to 5V. To check the backup battery alone, measure directly across its contacts; expect a reading close to 3V."
+  },
+  "market": {
+    "unit_price_usd": 1.04,
+    "price_source_url": "https://www.jsumo.com/rtc-module-ds1307",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Amazon", "jsumo.com", "generic Chinese electronics resellers"]
+  },
+  "sources": [
+    { "title": "THE MOST COMPLETE STARTER KIT TUTORIAL FOR UNO (ELEGOO, V1.0.19.01.23), Lesson 19 Real Time Clock Module", "url": "https://m.media-amazon.com/images/I/C1wMkX1+N9L.pdf", "type": "tutorial", "used_for": "identity (kit calls this a DS1307 module and names its required library \"DS1307\"), pins (6-pin header order 32K/SQW/SCL/SDA/VCC/GND and which pins to ignore), wiring_to_uno, function" },
+    { "title": "DS1307 64 x 8 Serial Real Time Clock, Dallas Semiconductor / Analog Devices datasheet", "url": "https://www.farnell.com/datasheets/29949.pdf", "type": "datasheet", "used_for": "pins (chip-level pin descriptions), electrical (VCC operating range, absolute maximum voltage, active/standby/battery-backup current), key_specs (56-byte RAM, crystal spec, I2C speed)" },
+    { "title": "Elegoo DS1307 Module V03 (spare-part listing)", "url": "https://digilog.pk/products/elegoo-ds1307-module-v03", "type": "retailer", "used_for": "key_specs backup battery type (CR1220), and confirming that ELEGOO does sell a genuine spare part literally named \"DS1307 Module\"" },
+    { "title": "RTC Module - DS1307 (jsumo.com)", "url": "https://www.jsumo.com/rtc-module-ds1307", "type": "retailer", "used_for": "market.unit_price_usd" }
+  ],
+  "confidence": {
+    "overall": "low",
+    "fields_uncertain": [
+      "identity.manufacturer_part_number: the exact RTC chip populated on kits currently shipping. ELEGOO's own tutorial text says DS1307, but its own wiring instructions describe a 32K pin the real DS1307 chip does not have per its datasheet; that pin is standard on DS3231-based boards, which share the same generic 6-pin PCB layout. Not resolved by any fetched source.",
+      "key_specs.backup_battery cell size for the exact kit-bundled module (CR1220 confirmed only for a separately sold ELEGOO spare-part listing, not the kit tutorial itself)",
+      "electrical absolute maximum ratings and current figures are for the bare DS1307 chip only; module-level figures (with any onboard regulation) are not confirmed",
+      "visual_identification.color_and_markings"
+    ],
+    "notes": "Seed data guessed \"DS3231 (older kits DS1307)\". ELEGOO's own official tutorial PDF for this exact kit (Lesson 19, Real Time Clock Module) names the part DS1307 in both its prose and its required code library, which runs opposite to the seed's guess. But the same tutorial's own wiring section instructs the reader to \"ignore the 32K and SQW pins,\" describing a 6-pin header (32K, SQW, SCL, SDA, VCC, GND). The genuine DS1307 chip has no 32K pin per its datasheet; only the DS3231 family does. Both chips are commonly sold on an identical generic 6-pin breakout PCB (often called a \"Tiny RTC\" board), with the populated chip swapped between production runs depending on cost and availability, and only the tiny printed part number on the chip itself differing. The most reliable way to settle this for a given physical unit is to read that printed part number directly off the black 8-pin chip on the board."
+  }
+}
