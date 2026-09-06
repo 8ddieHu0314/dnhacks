@@ -36,6 +36,8 @@ class SpeechRouter:
         self._launcher = launcher
         self._sockets: dict[str, set[WebSocket]] = defaultdict(set)
         self._last: dict[str, str] = {}
+        self._generation: dict[str, int] = defaultdict(int)
+        self._frame_generation: dict[tuple[str, str], int] = {}
 
     def attach(self, session_id: str, websocket: WebSocket) -> None:
         self._sockets[session_id].add(websocket)
@@ -43,7 +45,22 @@ class SpeechRouter:
     def detach(self, session_id: str, websocket: WebSocket) -> None:
         self._sockets[session_id].discard(websocket)
 
+    def track_frame(self, session_id: str, frame_id: str) -> None:
+        self._frame_generation[(session_id, frame_id)] = self._generation[session_id]
+        if len(self._frame_generation) > 256:
+            self._frame_generation.pop(next(iter(self._frame_generation)))
+
+    async def stop(self, session_id: str) -> None:
+        """Stop phone playback and suppress results already in flight."""
+
+        self._generation[session_id] += 1
+        self._last.pop(session_id, None)
+        await self.publish_event(session_id, {"type": "speak_stop"})
+
     async def publish(self, session_id: str, frame_id: str, text: str) -> None:
+        submitted = self._frame_generation.pop((session_id, frame_id), self._generation[session_id])
+        if submitted != self._generation[session_id]:
+            return
         text = text.strip()
         if not text or self._last.get(session_id) == text:
             return

@@ -52,3 +52,19 @@ class SpeechRouterTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(socket.messages, [{
             "type": "speak", "frame_id": "frame-1", "text": "Breadboard visible.",
         }, {"type": "speak_end", "frame_id": "frame-1"}])
+
+    async def test_hush_suppresses_only_frames_already_in_flight(self) -> None:
+        router = SpeechRouter("glasses")
+        socket = FakeWebSocket()
+        router.attach("session", socket)
+        router.track_frame("session", "old")
+        await router.stop("session")
+        await router.publish("session", "old", "Stale answer.")
+        router.track_frame("session", "new")
+        await router.publish("session", "new", "Fresh answer.")
+
+        self.assertEqual(socket.messages, [
+            {"type": "speak_stop"},
+            {"type": "speak", "frame_id": "new", "text": "Fresh answer."},
+            {"type": "speak_end", "frame_id": "new"},
+        ])
