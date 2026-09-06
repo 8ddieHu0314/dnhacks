@@ -78,9 +78,11 @@ Done when: a full dry run has been done twice, with a timer, on the venue Wi-Fi.
 
 ## Working agreements
 
-- Each track works on its own branch off `meta-glasses-display-access`, small commits,
+- Each track works on its own branch off `main`, small commits,
   rebase on it before merging. Only the owner touches their folder.
 - Interface changes are announced in the group chat and recorded above.
-- Integration checkpoints: one tonight after Track A confirms voice on glasses and Track B
+- Branch history: the glasses work lived on `meta-glasses-display-access` until 2026-09-06, when `main` was fast-forwarded to it (the previous `main` is archived as `archive/main-2026-09-06`).
+
+Integration checkpoints: one tonight after Track A confirms voice on glasses and Track B
   has real Claude; one dry run in the morning; one on the demo network.
 - Ask each other before restarting the receiver on the demo Mac; it holds the phone's socket.
