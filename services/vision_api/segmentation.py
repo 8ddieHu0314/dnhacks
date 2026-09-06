@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from typing import Protocol
 
-from .component_knowledge import ComponentKnowledgeBase, ComponentKnowledgeVLM
+from .component_knowledge import AnthropicComponentKnowledgeVLM, ComponentKnowledgeBase, ComponentKnowledgeVLM
 from .models import BoundingBox, ComponentGuidance, Frame, SegmentationRegion, VisionAnalysis, VisionOutput
 from .vlm import OpenAICompatibleVLM
 
@@ -95,6 +95,13 @@ def build_vision_engine(
         if component_knowledge is None:
             raise ValueError("A component knowledge base is required for component_knowledge")
         return ComponentKnowledgeVLM(
+            base_url=base_url, api_key=api_key, model=model, timeout_seconds=timeout_seconds,
+            knowledge_base=component_knowledge, top_k=component_knowledge_top_k,
+        )
+    if backend == "anthropic_component_knowledge":
+        if component_knowledge is None:
+            raise ValueError("A component knowledge base is required for anthropic_component_knowledge")
+        return AnthropicComponentKnowledgeVLM(
             base_url=base_url, api_key=api_key, model=model, timeout_seconds=timeout_seconds,
             knowledge_base=component_knowledge, top_k=component_knowledge_top_k,
         )
