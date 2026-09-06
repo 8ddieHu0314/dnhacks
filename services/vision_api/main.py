@@ -258,7 +258,8 @@ async def send_speech_to_glasses(websocket: WebSocket, session_id: str) -> None:
     speech.attach(session_id, websocket)
     try:
         while True:
-            await websocket.receive()
+            if (await websocket.receive())["type"] == "websocket.disconnect":
+                break
     except WebSocketDisconnect:
         pass
     finally:
