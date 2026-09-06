@@ -61,18 +61,71 @@ def _first(rec: dict, *keys, default=""):
     return default
 
 
+def _sq(v, n):
+    if isinstance(v, (list, tuple)):
+        v = "; ".join(str(x) for x in v[:2])
+    return re.sub(r"\s+", " ", str(v or "")).strip()[:n]
+
+
 def _index_line(rec: dict) -> str:
-    pid = _first(rec, "id", "slug", "part_id", "name")
-    name = _first(rec, "name", "title", "part")
-    markings = _first(rec, "markings", "label_text", "silkscreen", "part_number", "model")
-    visual = _first(rec, "visual_identification", "visual", "how_to_identify", "identification", "appearance", "description")
-    if isinstance(markings, (list, dict)):
-        markings = json.dumps(markings)
-    if isinstance(visual, (list, dict)):
-        visual = json.dumps(visual)
-    visual = re.sub(r"\s+", " ", str(visual))[:220]
-    markings = re.sub(r"\s+", " ", str(markings))[:80]
-    return f"- id={pid} | {name} | markings: {markings or 'none'} | looks like: {visual or 'n/a'}"
+    """One compact line per part for the cached system prompt (~70 tokens each)."""
+    d = rec.get("details") or {}
+    vis = d.get("visual_identification") or {}
+    ident = d.get("identity") or {}
+    pid = rec.get("id")
+    name = rec.get("canonical_name") or rec.get("name") or pid
+    kit = rec.get("name_on_kit") or ident.get("name_on_kit") or ""
+    text = vis.get("printed_text_to_look_for") or rec.get("mpn") or ""
+    look = " ".join(x for x in (vis.get("shape_and_size"), vis.get("color_and_markings")) if x)
+    confused = vis.get("easily_confused_with") or []
+    return (f"- id={pid} | {_sq(name, 60)}" + (f" (kit label: {_sq(kit, 30)})" if kit else "")
+            + f" | printed text: {_sq(text, 90) or 'none'} | looks: {_sq(look, 200) or 'n/a'}"
+            + (f" | not to be confused with: {_sq(confused, 90)}" if confused else ""))
+
+
+def _words(v, n):
+    """Trim to n chars on a word boundary."""
+    t = _sq(v, 10_000)
+    if len(t) <= n:
+        return t
+    cut = t[:n].rsplit(" ", 1)[0]
+    return cut.rstrip(",;:(") 
+
+
+def _first_sentence(v, n=120):
+    t = _sq(v, 10_000)
+    t = re.split(r"(?<=[.;])\s", t, 1)[0]
+    return _words(t, n)
+
+
+def _spoken_line(rec: dict) -> str:
+    """Two short sentences for the wearer: name, pins/voltage/key spec, one caution."""
+    d = rec.get("details") or {}
+    name = rec.get("canonical_name") or rec.get("name") or rec.get("id")
+    name = _words(str(name).split(",")[0].split(" (")[0], 60)
+    bits = []
+    pc = rec.get("pin_count") or (d.get("pins") or {}).get("pin_count")
+    if pc:
+        bits.append(f"{pc} pins")
+    v = _sq(rec.get("voltage") or (d.get("electrical") or {}).get("operating_voltage"), 200)
+    if v and len(v) <= 30 and not v.lower().startswith(("not applicable", "depends", "n/a")):
+        bits.append(v)
+    ks = rec.get("key_specs")
+    if isinstance(ks, str) and ks:
+        bits.append(_words(ks, 60))
+    caution = ""
+    safety = d.get("safety") or {}
+    for cand in (safety.get("hazards") or []) + (safety.get("common_mistakes") or []):
+        c = str(cand)
+        if c and not c.lower().startswith(("none", "not a ", "no ")):
+            caution = _first_sentence(c, 120)
+            break
+    line = f"{name}."
+    if bits:
+        line += " " + ", ".join(bits) + "."
+    if caution:
+        line += " " + caution[0].upper() + caution[1:].rstrip(".") + "."
+    return line
 
 
 def load_catalog() -> str:
@@ -93,7 +146,12 @@ def load_catalog() -> str:
 
 def spoken_for(rec: dict, fallback: str) -> str:
     s = _first(rec, "spoken", "spoken_summary", "summary_spoken")
-    return str(s) if s else fallback
+    if s:
+        return str(s)
+    try:
+        return _spoken_line(rec)
+    except Exception:
+        return fallback
 
 
 # ---------------------------------------------------------------- prompts
@@ -158,7 +216,12 @@ async def identify_frame(data: bytes) -> dict:
     rec = catalog.get(str(obj.get("id"))) if obj.get("id") else None
     if rec:
         obj["spoken"] = spoken_for(rec, obj.get("spoken") or f"This is the {rec.get('name', obj['id'])}.")
-        obj["record"] = {k: rec[k] for k in list(rec)[:12]}  # trimmed card for the dashboard
+        d = rec.get("details") or {}
+        obj["record"] = {k: rec.get(k) for k in ("id", "canonical_name", "name_on_kit", "mpn", "category", "pin_count",
+                                                  "pins", "interface", "voltage", "key_specs", "function", "price_usd",
+                                                  "confidence") if rec.get(k) is not None}
+        obj["record"]["safety"] = (d.get("safety") or {}).get("hazards")
+        obj["record"]["wiring"] = ((d.get("wiring_to_uno") or {}).get("example_connections"))
     obj["ts"] = time.time()
     return obj
 
