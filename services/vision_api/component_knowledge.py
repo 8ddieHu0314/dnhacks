@@ -380,6 +380,12 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
 
     async def analyze(self, frame: Frame) -> VisionOutput:
         if frame.session_id in self._debug_sessions:
+            request = (frame.metadata.user_request or "").lower()
+            if any(command in request for command in ("exit debug mode", "stop debugging", "identification mode")):
+                self._debug_sessions.discard(frame.session_id)
+                return VisionOutput(analysis=VisionAnalysis(
+                    mode="identification", summary="Debug mode ended. Show me a component to identify."
+                ))
             return await self._debug_breadboard(frame)
         try:
             payload = await self._complete(
