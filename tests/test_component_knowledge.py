@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from vision_api.component_knowledge import ComponentKnowledgeBase, ComponentKnowledgeVLM
 from vision_api.main import app
 from vision_api.models import Frame, FrameMetadata
+from vision_api.segmentation import build_vision_engine
 
 
 class ComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
@@ -43,6 +44,15 @@ class ComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("sources", calls[1]["messages"][0]["content"])
         self.assertEqual(output.analysis.component_guidance.retrieved_components[0].component_id, "hc-sr04")
         self.assertEqual([item.component_id for item in output.analysis.component_guidance.identified_components], ["hc-sr04"])
+
+    async def test_no_key_mode_exercises_typed_component_retrieval(self) -> None:
+        engine = build_vision_engine(base_url=None, api_key=None, backend="component_knowledge_mock",
+            model="", timeout_seconds=1, component_knowledge=self.knowledge)
+        frame = Frame("session", FrameMetadata(frame_id="frame", width=2, height=2,
+            user_request="HC-SR04 ultrasonic sensor"), b"x", datetime.now(timezone.utc))
+        output = await engine.analyze(frame)
+        self.assertEqual(output.analysis.component_guidance.retrieved_components[0].component_id, "hc-sr04")
+        self.assertIn("not simulated", output.analysis.summary)
 
     def test_component_endpoints_search_and_return_a_record(self) -> None:
         with TestClient(app) as client:
