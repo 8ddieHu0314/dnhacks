@@ -63,7 +63,8 @@ exact text Claude gets.
 The phone re-sends its saved voice, detector and report-page settings on every reconnect, so a
 change made on the dashboard is undone by the next phone reconnect unless it is also changed in
 the phone's gear menu. Env knobs: `MODEL` (`claude-sonnet-5`), `THINKING`, `EFFORT`,
-`FRAMES_PER_ASK` (3), `FRAME_MAX_SIDE` (1280), `CROP_CONF` (0.25), `DETECT_DEFAULT` (0),
+`FRAMES_PER_ASK` (3), `FRAME_MAX_SIDE` (1280), `CROP_CONF` (0.25), `STALE_SECONDS` (8, an older newest
+frame gets "no recent picture" instead of an answer), `DETECT_DEFAULT` (0),
 `ADVERTISE=0` for a second test instance on another port, `SPEAK=1` to also `say` on the Mac.
 
 ## Voice: ElevenLabs on the Mac, Apple voice as fallback

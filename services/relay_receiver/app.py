@@ -36,6 +36,7 @@ ADVERTISE = os.environ.get("ADVERTISE", "1") == "1"   # ADVERTISE=0: no Bonjour,
 SPEAK = os.environ.get("SPEAK", "0") == "1"           # also `say` answers on the Mac speaker
 FAKE = os.environ.get("INSPECT_FAKE", "0") == "1"      # canned answers (no API key needed) to test the audio path
 FRAMES_PER_ASK = int(os.environ.get("FRAMES_PER_ASK", "3"))   # sharpest frames sent with each question
+STALE_SECONDS = float(os.environ.get("STALE_SECONDS", "8"))    # newest frame older than this: say so instead of answering
 FRAME_MAX_SIDE = int(os.environ.get("FRAME_MAX_SIDE", "1280"))   # the High stream is 720x1280; keep it whole
 CROP_CONF = float(os.environ.get("CROP_CONF", "0.25"))   # detector threshold for the close-up crop (a wrong crop only adds an image)
 REPORT_PATH = Path(__file__).with_name("report.jsonl")
@@ -246,9 +247,11 @@ def select_frames(since: float, k: int = FRAMES_PER_ASK) -> list[tuple[float, by
     """The k sharpest frames spread over the window [since, now], oldest first. The window is the
     time the wearer was speaking, when they were looking at the thing they asked about. Falls
     back to the newest frame when the buffer is short."""
+    now = time.time()
+    since = min(max(since, now - 10.0), now - 0.5)   # phone clock skew or a stale timestamp must not empty the window
     recent = [(ts, d) for ts, d in state["recent"] if ts >= since - 0.3]
-    if not recent:
-        recent = list(state["recent"])[-1:]
+    if len(recent) < k:
+        recent = list(state["recent"])[-k:]   # thin window (stream just started, or a late timestamp): newest k
     if len(recent) <= k:
         return recent
     # Score at most ~30 candidates evenly spaced over the window, then the sharpest per slice.
@@ -318,7 +321,7 @@ def _stats():
 
 def _status_msg() -> dict:
     """What the phone needs to know; sent on connect (its hello) and after every change."""
-    return {"type": "status", "prompt_version": 6, "thinking": THINKING_MODE, "effort": EFFORT if OUTPUT_CONFIG else None,
+    return {"type": "status", "prompt_version": 7, "thinking": THINKING_MODE, "effort": EFFORT if OUTPUT_CONFIG else None,
             "voice": _voice_active(), "detector_enabled": detector["enabled"],
             "detector": detect.state["available"], "report_page": report_page["enabled"],
             "model": "fake" if FAKE else MODEL, "catalog_parts": len(catalog.records), "busy": state["busy"]}
@@ -465,16 +468,22 @@ def _closeup(frames: list[bytes]) -> tuple[bytes | None, dict | None]:
     view of markings and wires. Runs on demand (about 100 ms), whatever the dashboard toggle says."""
     if not detect.state["available"] or not frames:
         return None, None
-    # Sharpest frame first, but fall through: the detector is at about 40% recall, so the box is
-    # often in one of the other frames.
-    for frame in sorted(frames, key=_sharpness, reverse=True):
-        try:
-            top = detect.primary(detect.detect(frame, conf=CROP_CONF))
-        except Exception:
-            return None, None
-        if top:
-            return detect.crop(frame, top["box"], pad=0.35, min_side=384), top
-    return None, None
+    # detect.detect() also records its result as the "latest" boxes for the dashboard; these
+    # low-threshold boxes on older frames are not that, so put the dashboard state back after.
+    saved = {k: detect.state[k] for k in ("latest", "latest_frame", "latest_ts", "almost")}
+    try:
+        # Sharpest frame first, but fall through: the detector is at about 40% recall, so the box
+        # is often in one of the other frames.
+        for frame in sorted(frames, key=_sharpness, reverse=True):
+            try:
+                top = detect.primary(detect.detect(frame, conf=CROP_CONF))
+            except Exception:
+                return None, None
+            if top:
+                return detect.crop(frame, top["box"], pad=0.35, min_side=384), top
+        return None, None
+    finally:
+        detect.state.update(saved)
 
 
 async def _claude_stream(question: str, frames: list[bytes], closeup: bytes | None = None, det: dict | None = None):
@@ -591,9 +600,9 @@ async def handle_ask(text: str, source: str = "phone", heard_at: float | None = 
         await hush()
         await _caption("", final=True)
         return {"intent": "hush", "text": text}
-    if not state["latest"]:
+    if not state["latest"] or time.time() - state["latest_ts"] > STALE_SECONDS:
         voice_in["intents"]["no_frame"] += 1
-        await _say("I have no camera picture yet.")
+        await _say("I have no camera picture yet." if not state["latest"] else "I have no recent picture; is the camera streaming?")
         await _send_all(phones, {"type": "speak_end"})
         return {"intent": "no_frame", "text": text}
     # A new question outranks the answer still playing: cut it, then wait briefly for it to unwind.
@@ -781,8 +790,8 @@ def health():
 async def _ask_http(text: str, heard_at: float | None, source: str):
     if not text:
         return JSONResponse({"error": "text required"}, status_code=400)
-    if not state["latest"]:
-        return JSONResponse({"error": "no frame yet"}, status_code=409)
+    if not state["latest"] or time.time() - state["latest_ts"] > STALE_SECONDS:
+        return JSONResponse({"error": "no recent frame; is the camera streaming?"}, status_code=409)
     result = await handle_ask(text, source=source, heard_at=heard_at)
     if result and result.get("intent") == "busy":
         return JSONResponse({"error": "analysis already running"}, status_code=429)

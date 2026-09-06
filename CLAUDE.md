@@ -69,7 +69,8 @@ Secrets and knobs go in `services/relay_receiver/.env` (gitignored): `ANTHROPIC_
 `ELEVENLABS_API_KEY` (+ `ELEVENLABS_VOICE_ID`, `_MODEL`, `_GAIN`, `_SPEED`, `_STABILITY`, `_STYLE`),
 `MODEL` (default `claude-sonnet-5`, one model for everything), `THINKING` (`off`, the default,
 or `adaptive`) and `EFFORT` (`low` when adaptive), `FRAMES_PER_ASK` (3), `FRAME_MAX_SIDE` (1280),
-`CROP_CONF` (0.25, detector threshold for the close-up), `DETECT_DEFAULT` (0; dashboard boxes off),
+`CROP_CONF` (0.25, detector threshold for the close-up), `STALE_SECONDS` (8; an older newest frame gets
+"no recent picture" instead of an answer), `DETECT_DEFAULT` (0; dashboard boxes off),
 `DETECT_ONNX` (a sibling `.json` sidecar sets `resize_mode`), `DETECT_CONF`, `DETECT_IOU`,
 `DETECT_CLASSES`. Keep the `--ws websockets --ws-ping-timeout 90` flags in `run.sh`; the phone
 socket stalls without them. Ask before restarting it on the demo Mac; it holds the phone's socket.
