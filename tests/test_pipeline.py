@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 
-from vision_api.models import FrameMetadata
+from vision_api.models import FrameMetadata, VisionOutput
 from vision_api.pipeline import VisionPipeline
 from vision_api.segmentation import MockSegmentationEngine
 
@@ -42,5 +42,32 @@ class VisionPipelineTests(unittest.IsolatedAsyncioTestCase):
                 await pipeline.submit("session", metadata, b"frame")
                 await asyncio.wait_for(pipeline._queue.join(), timeout=1)
             self.assertEqual(pipeline.metrics_for("session").failed_frames, 1)
+        finally:
+            await pipeline.stop()
+
+    async def test_drops_queued_frames_in_favor_of_the_newest_view(self) -> None:
+        class BlockingEngine:
+            name = "blocking"
+
+            def __init__(self) -> None:
+                self.started, self.release = asyncio.Event(), asyncio.Event()
+
+            async def analyze(self, _frame):
+                self.started.set()
+                await self.release.wait()
+                return VisionOutput()
+
+        engine = BlockingEngine()
+        pipeline = VisionPipeline(engine, queue_capacity=3, result_history=3)
+        await pipeline.start()
+        try:
+            await pipeline.submit("session", FrameMetadata(frame_id="first", width=2, height=2), b"1")
+            await asyncio.wait_for(engine.started.wait(), timeout=1)
+            await pipeline.submit("session", FrameMetadata(frame_id="stale", width=2, height=2), b"2")
+            await pipeline.submit("session", FrameMetadata(frame_id="newest", width=2, height=2), b"3")
+            engine.release.set()
+            await asyncio.wait_for(pipeline._queue.join(), timeout=1)
+            self.assertEqual([result.frame_id for result in pipeline.results_for("session")], ["first", "newest"])
+            self.assertEqual(pipeline.metrics_for("session").dropped_stale_frames, 1)
         finally:
             await pipeline.stop()
