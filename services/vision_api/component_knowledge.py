@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .models import RetrievedComponent
+import httpx
+from pydantic import BaseModel, Field
+
+from .models import ComponentGuidance, Frame, VisionAnalysis, VisionOutput, RetrievedComponent
+from .vlm import VisionModelError, encoded_image_url
 
 _TOKEN = re.compile(r"[a-z0-9]+")
 
@@ -77,3 +81,36 @@ class ComponentKnowledgeBase:
                 **{field: details.get(field, {}) for field in fields},
             })
         return records
+
+
+class SceneDescription(BaseModel):
+    scene_description: str = Field(min_length=1, max_length=1_500)
+    visible_text: list[str] = Field(default_factory=list, max_length=20)
+    likely_component_terms: list[str] = Field(default_factory=list, max_length=12)
+
+    def query(self, user_request: str | None) -> str:
+        return " ".join([self.scene_description, *self.visible_text, *self.likely_component_terms, user_request or ""])
+
+
+class ComponentKnowledgeVLM:
+    """Use a VLM only after a frame description narrows the component context."""
+
+    name = "component-knowledge-vlm"
+
+    def __init__(self, *, base_url: str | None, api_key: str | None, model: str,
+                 timeout_seconds: float, knowledge_base: ComponentKnowledgeBase, top_k: int = 3,
+                 transport: httpx.AsyncBaseTransport | None = None) -> None:
+        if not base_url or not model:
+            raise ValueError("VLM_BASE_URL and VLM_MODEL are required for component_knowledge")
+        if not 1 <= top_k <= 5:
+            raise ValueError("COMPONENT_KNOWLEDGE_TOP_K must be between 1 and 5")
+        self._base_url, self._api_key, self._model = base_url.rstrip("/"), api_key, model
+        self._timeout, self._knowledge_base, self._top_k = timeout_seconds, knowledge_base, top_k
+        self._transport = transport
+
+    def _body(self, *, system: str, text: str, frame: Frame) -> dict[str, Any]:
+        return {"model": self._model, "temperature": 0, "response_format": {"type": "json_object"},
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": [
+                    {"type": "text", "text": text},
+                    {"type": "image_url", "image_url": {"url": encoded_image_url(frame)}},
+                ]}]}
