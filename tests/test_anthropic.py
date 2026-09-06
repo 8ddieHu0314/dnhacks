@@ -85,17 +85,13 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(output.analysis.mode, "identification")
         self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "hc-sr04")
 
-    async def test_switches_from_breadboard_identification_to_debugging(self) -> None:
+    async def test_marks_a_breadboard_identification_as_debug_mode(self) -> None:
         calls = []
 
         def handler(request: httpx.Request) -> httpx.Response:
             calls.append(json.loads(request.content))
-            if len(calls) == 1:
-                content = {"id": "breadboard-830", "confidence": 0.9, "name": "Breadboard", "evidence": "power rails"}
-                return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps(content)}]})
-            content = {"analysis": {"summary": "Breadboard wiring needs review.",
-                "component_guidance": {"wiring_feedback": ["Check the split power rail."]}}}
-            return httpx.Response(200, json={"content": [{"type": "tool_use", "name": "submit_result", "input": content}]})
+            content = {"id": "breadboard-830", "confidence": 0.9, "name": "Breadboard", "evidence": "power rails"}
+            return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps(content)}]})
 
         knowledge = ComponentKnowledgeBase.from_path(Path(__file__).parents[1] / "docs/components/components.json")
         engine = AnthropicCatalogIdentificationVLM(base_url="https://model.example", api_key="test-key",
@@ -104,10 +100,9 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
                       b"image", datetime.now(timezone.utc))
         output = await engine.analyze(frame)
 
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 1)
         self.assertEqual(output.analysis.mode, "debug")
-        self.assertEqual(output.analysis.component_guidance.wiring_feedback, ["Check the split power rail."])
-        self.assertIn("Breadboard jumper-wire circuit debugging", calls[1]["system"])
+        self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "breadboard-830")
 
     async def test_treats_non_json_catalog_responses_as_unclear(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:

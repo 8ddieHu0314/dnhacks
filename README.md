@@ -235,9 +235,9 @@ For the glasses-style fast identification path, use
 `VISION_BACKEND=anthropic_catalog_identification`. It caches a compact catalog
 prompt and returns a catalog ID, confidence, name, and visual evidence; use the
 regular component-knowledge backend when you need detailed wiring guidance.
-When this fast pass identifies `breadboard-830` at 0.6 confidence or higher, it
-automatically runs one grounded wiring-debug pass. The response exposes
-`analysis.mode` as `debug`; every other result remains `identification` mode.
+When this fast pass identifies `breadboard-830`, it sets `analysis.mode` to
+`debug`; every other result remains `identification` mode. Switching modes does
+not make another model request.
 
 ## Speech debugging and glasses demo
 
