@@ -183,7 +183,12 @@ a specification, component id, or connection. Image evidence cannot prove a wire
 connected, correct, or safe: state uncertainty and propose a human-confirmed check. Do not direct
 mains/high-voltage work. Every proposed action requires_confirmation=true. Put component evidence,
 wiring feedback, questions, and caveats in analysis.component_guidance. Keep every list to three
-brief items or fewer.\n\nWorkflow:\n{instruction_for(frame)}
+brief items or fewer. If the user request starts DEBUG MODE, set mode=debug and add debug_guidance:
+state the apparent problem, give ordered reversible steps with the reason and expected evidence,
+and mark every step requires_confirmation=true. Put the safest high-information check first. If a
+connection, marking, polarity, or rail break is not visible, do not guess: request one precise
+alternative view in visual_clarification and explain how to frame it. Treat continuity and voltage
+measurements as user-reported evidence, never visual facts.\n\nWorkflow:\n{instruction_for(frame)}
 \n\nUser request: {frame.metadata.user_request or 'identify the part and give safe context.'}
 \n\nCandidate records:\n{json.dumps(records, ensure_ascii=True)}"""
 
@@ -236,7 +241,7 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
     def _body(self, *, system: str, text: str, frame: Frame,
               schema: dict[str, Any] | None = None) -> dict[str, Any]:
         image = base64.b64encode(frame.image_bytes).decode("ascii")
-        body = {"model": self._model, "max_tokens": 768, "temperature": 0, "system": system,
+        body = {"model": self._model, "max_tokens": 1400, "temperature": 0, "system": system,
                 "messages": [{"role": "user", "content": [
                     {"type": "text", "text": text},
                     {"type": "image", "source": {"type": "base64",
@@ -266,8 +271,22 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
             "identified_components": {"type": "array", "items": identification},
             "wiring_feedback": string_list, "clarifying_questions": string_list, "data_caveats": string_list,
         }, "required": []}
-        analysis = {"type": "object", "properties": {"summary": {"type": "string"},
-            "observations": string_list, "safety_alerts": string_list, "component_guidance": guidance},
+        step = {"type": "object", "properties": {
+            "instruction": {"type": "string"}, "reason": {"type": "string"},
+            "expected_evidence": {"type": "string"}, "safety_note": {"type": ["string", "null"]},
+            "requires_confirmation": {"type": "boolean"},
+        }, "required": ["instruction", "reason", "expected_evidence", "requires_confirmation"]}
+        clarification = {"type": "object", "properties": {
+            "target": {"type": "string"}, "requested_view": {"type": "string"}, "reason": {"type": "string"},
+        }, "required": ["target", "requested_view", "reason"]}
+        debug = {"type": "object", "properties": {
+            "status": {"type": "string", "enum": ["needs_context", "in_progress", "ready_to_test", "resolved"]},
+            "problem": {"type": "string"}, "steps": {"type": "array", "items": step, "maxItems": 8},
+            "visual_clarification": {"anyOf": [clarification, {"type": "null"}]},
+        }, "required": ["status", "problem", "steps", "visual_clarification"]}
+        analysis = {"type": "object", "properties": {"mode": {"type": "string", "enum": ["identification", "debug"]},
+            "summary": {"type": "string"}, "observations": string_list, "safety_alerts": string_list,
+            "component_guidance": guidance, "debug_guidance": debug},
             "required": ["summary", "component_guidance"]}
         return {"type": "object", "properties": {"analysis": analysis}, "required": ["analysis"]}
 
