@@ -220,14 +220,19 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
         kwargs["timeout_seconds"] = max(float(kwargs["timeout_seconds"]), 45.0)
         super().__init__(base_url=base_url or "https://api.anthropic.com", **kwargs)
 
-    def _body(self, *, system: str, text: str, frame: Frame) -> dict[str, Any]:
+    def _body(self, *, system: str, text: str, frame: Frame,
+              schema: dict[str, Any] | None = None) -> dict[str, Any]:
         image = base64.b64encode(frame.image_bytes).decode("ascii")
-        return {"model": self._model, "max_tokens": 1_024, "temperature": 0, "system": system,
+        body = {"model": self._model, "max_tokens": 2_048, "temperature": 0, "system": system,
                 "messages": [{"role": "user", "content": [
                     {"type": "text", "text": text},
                     {"type": "image", "source": {"type": "base64",
                      "media_type": f"image/{frame.metadata.encoding}", "data": image}},
                 ]}]}
+        if schema:
+            body["tools"] = [{"name": "submit_result", "description": "Return the requested structured result.", "input_schema": schema}]
+            body["tool_choice"] = {"type": "tool", "name": "submit_result"}
+        return body
 
     @staticmethod
     def _json_object(content: str) -> dict[str, Any]:
@@ -237,17 +242,21 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
             raise TypeError("completion JSON was not an object")
         return payload
 
-    async def _complete(self, *, system: str, text: str, frame: Frame) -> dict[str, Any]:
+    async def _complete(self, *, system: str, text: str, frame: Frame,
+                        schema: dict[str, Any] | None = None) -> dict[str, Any]:
         headers = {"content-type": "application/json", "anthropic-version": "2023-06-01"}
         if self._api_key:
             headers["x-api-key"] = self._api_key
         try:
             async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
                 response = await client.post(f"{self._base_url}/v1/messages", headers=headers,
-                                             json=self._body(system=system, text=text, frame=frame))
+                                             json=self._body(system=system, text=text, frame=frame, schema=schema))
                 response.raise_for_status()
             response_body = response.json()
             blocks = response_body["content"]
+            for block in blocks:
+                if block.get("type") == "tool_use" and block.get("name") == "submit_result":
+                    return block["input"]
             content = "".join(block.get("text", "") for block in blocks
                               if block.get("type") == "text")
             if not content:
@@ -257,3 +266,15 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
             raise VisionModelError(f"Anthropic request failed: {exc}") from exc
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise VisionModelError("Anthropic response did not contain a valid JSON object") from exc
+
+    async def analyze(self, frame: Frame) -> VisionOutput:
+        scene = SceneDescription.model_validate(await self._complete(
+            system=self._scene_prompt(frame.metadata.user_request), text="Describe this frame for retrieval.",
+            frame=frame, schema=SceneDescription.model_json_schema(),
+        ))
+        matches = self._knowledge_base.search(scene.query(frame.metadata.user_request), limit=self._top_k)
+        output = VisionOutput.model_validate(await self._complete(
+            system=self._guidance_prompt(frame, self._knowledge_base.prompt_records(matches)),
+            text="Give grounded component guidance.", frame=frame, schema=VisionOutput.model_json_schema(),
+        ))
+        return self._ground(output, matches)
