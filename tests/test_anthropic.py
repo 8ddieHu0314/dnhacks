@@ -78,6 +78,8 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body["max_tokens"], 160)
         self.assertEqual(body["system"][0]["cache_control"]["type"], "ephemeral")
         self.assertIn("breadboard-830", body["system"][0]["text"])
+        self.assertIn("text:", body["system"][0]["text"])
+        self.assertIn("looks:", body["system"][0]["text"])
         self.assertNotIn("temperature", body)
         self.assertNotIn("tools", body)
         self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "breadboard-830")

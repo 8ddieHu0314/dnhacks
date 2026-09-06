@@ -326,8 +326,13 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
         lines = []
         for record in self._knowledge_base._records:
             visual = record.get("details", {}).get("visual_identification", {})
-            look = visual.get("printed_text_to_look_for") or visual.get("shape_and_size") or "none"
-            lines.append(f"- {record['id']}: {record['canonical_name'][:50]} | look: {str(look)[:120]}")
+            marking = visual.get("printed_text_to_look_for") or record.get("mpn") or "none"
+            look = " ".join(str(value) for value in (visual.get("shape_and_size"), visual.get("color_and_markings")) if value)
+            line = f"- {record['id']}: {record['canonical_name'][:50]} | text: {str(marking)[:70]} | looks: {look[:130] or 'n/a'}"
+            confused = visual.get("easily_confused_with") or []
+            if confused:
+                line += f" | not: {str(confused[0])[:50]}"
+            lines.append(line)
         self._catalog_index = "\n".join(lines)
 
     def _body(self, *, system: str, text: str, frame: Frame,
