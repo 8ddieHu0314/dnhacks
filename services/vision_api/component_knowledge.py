@@ -280,7 +280,10 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
             async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
                 response = await client.post(f"{self._base_url}/v1/messages", headers=headers,
                                              json=self._body(system=system, text=text, frame=frame, schema=schema))
-                response.raise_for_status()
+                if response.is_error:
+                    raise VisionModelError(
+                        f"Anthropic request failed ({response.status_code}): {response.text[:500]}"
+                    )
             response_body = response.json()
             blocks = response_body["content"]
             for block in blocks:
