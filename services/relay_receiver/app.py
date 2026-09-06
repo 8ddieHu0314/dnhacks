@@ -235,7 +235,7 @@ async def _caption(text: str, final: bool):
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
-voice = {"provider": "elevenlabs" if tts.enabled() else "apple"}   # phone can switch this
+voice = {"provider": "apple"}   # default voice is the phone's Apple synthesizer; the phone or dashboard can switch to ElevenLabs
 
 
 def _voice_active() -> str:

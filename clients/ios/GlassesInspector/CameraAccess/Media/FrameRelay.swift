@@ -683,7 +683,7 @@ final class FrameRelay {
     partsModel = d.string(forKey: "partsModel") ?? "sonnet"
     sceneModel = d.string(forKey: "sceneModel") ?? "sonnet"
     handsFreeMode = d.string(forKey: "handsFreeMode") ?? "off"
-    voiceProvider = d.string(forKey: "voiceProvider") ?? "elevenlabs"
+    voiceProvider = d.string(forKey: "voiceProvider") ?? "apple"
     browser.onUpdate = { [weak self] in self?.applyTarget() }
     browser.start()
     meter.start()
