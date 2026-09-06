@@ -24,7 +24,7 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
                 content = {"regions": [], "analysis": {"summary": "Sensor visible.",
                     "component_guidance": {"identified_components": [{"component_id": "hc-sr04",
                     "confidence": 0.9, "observed_evidence": ["label"]}]}}}
-            return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps(content)}]})
+            return httpx.Response(200, json={"content": [{"type": "tool_use", "name": "submit_result", "input": content}]})
 
         knowledge = ComponentKnowledgeBase.from_path(Path(__file__).parents[1] / "docs/components/components.json")
         engine = AnthropicComponentKnowledgeVLM(base_url="https://model.example", api_key="test-key",
@@ -38,4 +38,5 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(calls[0].headers["x-api-key"], "test-key")
         self.assertEqual(calls[0].headers["anthropic-version"], "2023-06-01")
         self.assertEqual(payload["messages"][0]["content"][1]["source"]["data"], "aW1hZ2U=")
+        self.assertEqual(payload["tool_choice"]["type"], "tool")
         self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "hc-sr04")
