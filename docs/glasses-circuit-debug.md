@@ -40,3 +40,47 @@ terminal with `curl http://127.0.0.1:8000/health`.
 3. Select the physical iPhone as the run destination and press Run.
 4. In Meta AI, confirm Developer Mode is still enabled.
 5. In Glasses Inspector, tap Connect and complete the Meta AI registration.
+
+## Connect and run
+
+1. Find the Mac's LAN address with `ipconfig getifaddr en0` (try `en1` if it is
+   blank). Do not use `127.0.0.1`; that means the iPhone itself.
+2. Open the app's gear menu. Enable **Use manual URL** and enter
+   `http://MAC_ADDRESS:8000`.
+3. Enable **Relay frames** and **Speak results through glasses**. Set the relay
+   cap to 2 fps and JPEG quality near 70 percent for a stable first test.
+4. Tap **Start Session**, then **Preview**. Accept camera and local-network
+   prompts. The relay diagnostics should show a WebSocket connection and a
+   rising sent-frame count.
+5. Tap **Test voice on glasses**. Fix the iPhone's Bluetooth audio route before
+   debugging if that sentence does not play through the glasses.
+
+Point at an ordinary kit part to test identification. Point at a breadboard to
+switch that socket's session automatically into circuit debugging. The first
+reply identifies the breadboard; the following frame reconstructs and compares
+the circuit. The phone shows **POWER LOCKED** until every blocking check passes.
+
+Claude can request a top-down, side, relay-pin, or breadboard-row view. Move your
+head to supply that view and hold still through the next reply. Keep both USB and
+the external motor supply disconnected while the gate is locked.
+
+Use **Circuit evidence** in the gear menu for facts a camera cannot prove. Enter
+the actual resistance or continuity result for meter checks; do not submit a
+guess. The server retains accepted evidence across later frames. Submit powered
+behavior only after the app says **READY TO TEST**.
+
+## Fast fault isolation
+
+- No sent frames: Preview is not streaming, Relay frames is off, or the socket
+  address is wrong. Inspect the app's Diagnostics section.
+- Sent frames but no response: check the Mac terminal and `/health`; confirm the
+  API key is exported as `VLM_API_KEY`, not `ANTHROPIC_API_KEY`.
+- Identification never changes to debug: fill most of the view with the
+  breadboard under even light, then tap Describe once.
+- Text but no sound: enable speech, use Test voice, and select the glasses as the
+  iPhone's media output. Server-side `SPEECH_MODE` must be `glasses` or `both`.
+- Slow response: use low glasses resolution, a 2 fps relay cap, and keep the
+  one-second inference interval. Raising frame rate does not make Claude faster.
+
+Frames sent in this mode leave the local network for Anthropic inference. This
+prototype is an observation aid, not an electrical safety authority.
