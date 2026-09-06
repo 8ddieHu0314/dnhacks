@@ -12,7 +12,9 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field, field_validator
 
-from .models import ComponentGuidance, ComponentIdentification, Frame, VisionAnalysis, VisionOutput, RetrievedComponent
+from .models import (ComponentGuidance, ComponentIdentification, DebugStep,
+                     EvidenceCheckResult, Frame, RetrievedComponent,
+                     VisionAnalysis, VisionOutput)
 from .vlm import VisionModelError, encoded_image_url, instruction_for
 
 _TOKEN = re.compile(r"[a-z0-9]+")
@@ -407,6 +409,34 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
                 "{\"id\": \"primary catalog id or null\", \"visible_ids\": [\"catalog id\"], \"confidence\": number, "
                 "\"name\": \"short name\", \"evidence\": \"12 words max\"}.\n\nCatalog:\n" + self._catalog_index)
 
+    def _enforce_power_gate(self, analysis: VisionAnalysis) -> VisionAnalysis:
+        debug = analysis.debug_guidance
+        if debug is None:
+            return analysis
+        definitions = self._target_circuit["verification_checks"]
+        allowed = {item["id"] for item in definitions}
+        reported = {item.check_id: item for item in debug.checks if item.check_id in allowed}
+        checks = [reported.get(item["id"]) or EvidenceCheckResult(
+            check_id=item["id"], status="pending", evidence_source="unknown",
+            evidence="No acceptable evidence has been reported yet.") for item in definitions]
+        blocking = [item for item in definitions if item["blocks_power"]]
+        safe = all((result := reported.get(item["id"])) is not None
+                   and result.status == "pass" and result.evidence_source == item["required_evidence"]
+                   for item in blocking)
+        steps = debug.steps
+        if not safe:
+            forbidden = ("connect usb", "connect power", "turn on", "power on", "apply power", "energize")
+            steps = [step for step in steps if not any(term in step.instruction.lower() for term in forbidden)]
+            if not steps:
+                pending = next(item for item in blocking if not reported.get(item["id"])
+                               or reported[item["id"]].status != "pass")
+                steps = [DebugStep(instruction=f"Keep power disconnected and complete check {pending['id']}.",
+                    reason="The server blocks energized testing until every unpowered gate passes.",
+                    expected_evidence=pending["pass_condition"])]
+        phase = debug.phase if safe or debug.phase in {"inspect_unpowered", "verify_unpowered"} else "verify_unpowered"
+        return analysis.model_copy(update={"debug_guidance": debug.model_copy(update={
+            "checks": checks, "safe_to_energize": safe, "phase": phase, "steps": steps})})
+
     async def _debug_breadboard(self, frame: Frame) -> VisionOutput:
         request = frame.metadata.user_request or "Find visible wiring problems and give the next safe check."
         metadata = frame.metadata.model_copy(update={
@@ -437,6 +467,7 @@ not readable. The observed_circuit and comparison objects are mandatory even whe
         ))
         output = self._debugger._ground(output, matches)
         analysis = output.analysis or VisionAnalysis(summary="Show the breadboard wiring clearly.")
+        analysis = self._enforce_power_gate(analysis)
         if analysis.debug_guidance is not None:
             self._debug_history[frame.session_id] = analysis.debug_guidance.model_dump(mode="json")
         return output.model_copy(update={"analysis": analysis.model_copy(update={"mode": "debug"})})
