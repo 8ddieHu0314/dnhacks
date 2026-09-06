@@ -425,8 +425,8 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
                    for item in blocking)
         steps = debug.steps
         if not safe:
-            forbidden = ("connect usb", "connect power", "turn on", "power on", "apply power", "energize")
-            steps = [step for step in steps if not any(term in step.instruction.lower() for term in forbidden)]
+            power_action = r"\b(connect (?:usb )?power|turn on|power on|apply power|energize)\b"
+            steps = [step for step in steps if not re.search(power_action, step.instruction.lower())]
             if not steps:
                 pending = next(item for item in blocking if not reported.get(item["id"])
                                or reported[item["id"]].status != "pass")
