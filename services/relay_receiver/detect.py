@@ -23,6 +23,9 @@ CLASSES = WEIGHTS.with_suffix(".classes.txt")
 CONF = float(os.environ.get("DETECT_CONF", "0.45"))
 IOU = float(os.environ.get("DETECT_IOU", "0.5"))
 ENABLED = os.environ.get("DETECT", "1") == "1"
+# Component-only by design: this relay never loads the PPE (SH17 hands/helmet/face) model, and the
+# allowlist below keeps the detector to electronic parts even if a broader ONNX is dropped in.
+ALLOW = {c.strip() for c in os.environ.get("DETECT_CLASSES", "").split(",") if c.strip()} or None
 
 # Detector label -> most likely catalog id in docs/components/components.json. Only a hint for
 # Claude; the catalog match is still its call. Labels are the dataset's (Spanish) class names.
@@ -56,6 +59,9 @@ state = {
     "frames": 0,
     "latest": [],        # list of Detection dicts for the latest frame
     "latest_ts": 0.0,    # frame timestamp the boxes belong to
+    "latest_frame": None,  # the JPEG those boxes were computed on (so consumers never pair boxes with a newer frame)
+    "allow": None,       # class allowlist in effect (None = every class in classes.txt)
+    "hints": {},         # label -> {"catalog_id", "display", "in_catalog"} after bind_catalog()
 }
 _session = None
 _input_name = None
@@ -85,12 +91,43 @@ def load() -> str:
         _input_name = inp.name
         _size = int(inp.shape[-1]) if isinstance(inp.shape[-1], int) else 640
         state["classes"] = [l.strip() for l in CLASSES.read_text().splitlines() if l.strip()]
+        state["allow"] = sorted(ALLOW & set(state["classes"])) if ALLOW else None
         state["provider"] = _session.get_providers()[0]
         state.update(available=True, reason="ok")
         return f"{WEIGHTS.name} ({len(state['classes'])} classes, {state['provider']})"
     except Exception as e:  # pragma: no cover - environment dependent
         state.update(available=False, reason=f"load failed: {e}")
         return state["reason"]
+
+
+def bind_catalog(catalog: dict) -> str:
+    """Make detector output agree with the catalog: check every hinted id exists and pick the
+    catalog's own short name (name_on_kit) as the label the dashboard and the glasses use."""
+    hints, missing = {}, []
+    for label in state["classes"] or CATALOG_HINT:
+        guess = CATALOG_HINT.get(label)
+        ids = [g.strip() for g in guess.split(" or ")] if guess else []
+        found = [i for i in ids if i in catalog]
+        missing += [i for i in ids if i not in catalog]
+        if len(found) == 1:
+            rec = catalog[found[0]]
+            display = rec.get("name_on_kit") or rec.get("canonical_name") or found[0]
+            display = str(display).split(" (")[0].strip()
+        else:
+            display = english(label)
+            if found and english(label).lower() == label:      # e.g. "led": several catalog matches
+                display = english(label).upper() if len(label) <= 3 else english(label)
+        hints[label] = {"catalog_id": found[0] if len(found) == 1 else (" or ".join(found) or None),
+                        "display": display, "in_catalog": bool(found)}
+    state["hints"] = hints
+    for d in state["latest"]:
+        d["display"] = hints.get(d["label"], {}).get("display", d["name"])
+    note = f"{sum(h['in_catalog'] for h in hints.values())}/{len(hints)} detector classes map to catalog parts"
+    return note + (f"; unknown ids: {missing}" if missing else "")
+
+
+def display_name(label: str) -> str:
+    return state["hints"].get(label, {}).get("display") or english(label)
 
 
 def _preprocess(data: bytes):
@@ -142,13 +179,19 @@ def detect(data: bytes, conf: float = CONF) -> list[dict]:
         boxes = np.clip(boxes, 0, 1)
         keep = _nms(boxes, scores, IOU)
         names = state["classes"]
+        allow = state["allow"]
         for i in keep:
             label = names[cls[i]] if cls[i] < len(names) else str(cls[i])
-            dets.append({"label": label, "name": english(label), "conf": round(float(scores[i]), 3),
-                         "box": [round(float(v), 4) for v in boxes[i]], "catalog_hint": CATALOG_HINT.get(label)})
+            if allow is not None and label not in allow:
+                continue
+            h = state["hints"].get(label, {})
+            dets.append({"label": label, "name": english(label), "display": h.get("display") or english(label),
+                         "conf": round(float(scores[i]), 3), "box": [round(float(v), 4) for v in boxes[i]],
+                         "catalog_hint": h.get("catalog_id", CATALOG_HINT.get(label)), "in_catalog": h.get("in_catalog", False)})
     state["ms"] = round((time.perf_counter() - t0) * 1000, 1)
     state["frames"] += 1
     state["latest"] = dets
+    state["latest_frame"] = data
     return dets
 
 

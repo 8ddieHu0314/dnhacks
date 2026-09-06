@@ -61,6 +61,7 @@ _refresh_task = None
 async def _start_detector():
     print("component detector:", detect.load())
     if detect.state["available"]:
+        print("detector <-> catalog:", detect.bind_catalog(identify.catalog))
         detector["task"] = asyncio.create_task(_detect_loop())
 
 
@@ -175,7 +176,8 @@ def _stats():
             "inspections": len(state["report"]), "narration": narration["enabled"], "interval": narration["interval"],
             "reactive": identify.state["enabled"], "reactive_status": identify.state["status"], "last_id": identify.state["last_id"],
             "catalog_parts": len(identify.catalog), "identify_model": identify.MODEL,
-            "triggers": identify.state["triggers"],
+            "triggers": identify.state["triggers"], "agreement": identify.state["agreement"],
+            "preannounce": identify.state["preannounce"],
             "detector": {"available": detect.state["available"], "model": detect.state["model"], "reason": detect.state["reason"],
                          "ms": detect.state["ms"], "boxes": len(detect.state["latest"]), "frames": detect.state["frames"]},
             "tts": {"provider": "elevenlabs" if tts.enabled() else "apple", "chars": speech["chars"],
@@ -511,7 +513,8 @@ def _reactive_public():
             "last_result": st["last_result"], "calls": st["calls"], "catalog": identify.catalog_source,
             "parts": len(identify.catalog), "min_confidence": st["min_confidence"],
             "detector": detect.state["available"], "det_min_conf": st["det_min_conf"], "stable_frames": st["stable_frames"],
-            "triggers": st["triggers"]}
+            "triggers": st["triggers"], "agreement": st["agreement"], "preannounce": st["preannounce"],
+            "last_detected": st["last_detected"]}
 
 
 def set_reactive(enabled: bool, **kw):
@@ -528,7 +531,8 @@ def set_reactive(enabled: bool, **kw):
                                              "record": obj.get("record"), "frame": frame_name})
             entry = {"ts": obj["ts"], "question": "reactive identify", "result": obj.get("spoken") or obj.get("name"),
                      "id": obj.get("id"), "confidence": obj.get("confidence"), "evidence": obj.get("evidence"),
-                     "frame": frame_name, "model": "fake" if FAKE else MODEL, "narration": True}
+                     "frame": frame_name, "model": "fake" if FAKE else identify.MODEL, "narration": True,
+                     "trigger": obj.get("trigger"), "det": obj.get("det"), "agrees": obj.get("agrees")}
             state["report"].append(entry)
             with REPORT_PATH.open("a") as f:
                 f.write(json.dumps(entry) + "\n")
@@ -538,15 +542,25 @@ def set_reactive(enabled: bool, **kw):
         async def speak_stop():
             _drop_pending_speech()
             await _send_all(phones, {"type": "speak_stop"})
-        get_dets = (lambda: (detect.state["latest"], detect.state["latest_ts"])) if detect.state["available"] else None
+        get_dets = (lambda: (detect.state["latest"], detect.state["latest_ts"], detect.state["latest_frame"])) if detect.state["available"] else None
+        async def on_detected(det):
+            # The "oh, this is an electronic component" moment: dashboard banner now, glasses hear the
+            # catalog name now, Claude's full answer follows one or two seconds later.
+            msg = {"type": "detected", "ts": time.time(), "display": det.get("display"), "label": det["label"],
+                   "conf": det["conf"], "box": det["box"], "catalog_hint": det.get("catalog_hint"), "in_catalog": det.get("in_catalog")}
+            await _send_all(viewer_sockets, msg)
+            await _send_all(phones, msg)          # the iOS app ignores unknown types today; here for a future HUD
+            if identify.state["preannounce"]:
+                await speak_stop()
+                await _say(f"{det.get('display') or det['name']}.")
         identify.state["task"] = asyncio.create_task(identify.reactive_loop(
-            lambda: (state["latest"], state["latest_ts"]), on_result, speak, speak_stop, _caption, get_dets))
+            lambda: (state["latest"], state["latest_ts"]), on_result, speak, speak_stop, _caption, get_dets, on_detected))
 
 
 @app.post("/reactive")
 async def reactive(request: Request):
     body = await request.json()
-    set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds", "det_min_conf", "stable_frames")})
+    set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds", "det_min_conf", "stable_frames", "preannounce")})
     await _send_all(phones, {"type": "reactive", **_reactive_public()})
     return _reactive_public()
 
@@ -588,12 +602,13 @@ def detections():
     """Latest local detector boxes (normalized x1,y1,x2,y2) plus detector status."""
     return {"ts": detect.state["latest_ts"], "ms": detect.state["ms"], "boxes": detect.state["latest"],
             "available": detect.state["available"], "reason": detect.state["reason"], "model": detect.state["model"],
-            "classes": detect.state["classes"]}
+            "classes": detect.state["classes"], "allow": detect.state["allow"], "hints": detect.state["hints"]}
 
 
 @app.post("/catalog/reload")
 def catalog_reload():
-    return {"loaded": identify.load_catalog()}
+    loaded = identify.load_catalog()
+    return {"loaded": loaded, "detector": detect.bind_catalog(identify.catalog) if detect.state["available"] else None}
 
 
 @app.get("/narrate")
@@ -627,6 +642,12 @@ body{font-family:system-ui;background:#111;color:#eee;margin:0;height:100vh;disp
 #tools button{background:rgba(255,255,255,.12);color:#eee;border:0;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer}
 #detbar{position:absolute;left:12px;bottom:10px;font:12px/1.4 ui-monospace,monospace;color:#fc6;background:rgba(0,0,0,.55);padding:5px 10px;border-radius:8px}
 #detbar b{color:#6cf}
+#banner{position:absolute;left:50%;top:14px;transform:translateX(-50%);padding:10px 18px;border-radius:12px;font:600 18px system-ui;color:#000;background:#fc6;box-shadow:0 4px 24px rgba(0,0,0,.5);display:none;white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis}
+#banner.det{display:block;animation:pulse .8s ease-in-out infinite alternate}
+#banner.ok{display:block;background:#2b6;animation:none}
+#banner.dis{display:block;background:#f96;animation:none}
+#banner small{font-weight:400;font-size:13px;opacity:.75;margin-left:8px}
+@keyframes pulse{from{box-shadow:0 0 0 0 rgba(255,204,102,.8)}to{box-shadow:0 0 0 14px rgba(255,204,102,0)}}
 aside{padding:16px;overflow:auto;border-left:1px solid #333;min-height:0}
 button.primary{font-size:16px;padding:10px 16px;background:#2b6;color:#000;border:0;border-radius:8px;cursor:pointer;width:100%}
 input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;color:#eee;border:1px solid #444;border-radius:6px}
@@ -635,12 +656,13 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 </style></head><body>
 <div id=stage><canvas id=cv></canvas><div id=hud>connecting…</div>
 <div id=tools><button onclick="rot=(rot+90)%360;draw()">Rotate</button><button onclick="fit=!fit;draw()">Fit/Fill</button><button id=boxbtn onclick="showBoxes=!showBoxes;this.style.opacity=showBoxes?1:.5;draw()">Boxes</button></div>
-<div id=detbar>detector: loading…</div></div>
+<div id=detbar>detector: loading…</div><div id=banner></div></div>
 <aside>
 <input id=q placeholder="Question (optional)">
 <button class=primary onclick="inspect()">Inspect this frame</button>
 <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
   <label style="font-size:14px"><input type=checkbox id=react onchange="reactive()"> <b>Reactive identify</b></label>
+  <label style="font-size:13px;color:#ccc" title="Speak the detector's catalog name into the glasses the moment a part is spotted, before Claude answers"><input type=checkbox id=pre checked onchange="reactive()"> pre-announce</label>
   <span id=rstat style="font:12px ui-monospace,monospace;color:#9f9"></span>
 </div>
 <div id=card style="display:none;margin-top:10px;padding:10px;background:#1c1c1c;border:1px solid #333;border-radius:8px;font-size:13px"></div>
@@ -677,7 +699,7 @@ function drawBoxes(s){
     const hit=fresh&&ident.det&&iou(ident.det.box,d.box)>0.4;
     const col=hit?'#2b6':(COLORS[d.label]||'#fc6');
     ctx.save();ctx.lineWidth=hit?4:2;ctx.strokeStyle=col;ctx.beginPath();ctx.moveTo(...pts[0]);for(const p of pts.slice(1))ctx.lineTo(...p);ctx.closePath();ctx.stroke();
-    const top=pts.reduce((m,p)=>p[1]<m[1]?p:m);const label=hit?`${ident.name} · ${Math.round(ident.confidence*100)}%`:`${d.name} ${Math.round(d.conf*100)}%`;
+    const top=pts.reduce((m,p)=>p[1]<m[1]?p:m);const label=hit?`${ident.name} · ${Math.round(ident.confidence*100)}%`:`${d.display||d.name} ${Math.round(d.conf*100)}%`;
     ctx.font=(hit?'bold 14px':'12px')+' system-ui';const tw=ctx.measureText(label).width+10;
     ctx.fillStyle=col;ctx.fillRect(top[0],top[1]-20,tw,20);ctx.fillStyle='#000';ctx.fillText(label,top[0]+5,top[1]-6);
     if(hit&&ident.spoken){ctx.font='12px system-ui';const sp=ident.spoken.slice(0,90);const sw=ctx.measureText(sp).width+10;const bot=pts.reduce((m,p)=>p[1]>m[1]?p:m);
@@ -687,19 +709,22 @@ function drawBoxes(s){
 }
 function renderDetbar(){const el=document.getElementById('detbar');const d=stats.detector||{};
   if(!d.available){el.innerHTML=`detector: <b>off</b> ${d.reason||''}`;return}
-  const t=stats.triggers||{};el.innerHTML=`detector <b>${d.model}</b> · ${detMs||d.ms} ms · ${dets.length} box${dets.length===1?'':'es'}${dets.length?' · '+dets.map(x=>x.name+' '+Math.round(x.conf*100)+'%').join(', '):''} · claude via detector ${t.detector||0} / settle ${t.settle||0}`}
+  const t=stats.triggers||{};el.innerHTML=`detector <b>${d.model}</b> · ${detMs||d.ms} ms · ${dets.length} box${dets.length===1?'':'es'}${dets.length?' · '+dets.map(x=>(x.display||x.name)+' '+Math.round(x.conf*100)+'%').join(', '):''} · claude via detector ${t.detector||0} / settle ${t.settle||0}${stats.agreement?` · agree ${stats.agreement.agree} / disagree ${stats.agreement.disagree}`:''}`}
 function connect(){
   const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/view');
   ws.binaryType='blob';
   ws.onmessage=async e=>{
     if(typeof e.data==='string'){const m=JSON.parse(e.data);
       if(m.type==='detections'){dets=m.boxes||[];detMs=m.ms||0;draw();renderDetbar();return;}
-      if(m.type==='identified'){ident=m;draw();const c=document.getElementById('card');c.style.display='block';
-        c.innerHTML=`<b>${m.name||'?'}</b> <span style="color:#888">id=${m.id} · ${Math.round((m.confidence||0)*100)}%</span> <span style="color:#6cf;font-size:12px">${m.trigger==='detector'?'⚡ via detector: '+m.det.name+' '+Math.round(m.det.conf*100)+'%':'via settle'}</span><div>${m.spoken||''}</div><div style="color:#888;font-size:12px">${m.evidence||''}</div>`+
+      if(m.type==='detected'){banner('det',`⚡ Electronic component: ${m.display||m.label}<small>${Math.round(m.conf*100)}% · asking Claude…</small>`,8000);return;}
+      if(m.type==='identified'){ident=m;draw();
+        if(m.trigger==='detector'){const ok=m.agrees;banner(ok?'ok':(m.agrees===false?'dis':'ok'),ok?`✓ ${m.name}<small>Claude agrees with the detector · ${Math.round((m.confidence||0)*100)}%</small>`:(m.agrees===false?`${m.name}<small>detector said ${m.det.display}, Claude disagrees · ${Math.round((m.confidence||0)*100)}%</small>`:`${m.name}<small>detector: ${m.det.display} (not a catalog part) · ${Math.round((m.confidence||0)*100)}%</small>`),6000);}
+        const c=document.getElementById('card');c.style.display='block';
+        c.innerHTML=`<b>${m.name||'?'}</b> <span style="color:#888">id=${m.id} · ${Math.round((m.confidence||0)*100)}%</span> <span style="color:#6cf;font-size:12px">${m.trigger==='detector'?'⚡ via detector: '+m.det.display+' '+Math.round(m.det.conf*100)+'%'+(m.agrees===true?' ✓ agrees':m.agrees===false?' ✗ disagrees':''):'via settle'}</span><div>${m.spoken||''}</div><div style="color:#888;font-size:12px">${m.evidence||''}</div>`+
         (m.record?`<pre style="white-space:pre-wrap;font-size:11px;color:#bbb;margin:6px 0 0">${JSON.stringify(m.record,null,1).slice(0,1200)}</pre>`:'');return;}
       if(m.type==='caption'){const out=document.getElementById('out');out.textContent=m.text||(m.final?'':'thinking…');out.style.opacity=m.final?1:0.7;if(m.final&&m.text)loadReport();return;}
       stats=m;renderHud();renderDetbar();document.getElementById('narr').checked=!!m.narration;
-      document.getElementById('react').checked=!!m.reactive;document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
+      document.getElementById('react').checked=!!m.reactive;if(m.preannounce!==undefined)document.getElementById('pre').checked=!!m.preannounce;document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
     try{const b=await createImageBitmap(e.data);if(bmp)bmp.close();bmp=b;draw();
       shown++;const now=performance.now();if(now-lastShown>1000){dispFps=shown*1000/(now-lastShown);shown=0;lastShown=now;}}catch(err){}
   };
@@ -712,9 +737,11 @@ window.addEventListener('resize',draw);
 async function inspect(){const out=document.getElementById('out');out.textContent='thinking…';
  const r=await fetch('/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:document.getElementById('q').value||undefined})});
  const j=await r.json();if(j.error)out.textContent=j.error;loadReport();}
-async function reactive(){await fetch('/reactive',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:document.getElementById('react').checked})});}
+async function reactive(){await fetch('/reactive',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:document.getElementById('react').checked,preannounce:document.getElementById('pre').checked})});}
+let bannerTimer=null;
+function banner(cls,html,ms){const b=document.getElementById('banner');b.className=cls;b.innerHTML=html;clearTimeout(bannerTimer);if(ms)bannerTimer=setTimeout(()=>{b.className=''},ms);}
 async function narrate(){await fetch('/narrate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:document.getElementById('narr').checked,interval:+document.getElementById('interval').value})});}
 async function loadReport(){const rep=await (await fetch('/report')).json();
- document.getElementById('rep').innerHTML=rep.map(e=>`<div class=e><small>${new Date(e.ts*1000).toLocaleTimeString()} · ${e.model}</small><div>${e.result}</div><img src="/frames/${e.frame}"></div>`).join('');}
+ document.getElementById('rep').innerHTML=rep.map(e=>`<div class=e><small>${new Date(e.ts*1000).toLocaleTimeString()} · ${e.model}${e.trigger==='detector'?` · ⚡ ${e.det?e.det.display:''} ${e.agrees===true?'✓':e.agrees===false?'✗':''}`:''}</small><div>${e.result}</div><img src="/frames/${e.frame}"></div>`).join('');}
 loadReport();connect();
 </script></body></html>"""

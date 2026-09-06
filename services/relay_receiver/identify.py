@@ -46,6 +46,9 @@ state = {
     "stable_frames": 2,          # detector path: consecutive frames a box must persist before Claude is called
     "det_min_conf": 0.5,         # detector path: ignore boxes below this
     "triggers": {"detector": 0, "settle": 0},
+    "preannounce": True,         # speak the detector's catalog name into the glasses before Claude answers
+    "agreement": {"agree": 0, "disagree": 0, "no_hint": 0},   # Claude's id vs the detector's catalog hint
+    "last_detected": None,       # the box announced most recently (for the dashboard banner)
     "last_spoken_at": 0.0,
     "calls": 0,
     "task": None,
@@ -273,7 +276,14 @@ async def identify_frame(data: bytes, det: dict | None = None) -> dict:
     obj["ts"] = time.time()
     obj["trigger"] = "detector" if det else "settle"
     if det:
-        obj["det"] = {k: det[k] for k in ("label", "name", "conf", "box")}
+        obj["det"] = {k: det.get(k) for k in ("label", "name", "display", "conf", "box", "catalog_hint")}
+        hint = det.get("catalog_hint")
+        if not hint:
+            obj["agrees"] = None
+            state["agreement"]["no_hint"] += 1
+        else:
+            obj["agrees"] = bool(obj.get("id")) and str(obj["id"]) in {h.strip() for h in str(hint).split(" or ")}
+            state["agreement"]["agree" if obj["agrees"] else "disagree"] += 1
     return obj
 
 
@@ -290,9 +300,13 @@ def _diff(a, b) -> float:
     return float(np.abs(a - b).mean())
 
 
-async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, get_dets=None):
+async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, get_dets=None, on_detected=None):
     """get_latest() -> (bytes, ts) | (None, 0); on_result(obj); speak(text); speak_stop(); set_caption(text);
-    get_dets() -> (list[detection], frame_ts) from detect.py, or None when no detector is loaded.
+    get_dets() -> (list[detection], frame_ts, frame_bytes) from detect.py, or None when no detector is loaded.
+    The detector path always works on the frame the boxes were computed on, never on a newer frame, so a
+    scene switch cannot pair the new picture with the previous part's box.
+    on_detected(det) fires the instant a box becomes the trigger, before Claude is called: the UX cue
+    ("this is an electronic component") on the dashboard and, if state["preannounce"], in the glasses.
 
     Two triggers feed the same Claude call:
     - detector: the top box has persisted for `stable_frames` frames and is a different label than the
@@ -301,7 +315,7 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, g
     - settle: no boxes, so fall back to the original rule, identify the whole frame once motion stops.
     """
     global _prev_thumb, _prev_frame_ts, _last_motion_at, _identified_thumb, _busy
-    stable_det, stable_n = None, 0
+    stable_det, stable_n, last_dts = None, 0, 0.0
     while state["enabled"]:
         await asyncio.sleep(0.1)
         data, ts = get_latest()
@@ -318,18 +332,23 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, g
         det = None
         if get_dets is not None:
             import detect
-            dets, dts = get_dets()
-            dets = [d for d in dets if d["conf"] >= state["det_min_conf"]] if now - dts < 1.0 else []
-            top = detect.primary(dets)
-            if top and stable_det and top["label"] == stable_det["label"] and detect.iou(top["box"], stable_det["box"]) > 0.4:
-                stable_n += 1
-            else:
-                stable_n = 1 if top else 0
-            stable_det = top
-            if top and stable_n >= state["stable_frames"]:
-                new_part = top["label"] != state["last_det_label"] or scene_changed
-                if new_part and not _busy and now - state["last_spoken_at"] >= state["cooldown_seconds"]:
-                    det = top
+            dets, dts, det_frame = get_dets()
+            if dts != last_dts and det_frame is not None and now - dts < 1.0:
+                last_dts = dts
+                dets = [d for d in dets if d["conf"] >= state["det_min_conf"]]
+                top = detect.primary(dets)
+                if top and stable_det and top["label"] == stable_det["label"] and detect.iou(top["box"], stable_det["box"]) > 0.4:
+                    stable_n += 1
+                else:
+                    stable_n = 1 if top else 0
+                stable_det = top
+                if top and stable_n >= state["stable_frames"]:
+                    det_thumb = thumb if dts == ts else _thumb(det_frame)
+                    det_changed = _diff(det_thumb, _identified_thumb) >= state["change_threshold"]
+                    new_part = top["label"] != state["last_det_label"] or det_changed
+                    if new_part and not _busy and now - state["last_spoken_at"] >= state["cooldown_seconds"]:
+                        det = top
+                        data, thumb = det_frame, det_thumb   # identify the frame the box belongs to
         if det is None:
             # ---- settle path (original behaviour), only when the detector has nothing to offer
             if motion > state["motion_threshold"]:
@@ -348,7 +367,11 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, g
         _busy = True
         state["status"] = "identifying"
         state["triggers"]["detector" if det else "settle"] += 1
-        await set_caption(f"Looking… ({det['name']}?)" if det else "Looking…", False)
+        if det:
+            state["last_detected"] = {**{k: det.get(k) for k in ("label", "display", "conf", "box", "catalog_hint", "in_catalog")}, "ts": now}
+            if on_detected is not None:
+                await on_detected(det)
+        await set_caption(f"Looking… ({det['display']}?)" if det else "Looking…", False)
         try:
             obj = await identify_frame(data, det)
             _identified_thumb = thumb
@@ -383,6 +406,8 @@ def set_enabled(enabled: bool, **kw):
             state[k] = float(kw[k])
     if kw.get("stable_frames") is not None:
         state["stable_frames"] = max(1, int(kw["stable_frames"]))
+    if kw.get("preannounce") is not None:
+        state["preannounce"] = bool(kw["preannounce"])
     state["enabled"] = bool(enabled)
     if enabled:
         state["last_id"] = None

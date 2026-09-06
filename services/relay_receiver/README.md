@@ -56,6 +56,23 @@ What it does:
   ("local detector flagged servo 87%, likely catalog id servo-sg90"). Claude still reads the
   markings and picks the catalog id; the hint is only a prior. With no boxes in view the original
   motion-settle rule runs on the whole frame, so parts outside the 14 classes still get identified.
+- The "this is an electronic component" moment: the instant a box qualifies, the server sends
+  `{"type":"detected","display","label","conf","box","catalog_hint","in_catalog"}` to dashboards
+  and phones. The dashboard shows a pulsing banner, and with pre-announce on (default, checkbox
+  next to Reactive identify, or `preannounce` in `POST /reactive`) the glasses hear the catalog's
+  short name ("Servo Motor SG90.") right away. Claude's full line replaces it one or two seconds
+  later. The banner then turns green when Claude's id matches the detector's catalog hint, orange
+  when it disagrees. Measured in fake mode: cue at 0.9 s, Claude at 2.1 s.
+- Agreement with the catalog: at startup `detect.bind_catalog` checks every label-to-id hint
+  against `docs/components/components.json` and takes `name_on_kit` as the display name, so the
+  boxes, the banner, the pre-announcement and Claude all use the same words. `/health` and
+  `/reactive` report `agreement` (agree / disagree / no_hint) and each report entry stores
+  `trigger`, `det` and `agrees`. 11 of the 14 classes map to kit parts; drv8825, esp82 and ttl
+  do not and are announced by their generic names.
+- Component-only by design. The PPE model (SH17: hands, helmet, face) is never loaded here.
+  `DETECT_CLASSES=arduino,lcd,...` restricts the detector further if a broader ONNX is dropped in.
+- The detector path identifies the exact frame the boxes were computed on (`latest_frame`), never
+  a newer one, so a scene switch cannot announce the previous part over the new picture.
 - `POST /identify` also uses the top box when there is one. `GET /detections` returns the latest
   boxes. `/health` reports `detector` (ms, boxes, frames) and `triggers` (how many Claude calls
   came from the detector vs the settle rule). `GET /debug/tasks` shows the background loops.

@@ -239,3 +239,10 @@ Glasses camera -> (Meta AI app / DAT, BT+WiFi) -> iOS app GlassesInspector -> HT
   breadboard, jumper wires, relay, sensors other than HC-SR04, motors, RFID, keypad. Those still
   go through the settle path. If we want boxes for them, fine-tune from `weights/yolo8s.pt` on
   the export (yolov8 format, 692 MB, download recipe in the relay README) plus our own frames.
+- Follow-up the same night: pre-announce. `detected` message + dashboard banner + the glasses hear
+  the catalog `name_on_kit` the moment a box qualifies, Claude's line follows (fake mode: 0.9 s
+  vs 2.1 s). `detect.bind_catalog` validates hints against components.json (11/14 map).
+  Bug found and fixed: the identify loop paired a new frame with the previous frame's boxes at a
+  scene switch and announced the old part twice; the detector now hands over `latest_frame` and
+  the loop identifies that frame. Gabe: keep the detector component-only, no PPE model in the
+  relay (it fires on hands and faces); the Inspect endpoint does not need detector context.
