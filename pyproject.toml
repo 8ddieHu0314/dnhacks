@@ -18,6 +18,10 @@ dev = [
   "pytest-asyncio>=0.24,<1.0",
 ]
 
+[tool.setuptools.packages.find]
+where = ["services"]
+include = ["vision_api*"]
+
 [tool.pytest.ini_options]
 pythonpath = ["services"]
 asyncio_mode = "auto"
