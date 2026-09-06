@@ -24,6 +24,7 @@ from .models import (
 from .pipeline import VisionPipeline
 from .segmentation import build_vision_engine
 from .signals import AdvisorySignalStore
+from .speech import SpeechRouter
 from .workflows import WorkflowRegistry
 
 
@@ -35,6 +36,14 @@ component_knowledge_path = Path(settings.component_knowledge_path) if settings.c
     Path(__file__).resolve().parents[2] / "docs/components/components.json"
 )
 component_knowledge = ComponentKnowledgeBase.from_path(component_knowledge_path)
+speech = SpeechRouter(settings.speech_mode)
+
+
+async def speak_result(result) -> None:
+    if result.analysis is not None:
+        await speech.publish(result.session_id, result.frame_id, result.analysis.summary)
+
+
 pipeline = VisionPipeline(
     build_vision_engine(
         backend=settings.vision_backend,
@@ -47,6 +56,7 @@ pipeline = VisionPipeline(
     ),
     queue_capacity=settings.vision_frame_queue_capacity,
     result_history=settings.vision_result_history,
+    on_result=speak_result,
 )
 workflow_directory = Path(settings.workflow_definitions_dir or Path(__file__).with_name("workflow_definitions"))
 workflow_registry = WorkflowRegistry.from_directory(workflow_directory)
@@ -235,6 +245,24 @@ async def ingest_frames_websocket(websocket: WebSocket, session_id: str) -> None
                 await websocket.send_json({"error": exc.detail})
     except WebSocketDisconnect:
         return
+
+
+@app.websocket("/v1/sessions/{session_id}/speech")
+async def send_speech_to_glasses(websocket: WebSocket, session_id: str) -> None:
+    """Keep a companion socket open for bridge-compatible ``speak`` events."""
+
+    if session_id not in sessions:
+        await websocket.close(code=4404, reason="Unknown session")
+        return
+    await websocket.accept()
+    speech.attach(session_id, websocket)
+    try:
+        while True:
+            await websocket.receive()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        speech.detach(session_id, websocket)
 
 
 @app.get("/v1/sessions/{session_id}/results")
