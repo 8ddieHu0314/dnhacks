@@ -30,7 +30,8 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         debug["checks"] = [{"check_id": item["id"], "status": "pass",
             "evidence_source": item["required_evidence"], "evidence": "Confirmed."}
             for item in engine._target_circuit["verification_checks"]]
-        engine._debug_evidence["session"] = {item["id"]: {"value": "Confirmed."}
+        engine._debug_evidence["session"] = {item["id"]: {"value": "Confirmed.",
+            "evidence_source": item["required_evidence"]}
             for item in engine._target_circuit["verification_checks"]
             if item["required_evidence"] != "visual"}
         allowed = engine._enforce_power_gate(VisionAnalysis.model_validate(
