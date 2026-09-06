@@ -95,7 +95,8 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         def handler(request: httpx.Request) -> httpx.Response:
             calls.append(json.loads(request.content))
             if len(calls) == 1:
-                content = {"id": "breadboard-830", "confidence": 0.9, "name": "Breadboard", "evidence": "power rails"}
+                content = {"id": "breadboard-830", "visible_ids": ["breadboard-830", "jumper-wire"],
+                    "confidence": 0.9, "name": "Breadboard", "evidence": "power rails"}
                 return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps(content)}]})
             content = {"analysis": {"summary": "Inspect the split power rail.", "component_guidance": {},
                 "debug_guidance": {"status": "in_progress", "problem": "Rail continuity is unclear.",
@@ -120,6 +121,7 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(calls), 2)
         self.assertEqual(debug_output.analysis.mode, "debug")
         self.assertEqual(debug_output.analysis.debug_guidance.steps[0].instruction, "Disconnect power.")
+        self.assertIn("jumper-wire", calls[1]["system"])
         exit_frame = follow_up.__class__(follow_up.session_id,
             follow_up.metadata.model_copy(update={"frame_id": "exit", "user_request": "Exit debug mode"}),
             follow_up.image_bytes, follow_up.received_at)
