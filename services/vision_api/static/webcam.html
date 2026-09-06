@@ -19,9 +19,11 @@ function renderCircuit(analysis){
   const debug=analysis?.debug_guidance, observed=debug?.observed_circuit, comparison=debug?.comparison;
   if(!observed){$("circuit").hidden=true;return;}
   const edges=observed.connections.map(edge=>`[${edge.source}] --${edge.status}--> [${edge.target}]\n  ${edge.evidence}`);
+  const checks=debug.checks?.map(check=>`${check.status.toUpperCase()}  ${check.check_id} (${check.evidence_source}): ${check.evidence}`)||[];
   const unknowns=observed.unknowns.length?`\n\nUnknowns:\n- ${observed.unknowns.join("\n- ")}`:"";
   const mismatches=comparison?.mismatches?.length?`\n\nMismatches:\n- ${comparison.mismatches.join("\n- ")}`:"";
-  $("diagram").textContent=`${observed.summary}\nConfidence: ${Math.round(observed.confidence*100)}%\n\n${edges.join("\n")}\n\nPurpose fit: ${comparison?.fits_purpose||"uncertain"}\n${comparison?.explanation||""}${mismatches}${unknowns}`;
+  const safety=comparison?.safety_issues?.length?`\n\nSafety issues:\n- ${comparison.safety_issues.join("\n- ")}`:"";
+  $("diagram").textContent=`Phase: ${debug.phase}\nPower gate: ${debug.safe_to_energize?"OPEN":"CLOSED"}\n${observed.summary}\nConfidence: ${Math.round(observed.confidence*100)}%\n\n${edges.join("\n")}\n\nChecks:\n${checks.join("\n")}\n\nPurpose fit: ${comparison?.fits_purpose||"uncertain"}\n${comparison?.explanation||""}${mismatches}${safety}${unknowns}`;
   $("circuit").hidden=false;
 }
 async function enableCamera(){
