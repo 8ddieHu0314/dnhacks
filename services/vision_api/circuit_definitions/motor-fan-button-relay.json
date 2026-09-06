@@ -1,0 +1,35 @@
+{
+  "id": "motor-fan-button-relay",
+  "purpose": "Run the 3-6 V DC motor/fan only while the momentary button is held.",
+  "behavior": "Arduino INPUT_PULLUP reads D2 LOW, drives D8 HIGH, and energizes a bare 5 V relay.",
+  "assumptions": [
+    "The relay is the kit's bare 5-pin SPDT relay, not a relay module.",
+    "A regulated 5 V supply rated at least 1 A powers the motor side.",
+    "Only low-voltage DC is used; the relay's NC contact is unused."
+  ],
+  "required_components": [
+    "uno-r3", "breadboard-830", "button", "resistor-assorted", "pn2222",
+    "relay-5v", "diode-1n4007 (two)", "dc-motor-fan", "jumper-wire", "external 5 V supply"
+  ],
+  "connections": [
+    {"source": "UNO D2", "target": "button side A", "role": "active-low input"},
+    {"source": "button side B", "target": "UNO GND", "role": "INPUT_PULLUP return"},
+    {"source": "UNO D8", "target": "1 kOhm resistor", "role": "relay command"},
+    {"source": "1 kOhm resistor", "target": "PN2222 base", "role": "limit base current"},
+    {"source": "PN2222 emitter", "target": "UNO GND", "role": "control return"},
+    {"source": "UNO 5V", "target": "relay coil A", "role": "coil supply"},
+    {"source": "relay coil B", "target": "PN2222 collector", "role": "low-side coil drive"},
+    {"source": "coil diode cathode (stripe)", "target": "relay coil A / UNO 5V", "role": "flyback clamp"},
+    {"source": "coil diode anode", "target": "relay coil B / collector", "role": "flyback clamp"},
+    {"source": "external 5V +", "target": "relay COM", "role": "isolated motor power"},
+    {"source": "relay NO", "target": "motor +", "role": "normally-off switched power"},
+    {"source": "motor -", "target": "external supply -", "role": "motor return"},
+    {"source": "motor diode cathode (stripe)", "target": "motor +", "role": "motor flyback clamp"},
+    {"source": "motor diode anode", "target": "motor -", "role": "motor flyback clamp"}
+  ],
+  "safety_invariants": [
+    "Never connect the relay coil or motor directly to an Arduino GPIO pin.",
+    "Disconnect every power source before moving wires or using continuity mode.",
+    "Keep the fan blade clear and confirm relay pins with an unpowered continuity test."
+  ]
+}
