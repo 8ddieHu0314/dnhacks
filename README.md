@@ -221,15 +221,15 @@ Claude can use the native Messages API instead of an OpenAI-compatible proxy:
 ```bash
 VISION_BACKEND=anthropic_component_knowledge
 VLM_API_KEY=your-anthropic-key
-VLM_MODEL=claude-sonnet-4-6
+VLM_MODEL=claude-haiku-4-5-20251001 # lower latency for interactive webcam use
 # optional; defaults to https://api.anthropic.com
 VLM_BASE_URL=
 ```
 
-This backend submits each test frame to Anthropic in base64 form for two calls:
-scene retrieval, then grounded component guidance. Keep keys out of `.env`
-files that might be committed; export them only in the terminal session running
-the server.
+With a specific typed cue, this backend retrieves candidates locally and sends
+one grounded vision request; without one, it falls back to scene retrieval then
+guidance. Keep keys out of `.env` files that might be committed; export them
+only in the terminal session running the server.
 
 ## Arduino context node
 
