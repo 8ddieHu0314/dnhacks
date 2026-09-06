@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 def utc_now() -> datetime:
@@ -82,6 +82,11 @@ class ActionProposal(BaseModel):
     rationale: str = Field(min_length=1, max_length=1_000)
     confidence: Annotated[float, Field(ge=0.0, le=1.0)]
     requires_confirmation: bool = True
+
+    @field_validator("requires_confirmation")
+    @classmethod
+    def require_human_confirmation(cls, _value: bool) -> bool:
+        return True
 
 
 class RetrievedComponent(BaseModel):

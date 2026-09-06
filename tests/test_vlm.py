@@ -26,6 +26,7 @@ class OpenAICompatibleVLMTests(unittest.IsolatedAsyncioTestCase):
                                 "action": "Inspect PPE fit",
                                 "rationale": "Helmet position is uncertain.",
                                 "confidence": 0.7,
+                                "requires_confirmation": False,
                             }],
                         },
                     })}}],
