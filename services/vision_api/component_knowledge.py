@@ -524,6 +524,9 @@ that gate opens. The observed_circuit and comparison objects are mandatory even 
         mode = "debug" if record["id"] == "breadboard-830" else "identification"
         if mode == "debug":
             self._debug_sessions.add(frame.session_id)
+            if frame.metadata.reported_evidence:
+                self._debug_evidence[frame.session_id] = {
+                    item.check_id: item.model_dump(mode="json") for item in frame.metadata.reported_evidence}
             ids = [str(item) for item in payload.get("visible_ids", []) if self._knowledge_base.record_for(str(item))]
             self._debug_components[frame.session_id] = list(dict.fromkeys([record["id"], *ids]))[:5]
         output = VisionOutput(analysis=VisionAnalysis(mode=mode,
