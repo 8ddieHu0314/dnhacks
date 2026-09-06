@@ -15,8 +15,11 @@ import subprocess
 import time
 from pathlib import Path
 
+import collections
+
 import detect
 import identify
+import track
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
@@ -152,6 +155,7 @@ phones: set[WebSocket] = set()           # ingest sockets: frames in, speech tex
 caption = {"text": "", "final": True}
 narration = {"enabled": False, "interval": 8.0, "busy": False, "last": "", "task": None}
 detector = {"task": None, "last_ts": 0.0}     # local YOLO boxes on every frame, see detect.py
+recent = collections.deque(maxlen=40)          # (ts, jpeg) ring of the last few seconds, so the tracker can catch up
 # ElevenLabs sentences queue up here and a single worker streams them to the phone in order.
 speech = {"queue": None, "task": None, "next_id": 0, "chars": 0, "errors": 0, "last_error": ""}
 
@@ -163,6 +167,7 @@ def _ingest(data: bytes, capture_ts: float | None):
     now = time.time()
     state["latest"] = data
     state["latest_ts"] = now
+    recent.append((now, data))
     state["capture_ts"] = capture_ts or 0.0
     state["frames"] += 1
     state["bytes"] += len(data)
@@ -196,6 +201,7 @@ def _stats():
             "preannounce": identify.state["preannounce"], "det_trigger": identify.state["det_trigger"],
             "detector": {"available": detect.state["available"], "model": detect.state["model"], "reason": detect.state["reason"],
                          "ms": detect.state["ms"], "boxes": len(detect.state["latest"]), "frames": detect.state["frames"]},
+            "track": track.public(),
             "tts": {"provider": _voice_active(), "available": tts.enabled(), "chars": speech["chars"],
                     "errors": speech["errors"], "last_error": speech["last_error"],
                     "cache_hits": speech.get("cache_hits", 0), "speed": tts.SPEED}}
@@ -403,6 +409,13 @@ async def _detect_loop():
         if viewer_sockets:
             await _send_all(viewer_sockets, {"type": "detections", "ts": ts, "ms": detect.state["ms"], "boxes": dets,
                                              "almost": detect.state["almost"]})
+        if track.state["active"]:
+            try:
+                st = await asyncio.to_thread(track.update, data)
+            except Exception as e:
+                track.stop()
+                st = {**track.public(), "error": str(e)}
+            await _send_all(viewer_sockets, {"type": "track", "ts": ts, **{k: st.get(k) for k in ("active", "ok", "box", "id", "name", "conf", "ms", "lost")}})
 
 
 async def _narration_loop():
@@ -585,6 +598,20 @@ def set_reactive(enabled: bool, **kw):
                 (FRAMES_DIR / frame_name).write_bytes(analyzed)
             await _send_all(viewer_sockets, {"type": "identified", **{k: v for k, v in obj.items() if k != "record"},
                                              "record": obj.get("record"), "frame": frame_name})
+            # follow the part between answers: anchor on the analyzed frame, catch up through what arrived since
+            if obj.get("id") and obj.get("box") and analyzed:
+                later = [d for (t, d) in list(recent) if t > obj["ts"] - obj.get("timing", {}).get("total_ms", 2000) / 1000.0 and d is not analyzed]
+                try:
+                    ok = await asyncio.to_thread(track.start, analyzed, obj["box"], later,
+                                                 pid=obj["id"], name=obj.get("name"), conf=float(obj.get("confidence") or 0))
+                except Exception as e:
+                    ok = False
+                    print("tracker start failed:", e)
+                st = track.public()
+                await _send_all(viewer_sockets, {"type": "track", "ts": time.time(), **{k: st.get(k) for k in ("active", "ok", "box", "id", "name", "conf", "ms", "lost")}, "started": ok})
+            else:
+                track.stop()
+                await _send_all(viewer_sockets, {"type": "track", "ts": time.time(), "active": False, "ok": False, "box": None})
             entry = {"ts": obj["ts"], "question": "reactive identify", "result": obj.get("spoken") or obj.get("name"),
                      "id": obj.get("id"), "confidence": obj.get("confidence"), "evidence": obj.get("evidence"),
                      "frame": frame_name, "model": "fake" if FAKE else identify.MODEL, "narration": True,
@@ -756,7 +783,7 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 <script>
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),hud=document.getElementById('hud'),stage=document.getElementById('stage');
 let bmp=null,rot=0,fit=true,stats={},shown=0,lastShown=performance.now(),dispFps=0;
-let dets=[],detMs=0,showBoxes=true,ident=null,almost=null;   // local detector boxes (normalized) and the last Claude identification
+let dets=[],detMs=0,showBoxes=true,ident=null,almost=null,tracked=null;   // local detector boxes (normalized) and the last Claude identification
 const COLORS={arduino:'#4cf',lcd:'#4cf',servomotor:'#fc4','sensor ultrasonico':'#fc4','7-seg':'#c8f',led:'#f66',pot:'#8f8',resistencia:'#8f8',diodo:'#8f8',transistor:'#8f8',pulsador:'#8f8'};
 function iou(a,b){const ix=Math.max(0,Math.min(a[2],b[2])-Math.max(a[0],b[0])),iy=Math.max(0,Math.min(a[3],b[3])-Math.max(a[1],b[1]));const i=ix*iy;const u=(a[2]-a[0])*(a[3]-a[1])+(b[2]-b[0])*(b[3]-b[1])-i;return u>0?i/u:0}
 function draw(){
@@ -772,13 +799,18 @@ function draw(){
   drawClaudeBox(s);
 }
 function drawClaudeBox(s){
-  // Claude's own box for the last identification (settle path). Stays until the next answer replaces it.
-  if(!ident||!ident.box||!ident.id||ident.trigger==='detector')return;
+  // Claude's box for the last identification, moved along by the tracker between answers.
+  // Before the tracker reports, the static box from the answer is shown; once the tracker is lost, nothing.
+  let box=null,label='';
+  if(tracked&&tracked.active&&tracked.ok&&tracked.box){box=tracked.box;label=`${tracked.name} · ${Math.round((tracked.conf||0)*100)}% · tracking`;}
+  else if(tracked&&!tracked.active){return;}
+  else if(ident&&ident.box&&ident.id&&ident.trigger!=='detector'){box=ident.box;label=`${ident.name} · ${Math.round((ident.confidence||0)*100)}% · Claude`;}
+  if(!box)return;
   const bw=bmp.width*s,bh=bmp.height*s,cx=cv.width/2,cy=cv.height/2,a=rot*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a);
   const tp=(nx,ny)=>{const x=nx*bw-bw/2,y=ny*bh-bh/2;return [cx+x*ca-y*sa,cy+x*sa+y*ca]};
-  const [x1,y1,x2,y2]=ident.box;const pts=[tp(x1,y1),tp(x2,y1),tp(x2,y2),tp(x1,y2)];
+  const [x1,y1,x2,y2]=box;const pts=[tp(x1,y1),tp(x2,y1),tp(x2,y2),tp(x1,y2)];
   ctx.save();ctx.lineWidth=4;ctx.strokeStyle='#2b6';ctx.shadowColor='#000';ctx.shadowBlur=6;ctx.beginPath();ctx.moveTo(...pts[0]);for(const p of pts.slice(1))ctx.lineTo(...p);ctx.closePath();ctx.stroke();ctx.shadowBlur=0;
-  const top=pts.reduce((m,p)=>p[1]<m[1]?p:m);const label=`${ident.name} · ${Math.round((ident.confidence||0)*100)}% · Claude`;
+  const top=pts.reduce((m,p)=>p[1]<m[1]?p:m);
   ctx.font='bold 14px system-ui';const tw=ctx.measureText(label).width+12;
   ctx.fillStyle='#2b6';ctx.fillRect(top[0],top[1]-22,tw,22);ctx.fillStyle='#000';ctx.fillText(label,top[0]+6,top[1]-6);ctx.restore();
 }
@@ -803,7 +835,7 @@ function drawBoxes(s){
 }
 function renderDetbar(){const el=document.getElementById('detbar');const d=stats.detector||{};
   if(!d.available){el.innerHTML=`detector: <b>off</b> ${d.reason||''}`;return}
-  const t=stats.triggers||{};el.innerHTML=`detector <b>${d.model}</b> · ${detMs||d.ms} ms · ${dets.length} box${dets.length===1?'':'es'}${dets.length?' · '+dets.map(x=>(x.display||x.name)+' '+Math.round(x.conf*100)+'%').join(', '):''} · ${stats.det_trigger?'trigger on':'visual only'} · claude via detector ${t.detector||0} / settle ${t.settle||0}${!dets.length&&almost?` · <span style="color:#888">almost: ${almost.display||almost.label} ${Math.round(almost.conf*100)}%</span>`:''}${stats.agreement?` · agree ${stats.agreement.agree} / disagree ${stats.agreement.disagree}`:''}`}
+  const t=stats.triggers||{};el.innerHTML=`detector <b>${d.model}</b> · ${detMs||d.ms} ms · ${dets.length} box${dets.length===1?'':'es'}${dets.length?' · '+dets.map(x=>(x.display||x.name)+' '+Math.round(x.conf*100)+'%').join(', '):''} · ${stats.det_trigger?'trigger on':'visual only'}${stats.track&&stats.track.active?` · <b>tracking ${stats.track.name}</b> ${stats.track.ms} ms`:''} · claude via detector ${t.detector||0} / settle ${t.settle||0}${!dets.length&&almost?` · <span style="color:#888">almost: ${almost.display||almost.label} ${Math.round(almost.conf*100)}%</span>`:''}${stats.agreement?` · agree ${stats.agreement.agree} / disagree ${stats.agreement.disagree}`:''}`}
 function connect(){
   const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/view');
   ws.binaryType='blob';
@@ -811,7 +843,8 @@ function connect(){
     if(typeof e.data==='string'){const m=JSON.parse(e.data);
       if(m.type==='detections'){dets=m.boxes||[];detMs=m.ms||0;almost=m.almost||null;draw();renderDetbar();return;}
       if(m.type==='detected'){banner('det',`⚡ Electronic component: ${m.display||m.label}<small>${Math.round(m.conf*100)}% · asking Claude…</small>`,8000);return;}
-      if(m.type==='identified'){ident=m;draw();
+      if(m.type==='track'){tracked=m;draw();return;}
+      if(m.type==='identified'){ident=m;tracked=null;draw();
         if(m.trigger==='detector'){const ok=m.agrees;banner(ok?'ok':(m.agrees===false?'dis':'ok'),ok?`✓ ${m.name}<small>Claude agrees with the detector · ${Math.round((m.confidence||0)*100)}%</small>`:(m.agrees===false?`${m.name}<small>detector said ${m.det.display}, Claude disagrees · ${Math.round((m.confidence||0)*100)}%</small>`:`${m.name}<small>detector: ${m.det.display} (not a catalog part) · ${Math.round((m.confidence||0)*100)}%</small>`),6000);}
         const c=document.getElementById('card');c.style.display='block';
         c.innerHTML=`<b>${m.name||'?'}</b> <span style="color:#888">id=${m.id} · ${Math.round((m.confidence||0)*100)}% · id in ${m.timing?m.timing.id_at_ms:'?'} ms, done ${m.timing?m.timing.total_ms:'?'} ms</span> <span style="color:#6cf;font-size:12px">${m.trigger==='detector'?'⚡ via detector: '+m.det.display+' '+Math.round(m.det.conf*100)+'%'+(m.agrees===true?' ✓ agrees':m.agrees===false?' ✗ disagrees':''):'via settle'}</span><div>${m.spoken||''}</div><div style="color:#888;font-size:12px">${m.evidence||''}</div>`+
