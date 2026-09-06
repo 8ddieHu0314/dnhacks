@@ -17,6 +17,8 @@ def spoken_guidance(analysis: VisionAnalysis) -> str:
     if analysis.mode != "debug" or debug is None:
         return analysis.summary
     prefix = f"Safety: {analysis.safety_alerts[0]} " if analysis.safety_alerts else ""
+    if not debug.safe_to_energize:
+        prefix += "Keep all power disconnected. "
     if debug.visual_clarification is not None:
         view = debug.visual_clarification
         return f"{prefix}Show me a {view.requested_view} of {view.target}. {view.reason}".strip()
