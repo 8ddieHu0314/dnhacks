@@ -39,6 +39,7 @@ class FrameIngestTests(unittest.TestCase):
         self.assertIn('id="diagram"', page.text)
         self.assertIn("renderCircuit(latest.analysis)", page.text)
         self.assertIn("debugMode?1024:640", page.text)
+        self.assertIn("reported_evidence", page.text)
         self.assertIn("latestResult", page.text)
         self.assertIn("latestResult(frameId)", page.text)
         self.assertIn("payload.frame_id===frameId", page.text)
