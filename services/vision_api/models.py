@@ -32,6 +32,14 @@ class WorkflowDefinition(BaseModel):
     checkpoints: list[WorkflowCheckpoint] = Field(default_factory=list, max_length=20)
 
 
+class ReportedEvidence(BaseModel):
+    """A measurement or confirmation supplied by the wearer/client."""
+
+    check_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,62}$")
+    evidence_source: Literal["user_report", "measurement"]
+    value: str = Field(min_length=1, max_length=500)
+
+
 class FrameMetadata(BaseModel):
     """Metadata sent before a binary frame on the WebSocket transport."""
 
@@ -47,6 +55,7 @@ class FrameMetadata(BaseModel):
         max_length=1_000,
         description="Optional spoken or typed question that belongs to this camera frame.",
     )
+    reported_evidence: list[ReportedEvidence] = Field(default_factory=list, max_length=12)
 
 
 @dataclass(frozen=True, slots=True)
