@@ -22,7 +22,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 import tts_elevenlabs as tts
 
-MODEL = os.environ.get("INSPECT_MODEL", "claude-opus-5")
+MODEL = os.environ.get("INSPECT_MODEL", "claude-opus-5")          # Describe button: one-shot, quality first
+NARRATE_MODEL = os.environ.get("NARRATE_MODEL", "claude-sonnet-5")  # Scene mode: reactive, latency first
 SPEAK = os.environ.get("SPEAK", "0") == "1"           # also say results on the Mac speaker
 FAKE = os.environ.get("INSPECT_FAKE", "0") == "1"      # stream canned text (no API key needed) to test the audio path
 REPORT_PATH = Path(__file__).with_name("report.jsonl")
@@ -191,6 +192,7 @@ def _stats():
             "inspections": len(state["report"]), "narration": narration["enabled"], "interval": narration["interval"],
             "reactive": identify.state["enabled"], "reactive_status": identify.state["status"], "last_id": identify.state["last_id"],
             "catalog_parts": len(identify.catalog), "identify_model": identify.MODEL,
+            "models": {"identify": "fake" if FAKE else identify.MODEL, "scene": "fake" if FAKE else NARRATE_MODEL, "describe": "fake" if FAKE else MODEL},
             "reactive_mode": identify.state["mode"],
             "triggers": identify.state["triggers"], "agreement": identify.state["agreement"],
             "preannounce": identify.state["preannounce"],
@@ -316,12 +318,14 @@ async def _fake_stream(question: str):
             await asyncio.sleep(0.08)
 
 
-async def _claude_stream(question: str, system: str, b64: str):
+async def _claude_stream(question: str, system: str, b64: str, model: str = MODEL):
     import anthropic
     aclient = anthropic.AsyncAnthropic()
+    kwargs = {}
+    if model.startswith(("claude-opus-5", "claude-fable")):
+        kwargs = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
     async with aclient.beta.messages.stream(
-        model=MODEL, max_tokens=400, system=system,
-        betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+        model=model, max_tokens=400, system=system, **kwargs,
         messages=[{"role": "user", "content": [
             {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
             {"type": "text", "text": question}]}],
@@ -350,7 +354,7 @@ async def analyze(question: str, *, narrate: bool = False, speak: bool = True) -
         q = f"Previous narration: {narration['last']}\n\n{question}"
     await _caption("", final=False)
     full, pending = "", ""
-    gen = _fake_stream(q) if FAKE else _claude_stream(q, system, b64)
+    gen = _fake_stream(q) if FAKE else _claude_stream(q, system, b64, NARRATE_MODEL if narrate else MODEL)
     async for piece in gen:
         full += piece
         pending += piece
@@ -375,7 +379,7 @@ async def analyze(question: str, *, narrate: bool = False, speak: bool = True) -
         if text.lower() == "no change":
             return None
     entry = {"ts": ts, "question": question, "result": text, "frame": frame_path.name,
-             "model": "fake" if FAKE else MODEL, "narration": narrate}
+             "model": "fake" if FAKE else (NARRATE_MODEL if narrate else MODEL), "narration": narrate}
     state["report"].append(entry)
     with REPORT_PATH.open("a") as f:
         f.write(json.dumps(entry) + "\n")
@@ -812,7 +816,7 @@ function connect(){
   ws.onclose=()=>{hud.textContent='disconnected, retrying…';setTimeout(connect,1000)};
 }
 function renderHud(){
-  hud.textContent=`${bmp?bmp.width+'×'+bmp.height:'no frame'} · relay ${stats.fps??'-'} fps · shown ${dispFps.toFixed(1)} fps\\nphone→mac ${stats.phone_to_mac_ms??'-'} ms · ${stats.frame_kb??'-'} KB/frame · frames ${stats.frames??0} · phones ${stats.phones??0} · ${stats.model??''}`;
+  hud.textContent=`${bmp?bmp.width+'×'+bmp.height:'no frame'} · relay ${stats.fps??'-'} fps · shown ${dispFps.toFixed(1)} fps\\nphone→mac ${stats.phone_to_mac_ms??'-'} ms · ${stats.frame_kb??'-'} KB/frame · frames ${stats.frames??0} · phones ${stats.phones??0}\\nid ${stats.models?stats.models.identify:'?'} · scene ${stats.models?stats.models.scene:'?'} · describe ${stats.models?stats.models.describe:'?'} · voice ${stats.tts?stats.tts.provider:'?'}`;
 }
 window.addEventListener('resize',draw);
 async function inspect(){const out=document.getElementById('out');out.textContent='thinking…';
