@@ -311,3 +311,29 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
             schema=self._guidance_schema([record["id"] for record in records]),
         ))
         return self._ground(output, matches)
+
+
+class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
+    """Fast catalog identification patterned after the glasses relay receiver."""
+
+    name = "anthropic-catalog-identification-vlm"
+
+    def __init__(self, *, base_url: str | None, **kwargs: Any) -> None:
+        super().__init__(base_url=base_url, **kwargs)
+        lines = []
+        for record in self._knowledge_base._records:
+            visual = record.get("details", {}).get("visual_identification", {})
+            look = visual.get("printed_text_to_look_for") or visual.get("shape_and_size") or "none"
+            lines.append(f"- {record['id']}: {record['canonical_name'][:50]} | look: {str(look)[:120]}")
+        self._catalog_index = "\n".join(lines)
+
+    def _body(self, *, system: str, text: str, frame: Frame,
+              schema: dict[str, Any] | None = None) -> dict[str, Any]:
+        body = super()._body(system=system, text=text, frame=frame, schema=schema)
+        body["max_tokens"] = 160
+        body["system"] = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
+        return body
+
+    def _system_prompt(self) -> str:
+        return ("Identify the electronic component in view against this catalog. Read printed markings first; "
+                "never invent specifications. Return only the requested JSON.\n\nCatalog:\n" + self._catalog_index)
