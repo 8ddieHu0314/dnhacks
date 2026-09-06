@@ -82,8 +82,8 @@ class ComponentKnowledgeBase:
 
     @staticmethod
     def prompt_records(matches: list[ComponentMatch]) -> list[dict[str, Any]]:
-        fields = ("identity", "function", "visual_identification", "pins", "electrical",
-                  "wiring_to_uno", "safety", "troubleshooting")
+        fields = ("identity", "function", "visual_identification", "pins", "electrical", "key_specs",
+                  "wiring_to_uno", "safety", "troubleshooting", "sources")
         records = []
         for match in matches:
             record, details = match.record, match.record.get("details", {})
