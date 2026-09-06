@@ -299,9 +299,14 @@ async def ingest_existing_ios_relay(websocket: WebSocket) -> None:
             if text := message.get("text"):
                 try:
                     command = json.loads(text)
-                    if command.get("type") == "inspect":
-                        question = command.get("question") or "Inspect and debug this circuit."
-                    elif command.get("type") == "debug_evidence":
+                    kind = command.get("type")
+                    if kind in {"inspect", "ask"}:
+                        field = "text" if kind == "ask" else "question"
+                        question = command.get(field) or "Inspect and debug this circuit."
+                    elif kind == "hush":
+                        question = None
+                        await speech.stop(session_id)
+                    elif kind == "debug_evidence":
                         evidence = command.get("reported_evidence") or []
                 except (AttributeError, json.JSONDecodeError):
                     await websocket.send_json({"type": "error", "text": "Invalid command JSON"})
@@ -317,6 +322,7 @@ async def ingest_existing_ios_relay(websocket: WebSocket) -> None:
                     width=frame.width, height=frame.height, user_request=question,
                     reported_evidence=evidence)
                 validate_frame_bytes(frame.image_bytes, "jpeg")
+                speech.track_frame(session_id, metadata.frame_id)
                 await pipeline.submit(session_id, metadata, frame.image_bytes, workflow)
                 last_submitted, question, evidence = now, None, []
             except (HTTPException, ValueError) as exc:

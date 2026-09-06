@@ -47,16 +47,20 @@ class GlassesBridgeTests(unittest.TestCase):
     def test_analysis_speech_returns_on_the_same_ios_socket(self) -> None:
         class SpeakingEngine:
             name = "speaking"
+            requests = []
 
-            async def analyze(self, _frame):
+            async def analyze(self, frame):
+                self.requests.append(frame.metadata.user_request)
                 return VisionOutput(analysis=VisionAnalysis(summary="Breadboard visible."))
 
+        engine = SpeakingEngine()
         prior_mode, prior_engine = main.speech._mode, main.pipeline._engine
-        main.speech._mode, main.pipeline._engine = "glasses", SpeakingEngine()
+        main.speech._mode, main.pipeline._engine = "glasses", engine
         try:
             with TestClient(app) as client:
                 with client.websocket_connect("/ws/ingest") as socket:
                     socket.receive_json()
+                    socket.send_json({"type": "ask", "text": "Which wire is ground?"})
                     socket.send_bytes(JPEG)
                     spoken = socket.receive_json()
                     finished = socket.receive_json()
@@ -67,6 +71,7 @@ class GlassesBridgeTests(unittest.TestCase):
         self.assertEqual(spoken["text"], "Breadboard visible.")
         self.assertEqual(finished["type"], "speak_end")
         self.assertEqual(state, {"type": "debug_state", "mode": "identification"})
+        self.assertEqual(engine.requests, ["Which wire is ground?"])
 
 
 if __name__ == "__main__":
