@@ -729,6 +729,43 @@ def report():
     return list(reversed(state["report"]))
 
 
+@app.get("/report.html", response_class=HTMLResponse)
+def report_page():
+    """Judges' view: what the glasses saw and said this session, newest first."""
+    rows = list(reversed(state["report"]))
+    def esc(x):
+        return (str(x or "")).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    items = []
+    for r in rows:
+        when = time.strftime("%H:%M:%S", time.localtime(r.get("ts", 0)))
+        kind = "part" if r.get("id") else ("scene" if r.get("narration") else "describe")
+        conf = r.get("confidence")
+        conf_s = f"{float(conf):.0%}" if isinstance(conf, (int, float)) else ""
+        frame = f'<img src="/frames/{esc(r["frame"])}" loading="lazy">' if r.get("frame") else '<div class=nof>no frame</div>'
+        items.append(f'''<article class="{kind}">{frame}<div class=body>
+  <div class=meta><span class=badge>{kind}</span> {when} · {esc(r.get("model"))}{" · " + conf_s if conf_s else ""}{" · id " + esc(r["id"]) if r.get("id") else ""}</div>
+  <div class=text>{esc(r.get("result"))}</div>
+  {"<div class=ev>" + esc(r.get("evidence")) + "</div>" if r.get("evidence") else ""}
+</div></article>''')
+    parts = sum(1 for r in rows if r.get("id"))
+    return f'''<!doctype html><html><head><meta charset=utf-8><title>Glasses Inspector report</title>
+<style>
+body{{font-family:system-ui;background:#0f0f0f;color:#eee;margin:0;padding:24px;max-width:1100px;margin:auto}}
+h1{{font-size:22px;margin:0 0 4px}} .sub{{color:#999;margin-bottom:18px;font-size:14px}}
+a{{color:#7cf}} .grid{{display:flex;flex-direction:column;gap:12px}}
+article{{display:grid;grid-template-columns:150px 1fr;gap:14px;background:#181818;border:1px solid #2a2a2a;border-radius:10px;padding:12px}}
+article img{{width:150px;height:200px;object-fit:cover;border-radius:6px;background:#000}} .nof{{width:150px;height:200px;background:#222;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#666;font-size:12px}}
+.meta{{color:#999;font-size:13px;margin-bottom:6px}} .badge{{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;background:#2b6;color:#000;margin-right:4px}}
+article.scene .badge{{background:#6cf}} article.describe .badge{{background:#fc6}}
+.text{{font-size:16px;line-height:1.4}} .ev{{color:#888;font-size:13px;margin-top:6px}}
+@media print{{body{{background:#fff;color:#000}} article{{background:#fff;border-color:#ccc}} .meta,.ev{{color:#555}}}}
+</style></head><body>
+<h1>Glasses Inspector — session report</h1>
+<div class=sub>{len(rows)} entries · {parts} catalog parts identified · generated {time.strftime("%Y-%m-%d %H:%M")} · <a href="/report">JSON</a> · <a href="/">live dashboard</a></div>
+<div class=grid>{"".join(items) or "<p>No entries yet.</p>"}</div>
+</body></html>'''
+
+
 @app.get("/frames/{name}")
 def frame_file(name: str):
     p = FRAMES_DIR / Path(name).name
@@ -787,7 +824,7 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 <div id=card style="display:none;margin-top:10px;padding:10px;background:#1c1c1c;border:1px solid #333;border-radius:8px;font-size:13px"></div>
 
 <div id=out></div>
-<h3>Report</h3><div id=rep></div></aside>
+<h3>Report <a href="/report.html" target=_blank style="font-size:13px;font-weight:normal">open judges' view</a></h3><div id=rep></div></aside>
 <script>
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),hud=document.getElementById('hud'),stage=document.getElementById('stage');
 let bmp=null,rot=0,fit=true,stats={},shown=0,lastShown=performance.now(),dispFps=0;
