@@ -102,6 +102,14 @@ class VisionPipeline:
     async def _run(self) -> None:
         while not self._stopping.is_set():
             frame = await self._queue.get()
+            # If frames accumulated while inference was running, only analyze
+            # the newest one. Processing old guidance after a newer view exists
+            # is worse than explicitly recording a drop.
+            while not self._queue.empty():
+                superseded = frame
+                frame = self._queue.get_nowait()
+                self._queue.task_done()
+                self._dropped[superseded.session_id] += 1
             started = time.perf_counter()
             try:
                 output = await self._engine.analyze(frame)
