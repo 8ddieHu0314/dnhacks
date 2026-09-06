@@ -165,7 +165,7 @@ def _stats():
             "viewers": len(viewers), "phones": len(phones), "model": "fake" if FAKE else MODEL,
             "inspections": len(state["report"]), "narration": narration["enabled"], "interval": narration["interval"],
             "reactive": identify.state["enabled"], "reactive_status": identify.state["status"], "last_id": identify.state["last_id"],
-            "catalog_parts": len(identify.catalog),
+            "catalog_parts": len(identify.catalog), "identify_model": identify.MODEL,
             "tts": {"provider": "elevenlabs" if tts.enabled() else "apple", "chars": speech["chars"],
                     "errors": speech["errors"], "last_error": speech["last_error"]}}
 
