@@ -798,7 +798,7 @@ function connect(){
   ws.onmessage=async e=>{
     if(typeof e.data==='string'){const m=JSON.parse(e.data);
       if(m.type==='detections'){dets=m.boxes||[];detMs=m.ms||0;almost=m.almost||null;draw();renderDetbar();return;}
-      if(m.type==='detected'){banner('det',`⚡ Electronic component: ${m.display||m.label}<small>${Math.round(m.conf*100)}% · asking Claude…</small>`,8000);return;}
+      if(m.type==='detected'){banner('det',`⚡ ${m.display||m.label}<small>${Math.round(m.conf*100)}%</small>`,8000);return;}
       if(m.type==='identified'){ident=m;draw();
         if(m.trigger==='detector'){const ok=m.agrees;banner(ok?'ok':(m.agrees===false?'dis':'ok'),ok?`✓ ${m.name}<small>Claude agrees with the detector · ${Math.round((m.confidence||0)*100)}%</small>`:(m.agrees===false?`${m.name}<small>detector said ${m.det.display}, Claude disagrees · ${Math.round((m.confidence||0)*100)}%</small>`:`${m.name}<small>detector: ${m.det.display} (not a catalog part) · ${Math.round((m.confidence||0)*100)}%</small>`),6000);}
         const c=document.getElementById('card');c.style.display='block';

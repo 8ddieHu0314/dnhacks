@@ -26,4 +26,7 @@ clients/ios/StockSample/
 weights/*
 !weights/components_yolov8.onnx
 !weights/components_yolov8.classes.txt
+!weights/components_v3.onnx
+!weights/components_v3.classes.txt
+!weights/components_v3.json
 !weights/README.md

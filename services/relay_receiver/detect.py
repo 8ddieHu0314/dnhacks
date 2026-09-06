@@ -19,7 +19,9 @@ import numpy as np
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-WEIGHTS = Path(os.environ.get("DETECT_ONNX", REPO_ROOT / "weights" / "components_yolov8.onnx"))
+# Default: the single-class detector fine-tuned on our own webcam footage (tools/components/, letterbox).
+# The Roboflow Universe 14-class model is still in weights/components_yolov8.onnx for comparison.
+WEIGHTS = Path(os.environ.get("DETECT_ONNX", REPO_ROOT / "weights" / "components_v3.onnx"))
 CLASSES = WEIGHTS.with_suffix(".classes.txt")
 CONF = float(os.environ.get("DETECT_CONF", "0.45"))
 IOU = float(os.environ.get("DETECT_IOU", "0.5"))
