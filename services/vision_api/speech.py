@@ -56,6 +56,22 @@ class SpeechRouter:
         if self._mode in {"glasses", "both"}:
             await asyncio.gather(*(self._send(session_id, socket, frame_id, text) for socket in self._sockets[session_id]))
 
+    async def publish_event(self, session_id: str, payload: dict[str, object]) -> None:
+        """Forward non-speech analysis state to every attached client."""
+
+        if self._mode in {"glasses", "both"}:
+            await asyncio.gather(
+                *(self._send_event(session_id, socket, payload) for socket in self._sockets[session_id])
+            )
+
+    async def _send_event(
+        self, session_id: str, websocket: WebSocket, payload: dict[str, object]
+    ) -> None:
+        try:
+            await websocket.send_json(payload)
+        except Exception:
+            self.detach(session_id, websocket)
+
     async def _send(self, session_id: str, websocket: WebSocket, frame_id: str, text: str) -> None:
         try:
             await websocket.send_json({"type": "speak", "frame_id": frame_id, "text": text})
