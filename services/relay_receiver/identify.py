@@ -36,19 +36,26 @@ state = {
     "enabled": False,
     "status": "idle",            # idle | moving | settled | identifying
     "min_confidence": 0.6,
-    "settle_seconds": 0.4,
+    "settle_seconds": 0.3,       # wait this long after motion unless the frame is already sharp
     "motion_threshold": 0.035,   # mean abs diff between consecutive thumbnails
     "change_threshold": 0.06,    # diff vs the last identified scene
-    "cooldown_seconds": 1.5,
-    "last_id": None,
-    "last_result": None,
+    "sharp_threshold": 0.010,    # Laplacian variance on a 96px gray; above = usable without settling
+    "cooldown_seconds": 0.8,
+    "short_spoken": True,        # announce name + one spec; full line stays on Describe
+    "mode": "parts",             # parts = catalog lookup; scene = free-text narration on change
+    "interrupt_confidence": 0.85,  # a different id must be this sure to cut an announcement in progress
+    "announce_until": 0.0,       # when the current announcement's audio ends
+    "pending": None,             # (pid, rec, conf) waiting for the audio to end
+    # detector path (detect.py): a local YOLO box can trigger identification before the wearer holds still
     "last_det_label": None,      # detector label of the box that triggered the last identification
-    "stable_frames": 2,          # detector path: consecutive frames a box must persist before Claude is called
-    "det_min_conf": 0.5,         # detector path: ignore boxes below this
+    "stable_frames": 2,          # consecutive frames a box must persist before Claude is called
+    "det_min_conf": 0.5,         # ignore boxes below this
     "triggers": {"detector": 0, "settle": 0},
     "preannounce": True,         # speak the detector's catalog name into the glasses before Claude answers
     "agreement": {"agree": 0, "disagree": 0, "no_hint": 0},   # Claude's id vs the detector's catalog hint
     "last_detected": None,       # the box announced most recently (for the dashboard banner)
+    "last_id": None,
+    "last_result": None,
     "last_spoken_at": 0.0,
     "calls": 0,
     "task": None,
@@ -171,13 +178,13 @@ def spoken_for(rec: dict, fallback: str) -> str:
 
 def system_prompt() -> str:
     base = ("You identify electronic components seen through a technician's smart glasses, matching against a catalog. "
-            "Read any printed markings first; markings beat shape. Never invent specifications. "
-            "Reply with JSON only, keys in this order: "
-            '{"id": "<catalog id, or null if no catalog part is clearly in view>", "confidence": <0..1>, '
-            '"name": "<short name>", "evidence": "<at most 12 words>"}')
+            "Read any printed markings first; markings beat shape. Never invent specifications.\n"
+            "Answer in exactly two lines and nothing else:\n"
+            "line 1: <catalog id, or none> <confidence 0-1>\n"
+            "line 2: <at most 12 words of evidence: markings, shape, color, pins>")
     if catalog_index:
         return base + "\n\nCatalog:\n" + catalog_index
-    return base + "\n\nNo catalog is loaded: set id to null and name the part generically."
+    return base + "\n\nNo catalog is loaded: answer 'none 0' and name the part on line 2."
 
 
 def _downscale(data: bytes, max_side: int = MAX_SIDE) -> bytes:
@@ -188,16 +195,33 @@ def _downscale(data: bytes, max_side: int = MAX_SIDE) -> bytes:
     return out.getvalue()
 
 
+_LINE1 = re.compile(r"^\s*([A-Za-z0-9_\-\.]+)\s+([01](?:\.\d+)?)\s*$")
+
+
+def _parse_line1(line: str):
+    m = _LINE1.match(line)
+    if not m:
+        return None
+    pid, conf = m.group(1), float(m.group(2))
+    if pid.lower() in ("none", "null", "unknown", "-"):
+        pid = None
+    return pid, conf
+
+
 def _parse(text: str) -> dict:
-    m = re.search(r"\{.*\}", text, re.S)
-    try:
-        obj = json.loads(m.group(0) if m else text)
-    except Exception:
-        obj = {"id": None, "name": "unknown", "confidence": 0.0, "evidence": text[:200], "spoken": ""}
-    obj.setdefault("id", None)
-    obj.setdefault("confidence", 0.0)
-    obj.setdefault("spoken", "")
-    return obj
+    lines = [l for l in text.strip().splitlines() if l.strip()]
+    first = _parse_line1(lines[0]) if lines else None
+    if first is None:
+        # tolerate the old JSON shape
+        m = re.search(r"\{.*\}", text, re.S)
+        try:
+            obj = json.loads(m.group(0) if m else text)
+            obj.setdefault("id", None); obj.setdefault("confidence", 0.0); obj.setdefault("evidence", "")
+            return obj
+        except Exception:
+            return {"id": None, "confidence": 0.0, "name": "unknown", "evidence": text[:120]}
+    pid, conf = first
+    return {"id": pid, "confidence": conf, "evidence": " ".join(lines[1:2]).strip()[:160]}
 
 
 def _hint_text(det: dict | None) -> str:
@@ -212,12 +236,13 @@ def _hint_text(det: dict | None) -> str:
     return hint + " Confirm or correct by reading the markings; the detector is only a hint."
 
 
-async def _call_model(model: str, data: bytes, max_tokens: int = 160, det: dict | None = None):
-    """One vision call with the cached catalog prompt. Kwargs are assembled so the
-    fallbacks parameter is only sent to models that accept it."""
-    import anthropic
+def _kwargs(model: str, data: bytes, max_tokens: int = 60, det: dict | None = None):
+    """Request kwargs; the fallbacks parameter is only sent to models that accept it.
+    With `det` (a detector box, see detect.py) Claude sees the padded crop plus a hint."""
     from typing import Any
-    client = anthropic.AsyncAnthropic()
+    if det:
+        import detect
+        data = detect.crop(data, det["box"])
     b64 = base64.standard_b64encode(_downscale(data)).decode()
     kwargs: dict[str, Any] = {
         "model": model, "max_tokens": max_tokens,
@@ -229,50 +254,107 @@ async def _call_model(model: str, data: bytes, max_tokens: int = 160, det: dict 
     if _supports_fallbacks(model):
         kwargs["betas"] = ["server-side-fallback-2026-07-01"]
         kwargs["fallbacks"] = "default"
-    return await client.beta.messages.create(**kwargs)
+    return kwargs
+
+
+async def _call_model(model: str, data: bytes, max_tokens: int = 60, det: dict | None = None):
+    import anthropic
+    client = anthropic.AsyncAnthropic()
+    return await client.beta.messages.create(**_kwargs(model, data, max_tokens, det))
+
+
+async def _stream_model(model: str, data: bytes, on_first_line, max_tokens: int = 60, det: dict | None = None) -> tuple[str, object]:
+    """Stream the answer; call on_first_line(pid, conf) as soon as line 1 is complete."""
+    import anthropic
+    client = anthropic.AsyncAnthropic()
+    text, fired = "", False
+    async with client.beta.messages.stream(**_kwargs(model, data, max_tokens, det)) as stream:
+        async for piece in stream.text_stream:
+            text += piece
+            if not fired and "\n" in text:
+                parsed = _parse_line1(text.split("\n", 1)[0])
+                if parsed:
+                    fired = True
+                    await on_first_line(*parsed)
+        final = await stream.get_final_message()
+    if not fired:
+        parsed = _parse_line1(text.strip().split("\n", 1)[0]) if text.strip() else None
+        if parsed:
+            await on_first_line(*parsed)
+    return text, final
 
 
 _fake_cycle = ["hc-sr04", "rtc-ds3231", "relay-5v"]
 
 
-async def identify_frame(data: bytes, det: dict | None = None) -> dict:
-    """One identification call on a frame. Returns the parsed JSON plus the catalog record.
+def resolve(pid):
+    """Catalog record for an id, tolerating near misses ("ds3231" -> "rtc-ds3231")."""
+    if not pid:
+        return None, None
+    rec = catalog.get(str(pid))
+    if rec:
+        return pid, rec
+    want = str(pid).lower()
+    for k in catalog:
+        if want in k or k in want:
+            return k, catalog[k]
+    return pid, None
 
-    With `det` (a detector box, see detect.py) Claude sees the padded crop around the box plus a
-    hint with the detector's label and likely catalog id. Without it, the whole frame."""
-    import detect
+
+def spoken_short(rec: dict) -> str:
+    d = rec.get("details") or {}
+    name = _words(str(rec.get("canonical_name") or rec.get("name") or rec.get("id")).split(",")[0].split(" (")[0], 50)
+    bits = []
+    pc = rec.get("pin_count") or (d.get("pins") or {}).get("pin_count")
+    if pc:
+        bits.append(f"{pc} pins")
+    v = _sq(rec.get("voltage") or (d.get("electrical") or {}).get("operating_voltage"), 200)
+    if v and len(v) <= 20 and not v.lower().startswith(("not applicable", "depends", "n/a")):
+        bits.append(v)
+    return f"{name}." + (f" {', '.join(bits)}." if bits else "")
+
+
+async def identify_frame(data: bytes, on_early=None, det: dict | None = None) -> dict:
+    """One identification call on a frame. `on_early(pid, conf, rec)` fires as soon as the id
+    is known (before the evidence line finishes). With `det` Claude sees the box crop plus a
+    hint (detector path). Returns the parsed result plus the record."""
     state["calls"] += 1
-    image = detect.crop(data, det["box"]) if det else data
+    t0 = time.time()
+    early = {"pid": None, "conf": 0.0, "rec": None, "at": None}
+
+    async def first_line(pid, conf):
+        pid, rec = resolve(pid)
+        early.update(pid=pid, conf=conf, rec=rec, at=time.time() - t0)
+        if on_early:
+            await on_early(pid, conf, rec)
+
     if FAKE:
-        await asyncio.sleep(1.2)
+        await asyncio.sleep(0.6)
         if det and det.get("catalog_hint") and det["catalog_hint"] in catalog:
             pid = det["catalog_hint"]
         else:
             pid = _fake_cycle[state["calls"] % len(_fake_cycle)]
-        obj = {"id": pid, "name": pid.upper(), "confidence": 0.9, "evidence": "fake mode" + (" via detector" if det else ""),
-               "spoken": f"This looks like the {pid.upper()} module. Fake mode."}
+        await first_line(pid, 0.9)
+        obj = {"id": pid, "confidence": 0.9, "evidence": "fake mode" + (" via detector" if det else "")}
+        usage = None
     else:
-        import anthropic
-        resp = await _call_model(MODEL, image, det=det)
-        text = "".join(b.text for b in resp.content if b.type == "text")
-        obj = _parse(text) if resp.stop_reason != "refusal" else {"id": None, "name": "declined", "confidence": 0, "spoken": ""}
-        obj["usage"] = {"cache_read": getattr(resp.usage, "cache_read_input_tokens", 0), "out": resp.usage.output_tokens}
-    rec = catalog.get(str(obj.get("id"))) if obj.get("id") else None
-    if not rec and obj.get("id"):
-        # tolerate near-miss ids (e.g. "ds3231" for "rtc-ds3231")
-        want = str(obj["id"]).lower()
-        for k in catalog:
-            if want in k or k in want:
-                rec = catalog[k]; obj["id"] = k; break
-    obj.setdefault("spoken", "")
+        text, final = await _stream_model(MODEL, data, first_line, det=det)
+        obj = _parse(text) if final.stop_reason != "refusal" else {"id": None, "confidence": 0, "evidence": "declined"}
+        usage = {"cache_read": getattr(final.usage, "cache_read_input_tokens", 0), "out": final.usage.output_tokens}
+    pid, rec = resolve(obj.get("id"))
+    obj["id"] = pid
+    obj["name"] = (rec or {}).get("canonical_name") or (rec or {}).get("name") or (pid or "no catalog part")
+    obj["spoken"] = spoken_for(rec, "") if rec else ""
+    obj["spoken_short"] = spoken_short(rec) if rec else ""
     if rec:
-        obj["spoken"] = spoken_for(rec, obj.get("spoken") or f"This is the {rec.get('name', obj['id'])}.")
         d = rec.get("details") or {}
         obj["record"] = {k: rec.get(k) for k in ("id", "canonical_name", "name_on_kit", "mpn", "category", "pin_count",
                                                   "pins", "interface", "voltage", "key_specs", "function", "price_usd",
                                                   "confidence") if rec.get(k) is not None}
         obj["record"]["safety"] = (d.get("safety") or {}).get("hazards")
         obj["record"]["wiring"] = ((d.get("wiring_to_uno") or {}).get("example_connections"))
+    obj["usage"] = usage
+    obj["timing"] = {"id_at_ms": int((early["at"] or 0) * 1000), "total_ms": int((time.time() - t0) * 1000)}
     obj["ts"] = time.time()
     obj["trigger"] = "detector" if det else "settle"
     if det:
@@ -289,9 +371,20 @@ async def identify_frame(data: bytes, det: dict | None = None) -> dict:
 
 # ---------------------------------------------------------------- reactive loop
 
-def _thumb(data: bytes) -> np.ndarray:
-    img = Image.open(io.BytesIO(data)).convert("L").resize((32, 32))
+def _gray(data: bytes, size: int) -> np.ndarray:
+    img = Image.open(io.BytesIO(data)).convert("L").resize((size, size))
     return np.asarray(img, dtype=np.float32) / 255.0
+
+
+def _thumb(data: bytes) -> np.ndarray:
+    return _gray(data, 32)
+
+
+def _sharpness(data: bytes) -> float:
+    """Variance of a Laplacian on a 96px gray image; motion blur drives it toward zero."""
+    g = _gray(data, 96)
+    lap = -4 * g[1:-1, 1:-1] + g[:-2, 1:-1] + g[2:, 1:-1] + g[1:-1, :-2] + g[1:-1, 2:]
+    return float(lap.var())
 
 
 def _diff(a, b) -> float:
@@ -300,37 +393,64 @@ def _diff(a, b) -> float:
     return float(np.abs(a - b).mean())
 
 
-async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, get_dets=None, on_detected=None):
-    """get_latest() -> (bytes, ts) | (None, 0); on_result(obj); speak(text); speak_stop(); set_caption(text);
-    get_dets() -> (list[detection], frame_ts, frame_bytes) from detect.py, or None when no detector is loaded.
-    The detector path always works on the frame the boxes were computed on, never on a newer frame, so a
-    scene switch cannot pair the new picture with the previous part's box.
-    on_detected(det) fires the instant a box becomes the trigger, before Claude is called: the UX cue
-    ("this is an electronic component") on the dashboard and, if state["preannounce"], in the glasses.
+def _interrupt_policy(pid, conf, now):
+    """Decide what to do with a fresh id while an announcement may still be playing.
+    Returns 'announce', 'interrupt', 'pending' or 'ignore'."""
+    if not pid or conf < state["min_confidence"]:
+        return "ignore"
+    if pid == state["last_id"]:
+        return "ignore"
+    if now >= state["announce_until"]:
+        return "announce"          # nothing playing: say it
+    if conf >= state["interrupt_confidence"]:
+        return "interrupt"         # very sure it's a different part: cut in
+    return "pending"               # probably a misread mid-motion: wait for the audio to end
 
-    Two triggers feed the same Claude call:
-    - detector: the top box has persisted for `stable_frames` frames and is a different label than the
-      last identification (or the scene changed). Fires early, before the wearer holds still, with
-      the crop and a hint. This is the optimistic path.
-    - settle: no boxes, so fall back to the original rule, identify the whole frame once motion stops.
-    """
+
+async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, narrate=None,
+                        get_dets=None, on_detected=None):
+    """get_latest() -> (bytes, ts) | (None, 0); on_result(obj); speak(text) -> seconds of audio;
+    speak_stop(); set_caption(text, final); narrate(data) -> spoken text or None (scene mode);
+    get_dets() -> (list[detection], frame_ts, frame_bytes) from detect.py, or None without a detector;
+    on_detected(det) fires the instant a box becomes the trigger, before Claude is called.
+
+    Parts mode has two triggers feeding the same Claude call:
+    - detector: the top box has persisted `stable_frames` frames and is a new label (or the scene
+      changed). Fires early, before the wearer holds still, with the crop and a hint.
+    - change: no usable box, so identify the whole frame once it is sharp or settled.
+    The detector path always identifies the frame its boxes were computed on."""
     global _prev_thumb, _prev_frame_ts, _last_motion_at, _identified_thumb, _busy
     stable_det, stable_n, last_dts = None, 0, 0.0
     while state["enabled"]:
-        await asyncio.sleep(0.1)
-        data, ts = get_latest()
+        await asyncio.sleep(0.05)
         now = time.time()
+        # A pending part whose announcement was deferred: say it once the audio has ended,
+        # unless something else has been announced since.
+        if state["pending"] and now >= state["announce_until"] and not _busy:
+            pid, rec, conf = state["pending"]
+            state["pending"] = None
+            if pid != state["last_id"]:
+                state["last_id"] = pid
+                state["last_spoken_at"] = now
+                line = spoken_short(rec) if state["short_spoken"] else spoken_for(rec, "")
+                secs = await speak(line)
+                state["announce_until"] = time.time() + (secs or 0)
+                await set_caption(line, True)
+        data, ts = get_latest()
         if not data or ts == _prev_frame_ts or now - ts > 2:
             continue
         _prev_frame_ts = ts
         thumb = _thumb(data)
         motion = _diff(thumb, _prev_thumb)
         _prev_thumb = thumb
-        scene_changed = _diff(thumb, _identified_thumb) >= state["change_threshold"]
+        if motion > state["motion_threshold"]:
+            _last_motion_at = now
+            state["status"] = "moving"
+        changed = _diff(thumb, _identified_thumb) >= state["change_threshold"]
 
-        # ---- detector path
+        # ---- detector path (parts mode): a stable box triggers before the wearer holds still
         det = None
-        if get_dets is not None:
+        if get_dets is not None and state["mode"] == "parts":
             import detect
             dets, dts, det_frame = get_dets()
             if dts != last_dts and det_frame is not None and now - dts < 1.0:
@@ -350,22 +470,18 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, g
                         det = top
                         data, thumb = det_frame, det_thumb   # identify the frame the box belongs to
         if det is None:
-            # ---- settle path (original behaviour), only when the detector has nothing to offer
-            if motion > state["motion_threshold"]:
-                _last_motion_at = now
-                state["status"] = "moving"
+            if not changed or _busy or now - state["last_spoken_at"] < state["cooldown_seconds"]:
+                if motion <= state["motion_threshold"]:
+                    state["status"] = "settled"
                 continue
-            if now - _last_motion_at < state["settle_seconds"]:
-                continue
-            state["status"] = "settled"
-            if stable_det is not None:
+            if stable_det is not None and state["mode"] == "parts":
                 continue   # a box is in view but already identified; wait for a new part
-            if _busy or not scene_changed:
-                continue
-            if now - state["last_spoken_at"] < state["cooldown_seconds"]:
+            # New scene: go immediately if the frame is sharp, otherwise wait for it to settle.
+            settled = now - _last_motion_at >= state["settle_seconds"]
+            if not settled and _sharpness(data) < state["sharp_threshold"]:
                 continue
         _busy = True
-        state["status"] = "identifying"
+        state["status"] = "identifying" if state["mode"] == "parts" else "describing"
         state["triggers"]["detector" if det else "settle"] += 1
         if det:
             state["last_detected"] = {**{k: det.get(k) for k in ("label", "display", "conf", "box", "catalog_hint", "in_catalog")}, "ts": now}
@@ -373,26 +489,55 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, g
                 await on_detected(det)
         await set_caption(f"Looking… ({det['display']}?)" if det else "Looking…", False)
         try:
-            obj = await identify_frame(data, det)
+            if state["mode"] == "scene":
+                _identified_thumb = thumb
+                text = await narrate(data) if narrate else None
+                state["last_result"] = {"mode": "scene", "text": text, "ts": time.time()}
+                if text:
+                    state["last_spoken_at"] = time.time()
+                    state["announce_until"] = time.time() + len(text) / 12.0
+                    await set_caption(text, True)
+                else:
+                    await set_caption("no change", True)
+                continue
+
+            decided = {"action": None}
+
+            async def on_early(pid, conf, rec):
+                # Speak the instant the id is known; evidence keeps streaming for the dashboard.
+                action = _interrupt_policy(pid, conf, time.time())
+                decided["action"] = action
+                if action in ("announce", "interrupt") and rec:
+                    if action == "interrupt":
+                        await speak_stop()
+                    state["last_id"] = pid
+                    state["last_spoken_at"] = time.time()
+                    state["pending"] = None
+                    line = spoken_short(rec) if state["short_spoken"] else spoken_for(rec, "")
+                    secs = await speak(line)
+                    state["announce_until"] = time.time() + (secs or 0)
+                    await set_caption(line, True)
+                elif action == "pending" and rec:
+                    state["pending"] = (pid, rec, conf)
+
+            obj = await identify_frame(data, on_early=on_early, det=det)
             _identified_thumb = thumb
             state["last_det_label"] = det["label"] if det else None
             state["last_result"] = obj
             obj["_frame"] = data
+            obj["action"] = decided["action"]
             await on_result(obj)
-            pid = obj.get("id")
-            conf = float(obj.get("confidence") or 0)
-            if pid and conf >= state["min_confidence"] and pid != state["last_id"]:
-                state["last_id"] = pid
-                state["last_spoken_at"] = time.time()
-                await speak_stop()
-                await speak(obj.get("spoken") or f"This is {obj.get('name')}.")
-                await set_caption(obj.get("spoken") or obj.get("name", ""), True)
+            pid, conf = obj.get("id"), float(obj.get("confidence") or 0)
+            if decided["action"] in ("announce", "interrupt"):
+                pass
+            elif decided["action"] == "pending":
+                await set_caption(f"Maybe {obj.get('name')} ({conf:.0%}), waiting for audio to finish.", True)
             elif pid and pid == state["last_id"]:
                 await set_caption(f"Still {obj.get('name')}.", True)
             else:
                 await set_caption(f"Not sure ({obj.get('name')}, {conf:.0%}). {obj.get('evidence', '')}", True)
         except Exception as e:
-            await set_caption(f"identify error: {e}", True)
+            await set_caption(f"error: {e}", True)
         finally:
             _busy = False
             state["status"] = "settled"
@@ -401,9 +546,17 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, g
 
 def set_enabled(enabled: bool, **kw):
     global _identified_thumb
-    for k in ("min_confidence", "settle_seconds", "motion_threshold", "change_threshold", "cooldown_seconds", "det_min_conf"):
+    for k in ("min_confidence", "settle_seconds", "motion_threshold", "change_threshold", "cooldown_seconds", "sharp_threshold"):
         if kw.get(k) is not None:
             state[k] = float(kw[k])
+    if kw.get("short_spoken") is not None:
+        state["short_spoken"] = bool(kw["short_spoken"])
+    if kw.get("mode") in ("parts", "scene"):
+        state["mode"] = kw["mode"]
+    if kw.get("interrupt_confidence") is not None:
+        state["interrupt_confidence"] = float(kw["interrupt_confidence"])
+    if kw.get("det_min_conf") is not None:
+        state["det_min_conf"] = float(kw["det_min_conf"])
     if kw.get("stable_frames") is not None:
         state["stable_frames"] = max(1, int(kw["stable_frames"]))
     if kw.get("preannounce") is not None:
@@ -412,4 +565,17 @@ def set_enabled(enabled: bool, **kw):
     if enabled:
         state["last_id"] = None
         state["last_det_label"] = None
+        state["pending"] = None
         _identified_thumb = None
+
+
+async def warm_cache():
+    """One tiny call so the first real identification finds the catalog prompt cached."""
+    if FAKE or not os.environ.get("ANTHROPIC_API_KEY") or not catalog_index:
+        return "skipped"
+    img = Image.new("RGB", (64, 64), (0, 0, 0)); out = io.BytesIO(); img.save(out, "JPEG")
+    try:
+        resp = await _call_model(MODEL, out.getvalue(), max_tokens=8)
+        return f"cache_write={getattr(resp.usage, 'cache_creation_input_tokens', 0)} cache_read={getattr(resp.usage, 'cache_read_input_tokens', 0)}"
+    except Exception as e:
+        return f"failed: {e}"
