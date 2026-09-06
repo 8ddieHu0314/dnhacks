@@ -82,11 +82,20 @@ def validate_session(session_id: str) -> None:
     workflow_for_session(session_id)
 
 
-def validate_frame_bytes(image_bytes: bytes) -> None:
+def validate_frame_bytes(image_bytes: bytes, encoding: str) -> None:
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Frame body is empty")
     if len(image_bytes) > settings.vision_max_frame_bytes:
         raise HTTPException(status_code=413, detail="Frame exceeds VISION_MAX_FRAME_BYTES")
+    detected_encoding = (
+        "jpeg" if image_bytes.startswith(b"\xff\xd8") else
+        "png" if image_bytes.startswith(b"\x89PNG\r\n\x1a\n") else
+        "webp" if image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP" else None
+    )
+    if detected_encoding is None:
+        raise HTTPException(status_code=415, detail="Frame is not a JPEG, PNG, or WebP image")
+    if detected_encoding != encoding:
+        raise HTTPException(status_code=422, detail="Frame encoding does not match FrameMetadata")
 
 
 @app.get("/health")
@@ -159,7 +168,7 @@ async def ingest_frame(session_id: str, request: Request) -> IngestAcknowledgeme
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f"Invalid frame metadata: {exc}") from exc
     image_bytes = await request.body()
-    validate_frame_bytes(image_bytes)
+    validate_frame_bytes(image_bytes, metadata.encoding)
     dropped = await pipeline.submit(session_id, metadata, image_bytes, workflow)
     return IngestAcknowledgement(
         session_id=session_id, frame_id=metadata.frame_id, dropped_stale_frames=dropped
@@ -209,7 +218,7 @@ async def ingest_frames_websocket(websocket: WebSocket, session_id: str) -> None
                 await websocket.send_json({"error": "Send binary frame after metadata"})
                 continue
             try:
-                validate_frame_bytes(image_bytes)
+                validate_frame_bytes(image_bytes, metadata.encoding)
                 dropped = await pipeline.submit(session_id, metadata, image_bytes, workflow)
                 acknowledgement = IngestAcknowledgement(
                     session_id=session_id,
