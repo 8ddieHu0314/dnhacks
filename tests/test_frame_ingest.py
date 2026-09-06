@@ -28,3 +28,8 @@ class FrameIngestTests(unittest.TestCase):
 
     def test_rejects_an_encoding_mismatch(self) -> None:
         self.assertEqual(self.post_frame(b"\xff\xd8\xff\x00", encoding="png").status_code, 422)
+
+    def test_serves_the_webcam_test_page(self) -> None:
+        page = self.client.get("/webcam")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Component knowledge webcam test", page.text)
