@@ -43,6 +43,9 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         schema = guidance_body["tools"][0]["input_schema"]
         self.assertEqual(schema["required"], ["analysis"])
         self.assertEqual(schema["properties"]["analysis"]["properties"]["debug_guidance"]["properties"]["steps"]["maxItems"], 8)
+        debug_schema = schema["properties"]["analysis"]["properties"]["debug_guidance"]
+        self.assertIn("observed_circuit", debug_schema["required"])
+        self.assertIn("comparison", debug_schema["required"])
         self.assertEqual(guidance_body["max_tokens"], 1400)
         self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "hc-sr04")
 
@@ -122,6 +125,11 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(debug_output.analysis.mode, "debug")
         self.assertEqual(debug_output.analysis.debug_guidance.steps[0].instruction, "Disconnect power.")
         self.assertIn("jumper-wire", calls[1]["system"])
+        self.assertIn("Configured target circuit", calls[1]["system"])
+        self.assertIn("PN2222 base", calls[1]["system"])
+        self.assertIn("external 5V +", calls[1]["system"])
+        debug_schema = calls[1]["tools"][0]["input_schema"]["properties"]["analysis"]["properties"]["debug_guidance"]
+        self.assertIn("observed_circuit", debug_schema["required"])
         updated_frame = follow_up.__class__(follow_up.session_id,
             follow_up.metadata.model_copy(update={"frame_id": "updated", "user_request": "Power is disconnected."}),
             follow_up.image_bytes, follow_up.received_at)
