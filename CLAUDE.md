@@ -16,7 +16,8 @@ whom:
 | `services/vision_api` | Earlier, tested FastAPI scaffold: sessions, versioned workflow packages, bounded latest-frame queue, pluggable `VisionEngine`. Not wired to the phone app. | nothing yet |
 | `docs/datacenter` | Curated vendor-doc links for data center hardware (future vector DB). Not wired to anything. | nothing yet |
 | `firmware/context_node` | Arduino Uno sketch: a capacitive touch/proximity context signal over serial JSON. Not wired to anything; never a voltage sensor. | nothing yet |
-| `weights/` | The committed 12 MB component detector ONNX plus its class list. Everything else there is gitignored. | `detect.py` |
+| `tools/components` | Fine-tune workflow for the component detector: Grounding DINO proposals, Claude verification of every box, YOLOv8 training, an eval gate. Needs the gitignored `.venv-inf` (inference, GDINO) and the root `.venv`. Steps are in the relay README. | `weights/` |
+| `weights/` | The committed detectors: `components_v3.onnx` (default; single class, 960 px, letterbox, with a `.json` sidecar) and the older 14-class `components_yolov8.onnx`, each with a `.classes.txt`. Everything else there is gitignored. | `detect.py` |
 
 Docs that matter as much as the code:
 
@@ -65,7 +66,8 @@ Secrets and knobs go in `services/relay_receiver/.env` (gitignored): `ANTHROPIC_
 `INSPECT_MODEL` (Describe, default `claude-opus-5`), `NARRATE_MODEL` (Scene, default
 `claude-sonnet-5`), `IDENTIFY_MODEL` (Parts, default `claude-sonnet-5`), `ASK_MODEL` (voice
 questions, default `claude-sonnet-5`), `IDENTIFY_MAX_SIDE` (512),
-`DETECT_CONF` (0.45), `DETECT_IOU` (0.5), `DETECT_ONNX`, `DETECT_CLASSES`. Keep the
+`DETECT_CONF` (0.45), `DETECT_IOU` (0.5), `DETECT_ONNX` (a sibling `.json` sidecar sets
+`resize_mode`), `DETECT_CLASSES`. Keep the
 `--ws websockets --ws-ping-timeout 90` flags in `run.sh`; the phone socket stalls without them.
 Ask before restarting it on the demo Mac; it holds the phone's socket.
 
@@ -82,6 +84,7 @@ curl -X POST localhost:8787/identify                           # one-shot identi
 curl -X POST localhost:8787/ask -H 'content-type: application/json' -d '{"text":"how many pins does this have"}'   # same path as a spoken question
 curl -X POST localhost:8787/catalog/reload                     # after editing docs/components/components.json
 curl -X POST localhost:8787/frame --data-binary @photo.jpg     # laptop/webcam demo mode: any JPEG is a frame
+.venv/bin/python services/relay_receiver/webcam_feed.py --rotate 90   # Mac camera into the relay as if it were the phone (root .venv, needs OpenCV); --save sessions/<name> records training frames
 ```
 
 ### Component catalog (stdlib unless noted)
@@ -295,26 +298,35 @@ when `short_spoken` is off, and is what the report and dashboard store as `spoke
 prompt.
 
 `reactive_loop()` runs at 20 Hz while hands-free is on and has two triggers feeding the same
-call: the detector path (top box persisted `stable_frames`=2 frames with IoU > 0.4 and it is a
-new label or the scene changed; identifies the exact frame the boxes came from) and the settle
-path (no usable box; thumbnail diff vs the last identified scene exceeds `change_threshold`, and
-either motion stopped for `settle_seconds` or the frame is already sharp by Laplacian variance).
+call: the detector path (only with `det_trigger` on, default off: a `usable_box()`, conf >= 0.6,
+at least 2 % of the frame and clear of the edges, persisted `stable_frames`=3 frames with
+IoU > 0.4 and it is a new label or the scene changed; identifies the exact frame the boxes came
+from) and the settle path (thumbnail diff vs the last identified scene exceeds
+`change_threshold`, motion stopped for `settle_seconds`, and the frame is sharp by Laplacian
+variance; after a miss the wait doubles, 4, 8, 15 s via `miss_backoff`, so an empty view is not
+a Claude call every two seconds). With the trigger off, boxes are a visual only and the
+"box trigger" checkbox on the dashboard turns them back into a trigger.
 `_interrupt_policy` decides per early id whether to announce, interrupt (only above
 `interrupt_confidence`), hold as `pending` until audio ends, or ignore (same id, low
 confidence). With `preannounce` on, `on_detected` speaks the detector's catalog display name
 before Claude is called, and `agreement` counts whether Claude's id matched the hint. Scene mode
 reuses the same settle detection but calls `narrate_scene` instead. The thresholds live in
 `identify.state`; `POST /reactive` exposes the main ones (`min_confidence`, `settle_seconds`,
-`cooldown_seconds`, `interrupt_confidence`, `det_min_conf`, `stable_frames`, `short_spoken`,
-`preannounce`, `mode`), the motion/change/sharpness thresholds only via `identify.set_enabled`.
+`cooldown_seconds`, `interrupt_confidence`, `det_trigger`, `det_min_conf`, `det_min_area`,
+`det_edge_margin`, `stable_frames`, `short_spoken`, `preannounce`, `mode`), the
+motion/change/sharpness thresholds only via `identify.set_enabled`.
 
-`detect.py`: YOLOv8n ONNX (`weights/components_yolov8.onnx`, Roboflow `arduino-lcxdx` v3,
-CC BY 4.0, 14 Arduino-kit classes with Spanish labels) on `CPUExecutionProvider` (CoreML is not
-faster), about 30 ms per frame in `_detect_loop` via `asyncio.to_thread`, latest frame wins.
-`CATALOG_HINT` maps labels to catalog ids; `bind_catalog()` validates each hint against the
-loaded catalog at startup and takes the record's `name_on_kit` as the display name so boxes,
-banner, pre-announcement, and Claude use the same words. If weights are missing or inference
-throws, the detector marks itself unavailable and the relay falls back to the settle path.
+`detect.py`: a YOLOv8n ONNX on `CPUExecutionProvider` (CoreML is not faster) in `_detect_loop`
+via `asyncio.to_thread`, latest frame wins. Default weights are `weights/components_v3.onnx`:
+single class `component`, 960 px, fine-tuned on our own webcam frames (Sept 6; about 105 ms
+per frame, so the loop follows roughly 8 fps of the stream). Its `.json` sidecar sets
+`resize_mode: letterbox`; ultralytics-trained models need letterbox and Roboflow ones stretch,
+and the wrong mode silently halves recall. The older 14-class Roboflow model
+(`components_yolov8.onnx`, Spanish labels, select with `DETECT_ONNX`) is kept for comparison;
+`CATALOG_HINT` and `bind_catalog()` (display name = the record's `name_on_kit`) only matter for
+multi-class weights. `state["almost"]` carries the best sub-threshold candidate for tuning. If
+weights are missing or inference throws, the detector marks itself unavailable and the relay
+falls back to the settle path.
 `set_detector()` is the runtime switch (`detector["enabled"]`, driven by the phone's gear menu,
 the dashboard checkbox, or `POST /detector`); off clears the boxes and the reactive loop's
 stale-box state so the settle rule takes over immediately.

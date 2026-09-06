@@ -247,6 +247,33 @@ Glasses camera -> (Meta AI app / DAT, BT+WiFi) -> iOS app GlassesInspector -> HT
   the loop identifies that frame. Gabe: keep the detector component-only, no PPE model in the
   relay (it fires on hands and faces); the Inspect endpoint does not need detector context.
 
+## 2026-09-06 (early hours) Real footage: the Universe detector fails, fine-tune on our own frames
+
+- Webcam test (`webcam_feed.py`, Mac camera into the relay): the Universe model scored 0.7-0.8 on
+  the shelf cubby and the shirt print, cut off by the frame edge, and never passed 0.43 on real
+  parts held in hand; the breadboard is not a class. Claude's settle path identified the
+  breadboard, LED matrix and HC-SR04 correctly. Interim: strict box rules (0.6, inside frame,
+  2% area, 3 frames), miss backoff on the whole-frame path (4, 8, 15 s), then boxes visual-only
+  with a `box trigger` toggle, Claude returning its own box (line 3 of the answer), and a CSRT
+  tracker to follow it; the tracker was reverted, Gabe wants the detector path.
+- Fine-tune workflow: 5-minute capture on the :8000 capture page (2659 frames, 1280x720), GDINO
+  proposals on every 3rd frame (887). GDINO alone was not a usable labeler here: at 0.35 it
+  missed half the parts, at 0.25 it boxed the shelf cubby, the shirt print, the watch and the
+  tray clips. Claude Sonnet verification per frame (numbered boxes, "keep: / missed:") took
+  167 s for 887 frames, rejected 1545 of 2594 candidates, dropped 64 frames with an unboxed
+  part. Then negatives within 2 frames of a positive were removed (133). Final: 553 train /
+  137 val own frames, 1019 boxes, plus 1500 Universe images relabelled to one class.
+- Fine-tune results (2026-09-06 02:40): v2 (yolov8n, 640, 25 epochs) and v3 (yolov8n, 960, 40
+  epochs, 250 Universe images) both scored 28% box recall at 0.4 on held-out own frames through
+  the relay, 0 false positives on empty frames at 0.6 (the old model: 0% recall). Resolution
+  was not the bottleneck; the relay's stretch-to-square preprocessing was: ultralytics trains
+  with letterbox. With letterbox in detect.py (sidecar `weights/<name>.json`, resize_mode)
+  v3 reaches 42% box recall / 61% of frames at 0.4, 72% of frames at 0.25, 0.15 FP per empty
+  frame at 0.4 before the relay's edge/area/3-frame filters. Recall by part size at 0.4:
+  under 1% of frame 19/72, 1-3% 41/79, 3-8% 35/79, over 8% 5/8. Tiny parts (LED, resistor at
+  arm's length) remain out of reach for a nano model on a webcam. A yolov8s run at 960 was
+  killed: 3.5 min/epoch on MPS.
+
 ## 2026-09-06 Voice input: questions from the wearer
 
 - DAT 0.9.0 ships Camera, Core, Display and MockDevice frameworks and no audio API. The glasses

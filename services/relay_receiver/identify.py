@@ -40,7 +40,8 @@ state = {
     "motion_threshold": 0.035,   # mean abs diff between consecutive thumbnails
     "change_threshold": 0.06,    # diff vs the last identified scene
     "sharp_threshold": 0.010,    # Laplacian variance on a 96px gray; above = usable without settling
-    "cooldown_seconds": 0.8,
+    "cooldown_seconds": 2.0,     # detector-triggered calls; the whole-frame path uses at least this and backs off after misses
+    "miss_backoff": 0.0,         # grows after each "no catalog part" on the whole-frame path, reset by a detector box or a hit
     "short_spoken": True,        # announce name + one spec; full line stays on Describe
     "mode": "parts",             # parts = catalog lookup; scene = free-text narration on change
     "model": MODEL,              # identification model; switchable at runtime (sonnet/opus)
@@ -49,8 +50,13 @@ state = {
     "pending": None,             # (pid, rec, conf) waiting for the audio to end
     # detector path (detect.py): a local YOLO box can trigger identification before the wearer holds still
     "last_det_label": None,      # detector label of the box that triggered the last identification
-    "stable_frames": 2,          # consecutive frames a box must persist before Claude is called
-    "det_min_conf": 0.5,         # ignore boxes below this
+    "det_trigger": False,        # False = boxes are a visual only; Claude is triggered by the settle path alone.
+                                 # The Universe model fires on furniture and misses real parts through a webcam,
+                                 # so this stays off until the detector is fine-tuned on our own footage.
+    "stable_frames": 3,          # consecutive frames a box must persist before Claude is called
+    "det_min_conf": 0.6,         # ignore boxes below this (the Universe model scores furniture and shirts up to 0.8)
+    "det_min_area": 0.02,        # and boxes smaller than 2% of the frame
+    "det_edge_margin": 0.01,     # and boxes touching the frame border: every false trigger so far was cut off by an edge
     "triggers": {"detector": 0, "settle": 0},
     "preannounce": False,        # speak the detector's catalog name into the glasses before Claude answers (off: rarely fires, can contradict Claude)
     "agreement": {"agree": 0, "disagree": 0, "no_hint": 0},   # Claude's id vs the detector's catalog hint
@@ -274,6 +280,10 @@ def _hint_text(det: dict | None) -> str:
     if not det:
         return "Identify the component in view."
     guess = det.get("catalog_hint")
+    if det.get("label") == "component":
+        # class-agnostic detector: it only says "a part is here", Claude does the naming
+        return (f"A local detector flagged this crop as an electronic component ({det.get('conf', 0):.0%}). "
+                "Identify it against the catalog by reading the markings.")
     hint = f"A local detector flagged this crop as: {det.get('name')} ({det.get('conf', 0):.0%})."
     if guess:
         hint += f" Likely catalog id: {guess}."
@@ -457,6 +467,16 @@ def _diff(a, b) -> float:
     return float(np.abs(a - b).mean())
 
 
+def usable_box(d: dict) -> bool:
+    """A detector box that may trigger Claude: confident, not tiny, and fully inside the frame.
+    A part held up to the camera sits inside the frame; furniture and clothing run off the edge."""
+    x1, y1, x2, y2 = d["box"]
+    m = state["det_edge_margin"]
+    return (d["conf"] >= state["det_min_conf"]
+            and (x2 - x1) * (y2 - y1) >= state["det_min_area"]
+            and x1 > m and y1 > m and x2 < 1 - m and y2 < 1 - m)
+
+
 def _interrupt_policy(pid, conf, now):
     """Decide what to do with a fresh id while an announcement may still be playing.
     Returns 'announce', 'interrupt', 'pending' or 'ignore'."""
@@ -514,12 +534,12 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, n
 
         # ---- detector path (parts mode): a stable box triggers before the wearer holds still
         det = None
-        if get_dets is not None and state["mode"] == "parts":
+        if get_dets is not None and state["mode"] == "parts" and state["det_trigger"]:
             import detect
             dets, dts, det_frame = get_dets()
             if dts != last_dts and det_frame is not None and now - dts < 1.0:
                 last_dts = dts
-                dets = [d for d in dets if d["conf"] >= state["det_min_conf"]]
+                dets = [d for d in dets if usable_box(d)]
                 top = detect.primary(dets)
                 if top and stable_det and top["label"] == stable_det["label"] and detect.iou(top["box"], stable_det["box"]) > 0.4:
                     stable_n += 1
@@ -536,17 +556,22 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, n
             elif det_frame is None or now - dts >= 1.0:
                 stable_det, stable_n = None, 0   # detector off or stale: the settle rule takes over
         if det is None:
-            if not changed or _busy or now - state["last_spoken_at"] < state["cooldown_seconds"]:
+            wait = max(state["cooldown_seconds"], state["miss_backoff"])
+            if not changed or _busy or now - max(state["last_spoken_at"], state.get("last_call_at", 0.0)) < wait:
                 if motion <= state["motion_threshold"]:
                     state["status"] = "settled"
                 continue
-            if stable_det is not None and state["mode"] == "parts":
+            if stable_det is not None and state["mode"] == "parts" and state["det_trigger"]:
                 continue   # a box is in view but already identified; wait for a new part
-            # New scene: go immediately if the frame is sharp, otherwise wait for it to settle.
+            # New scene on the whole-frame path: the wearer must hold still (settled) AND the frame must
+            # be sharp. Sharp alone is not enough; a person walking past is sharp and different every frame.
             settled = now - _last_motion_at >= state["settle_seconds"]
-            if not settled and _sharpness(data) < state["sharp_threshold"]:
+            if not settled or _sharpness(data) < state["sharp_threshold"]:
                 continue
         _busy = True
+        state["last_call_at"] = now
+        if det:
+            state["miss_backoff"] = 0.0
         state["status"] = "identifying" if state["mode"] == "parts" else "describing"
         state["triggers"]["detector" if det else "settle"] += 1
         if det:
@@ -605,6 +630,10 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, n
             obj["action"] = decided["action"]
             await on_result(obj)
             pid, conf = obj.get("id"), float(obj.get("confidence") or 0)
+            if det is None:
+                # Whole-frame path: every miss doubles the wait before the next look (4, 8, 15 s), so a
+                # person moving around in front of the camera does not become a call every 2 seconds.
+                state["miss_backoff"] = 0.0 if pid else min(15.0, max(4.0, state["miss_backoff"] * 2))
             if decided["action"] in ("announce", "interrupt"):
                 await set_caption(" ".join(decided["spoken"]), True)
             elif decided["action"] == "pending":
@@ -634,12 +663,15 @@ def set_enabled(enabled: bool, **kw):
         state["model"] = str(kw["model"])
     if kw.get("interrupt_confidence") is not None:
         state["interrupt_confidence"] = float(kw["interrupt_confidence"])
-    if kw.get("det_min_conf") is not None:
-        state["det_min_conf"] = float(kw["det_min_conf"])
+    for k in ("det_min_conf", "det_min_area", "det_edge_margin"):
+        if kw.get(k) is not None:
+            state[k] = float(kw[k])
     if kw.get("stable_frames") is not None:
         state["stable_frames"] = max(1, int(kw["stable_frames"]))
     if kw.get("preannounce") is not None:
         state["preannounce"] = bool(kw["preannounce"])
+    if kw.get("det_trigger") is not None:
+        state["det_trigger"] = bool(kw["det_trigger"])
     state["enabled"] = bool(enabled)
     if enabled:
         state["last_id"] = None

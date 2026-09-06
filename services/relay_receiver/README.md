@@ -149,3 +149,23 @@ in the repo-root `.env`:
 
 With `DETECT=0`, or if the files are missing, the relay logs the reason in `/health` and
 behaves exactly as before.
+
+## Fine-tuning the component detector on your own footage (tools/components/)
+
+The Universe model does not transfer to webcam or glasses footage (it boxes furniture and shirts,
+misses small parts in hand). The fix is a single-class "component" detector trained on our own
+frames; the detector supplies the box and the instant cue, Claude names the part.
+
+1. Capture: run the capture page from the PPE branch (`git worktree add .worktrees/feat/gabe-dev feat/gabe-dev`,
+   link `weights/` and `sessions/`, `uvicorn server:app --port 8000`), record 5 minutes of parts in hand
+   plus empty hands, upload with keep-every 3. Or `webcam_feed.py --save sessions/<name>`.
+2. Propose boxes: `.venv-inf/bin/python tools/components/gdino_label.py --session sessions/capture_X --every 3 --out datasets/<name>`
+   (Grounding DINO, saves raw witnesses down to 0.2).
+3. Verify with Claude: `services/relay_receiver/.venv/bin/python tools/components/claude_verify.py --raw datasets/<name>/raw_detections.json --out datasets/<name>_verified`
+   Sonnet keeps or rejects each numbered box per frame and flags missed parts (frames dropped). Audit `preview/`.
+   Then drop negatives adjacent to positives (a part in hand persists), see the field notes.
+4. Train: `.venv/bin/python tools/components/train.py --own datasets/<name>_verified --universe datasets/universe_1class --name <run> --epochs 25`
+   (YOLOv8n, MPS, exports `weights/<run>.onnx` + `.classes.txt`).
+5. Gate: `services/relay_receiver/.venv/bin/python tools/components/eval_gate.py --onnx weights/<run>.onnx --data datasets/<name>_verified`
+   passes at recall >= 0.8 and <= 0.05 false positives per negative frame at the trigger threshold.
+6. Swap: `DETECT_ONNX=weights/<run>.onnx ./run.sh`, tick "box trigger" on the dashboard.

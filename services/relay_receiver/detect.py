@@ -10,6 +10,7 @@ line). Both are gitignored; see README for how to fetch them. If either is missi
 disables itself and the relay behaves as before.
 """
 import io
+import json
 import os
 import time
 from pathlib import Path
@@ -18,7 +19,9 @@ import numpy as np
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-WEIGHTS = Path(os.environ.get("DETECT_ONNX", REPO_ROOT / "weights" / "components_yolov8.onnx"))
+# Default: the single-class detector fine-tuned on our own webcam footage (tools/components/, letterbox).
+# The Roboflow Universe 14-class model is still in weights/components_yolov8.onnx for comparison.
+WEIGHTS = Path(os.environ.get("DETECT_ONNX", REPO_ROOT / "weights" / "components_v3.onnx"))
 CLASSES = WEIGHTS.with_suffix(".classes.txt")
 CONF = float(os.environ.get("DETECT_CONF", "0.45"))
 IOU = float(os.environ.get("DETECT_IOU", "0.5"))
@@ -45,7 +48,8 @@ CATALOG_HINT = {
     "esp82": None,       # ESP8266, not in the kit
     "ttl": None,         # USB-TTL adapter, not in the kit
 }
-ENGLISH = {"resistencia": "resistor", "diodo": "diode", "pulsador": "button", "servomotor": "servo",
+ENGLISH = {"component": "Electronic component",   # the single-class fine-tuned detector (tools/components/)
+           "resistencia": "resistor", "diodo": "diode", "pulsador": "button", "servomotor": "servo",
            "sensor ultrasonico": "ultrasonic sensor", "pot": "potentiometer", "7-seg": "7-segment display",
            "esp82": "ESP8266", "ttl": "USB-TTL adapter", "drv8825": "DRV8825 stepper driver"}
 
@@ -62,10 +66,12 @@ state = {
     "latest_frame": None,  # the JPEG those boxes were computed on (so consumers never pair boxes with a newer frame)
     "allow": None,       # class allowlist in effect (None = every class in classes.txt)
     "hints": {},         # label -> {"catalog_id", "display", "in_catalog"} after bind_catalog()
+    "almost": None,      # best candidate below the confidence threshold, for tuning ("almost: lcd 22%")
 }
 _session = None
 _input_name = None
 _size = 640
+_resize_mode = "stretch"   # "stretch" (Roboflow-trained models) or "letterbox" (ultralytics-trained, see <name>.json sidecar)
 
 
 def english(label: str) -> str:
@@ -74,7 +80,7 @@ def english(label: str) -> str:
 
 def load() -> str:
     """Create the onnxruntime session. Returns a one-line status for /health."""
-    global _session, _input_name, _size
+    global _session, _input_name, _size, _resize_mode
     if not ENABLED:
         state.update(available=False, reason="disabled (DETECT=0)")
         return state["reason"]
@@ -91,10 +97,14 @@ def load() -> str:
         _input_name = inp.name
         _size = int(inp.shape[-1]) if isinstance(inp.shape[-1], int) else 640
         state["classes"] = [l.strip() for l in CLASSES.read_text().splitlines() if l.strip()]
+        side = WEIGHTS.with_suffix(".json")
+        cfg = json.loads(side.read_text()) if side.exists() else {}
+        _resize_mode = cfg.get("resize_mode", "stretch")
+        state["resize_mode"] = _resize_mode
         state["allow"] = sorted(ALLOW & set(state["classes"])) if ALLOW else None
         state["provider"] = _session.get_providers()[0]
         state.update(available=True, reason="ok")
-        return f"{WEIGHTS.name} ({len(state['classes'])} classes, {state['provider']})"
+        return f"{WEIGHTS.name} ({len(state['classes'])} classes, {state['provider']}, {_resize_mode})"
     except Exception as e:  # pragma: no cover - environment dependent
         state.update(available=False, reason=f"load failed: {e}")
         return state["reason"]
@@ -131,11 +141,23 @@ def display_name(label: str) -> str:
 
 
 def _preprocess(data: bytes):
+    """Returns (tensor, w, h, geometry). Geometry maps model-space boxes back to normalized frame
+    coordinates: stretch = plain divide; letterbox = (box - pad) / scale, then divide by frame size."""
     img = Image.open(io.BytesIO(data)).convert("RGB")
     w, h = img.size
-    x = np.asarray(img.resize((_size, _size), Image.BILINEAR), dtype=np.float32) / 255.0  # stretch, rgb, /255
+    if _resize_mode == "letterbox":
+        r = min(_size / w, _size / h)
+        nw, nh = max(1, round(w * r)), max(1, round(h * r))
+        px, py = (_size - nw) / 2, (_size - nh) / 2
+        canvas = Image.new("RGB", (_size, _size), (114, 114, 114))
+        canvas.paste(img.resize((nw, nh), Image.BILINEAR), (int(px), int(py)))
+        x = np.asarray(canvas, dtype=np.float32) / 255.0
+        geo = (r, int(px), int(py))
+    else:
+        x = np.asarray(img.resize((_size, _size), Image.BILINEAR), dtype=np.float32) / 255.0  # stretch, rgb, /255
+        geo = None
     x = np.transpose(x, (2, 0, 1))[None]
-    return np.ascontiguousarray(x), w, h
+    return np.ascontiguousarray(x), w, h, geo
 
 
 def _nms(boxes: np.ndarray, scores: np.ndarray, iou: float) -> list[int]:
@@ -164,18 +186,30 @@ def detect(data: bytes, conf: float = CONF) -> list[dict]:
     if not state["available"]:
         return []
     t0 = time.perf_counter()
-    x, w, h = _preprocess(data)
+    x, w, h, geo = _preprocess(data)
     out = _session.run(None, {_input_name: x})[0]          # (1, 4+nc, 8400)
     pred = out[0].T                                         # (8400, 4+nc)
     scores_all = pred[:, 4:]
     cls = scores_all.argmax(1)
     scores = scores_all[np.arange(len(cls)), cls]
+    best = int(scores.argmax())
+    state["almost"] = None if scores[best] >= conf else {
+        "label": state["classes"][cls[best]] if cls[best] < len(state["classes"]) else str(cls[best]),
+        "conf": round(float(scores[best]), 3)}
+    if state["almost"]:
+        state["almost"]["display"] = display_name(state["almost"]["label"])
     m = scores >= conf
     dets: list[dict] = []
     if m.any():
         p, cls, scores = pred[m], cls[m], scores[m]
         cx, cy, bw, bh = p[:, 0], p[:, 1], p[:, 2], p[:, 3]
-        boxes = np.stack([cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2], 1) / _size  # normalized, stretch undone
+        boxes = np.stack([cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2], 1)
+        if geo is None:
+            boxes = boxes / _size                                    # stretch undone
+        else:
+            r, px, py = geo
+            boxes = (boxes - np.array([px, py, px, py])) / r          # letterbox undone, now in frame pixels
+            boxes = boxes / np.array([w, h, w, h])
         boxes = np.clip(boxes, 0, 1)
         keep = _nms(boxes, scores, IOU)
         names = state["classes"]
