@@ -41,3 +41,21 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["tool_choice"]["type"], "tool")
         self.assertEqual(json.loads(calls[1].content)["tools"][0]["input_schema"]["required"], ["analysis"])
         self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "hc-sr04")
+
+    async def test_uses_typed_cue_without_a_scene_round_trip(self) -> None:
+        calls = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request)
+            content = {"analysis": {"summary": "Breadboard visible.", "component_guidance": {
+                "identified_components": [{"component_id": "breadboard-830", "confidence": 0.9}]}}}
+            return httpx.Response(200, json={"content": [{"type": "tool_use", "name": "submit_result", "input": content}]})
+
+        knowledge = ComponentKnowledgeBase.from_path(Path(__file__).parents[1] / "docs/components/components.json")
+        engine = AnthropicComponentKnowledgeVLM(base_url="https://model.example", api_key="test-key",
+            model="claude-test", timeout_seconds=1, knowledge_base=knowledge, transport=httpx.MockTransport(handler))
+        frame = Frame("session", FrameMetadata(frame_id="frame", width=2, height=2, user_request="breadboard"),
+                      b"image", datetime.now(timezone.utc))
+        await engine.analyze(frame)
+
+        self.assertEqual(len(calls), 1)
