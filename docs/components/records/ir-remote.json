@@ -1,0 +1,109 @@
+{
+  "id": "ir-remote",
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "Remote Control",
+    "canonical_name": "21-key infrared (IR) remote control",
+    "aliases": ["IR remote", "NEC remote control", "ELEGOO remote control"],
+    "category": "input",
+    "manufacturer": "ELEGOO (kit brand; the remote itself is most likely a generic OEM part bundled and rebranded by ELEGOO, not independently confirmed this session)",
+    "manufacturer_part_number": "unknown, not confirmed this session",
+    "generic_equivalents": ["generic 21-key NEC-protocol infrared remote control, widely sold for Arduino and Raspberry Pi hobby kits"],
+    "serial_number": "not_applicable",
+    "package": "handheld battery-powered remote control unit (not a circuit package)"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small handheld device that sends invisible infrared light signals to remotely control a project, the same way a TV remote works.",
+    "what_it_is_used_for": "Lets a person press buttons to send commands wirelessly to the kit's IR receiver module. The microcontroller reads those commands and reacts, for example changing an LED color or moving a motor, with no wire between the remote and the board.",
+    "how_it_works_briefly": "Pressing a button closes a switch under the remote's rubber keypad. A small chip inside turns that button press into a short burst of blinking infrared light, invisible to the human eye, using the NEC infrared protocol (a widely used on/off blink pattern standard). This is confirmed for the same class of 38 kHz NEC-protocol remote sold with comparable Arduino IR receiver kits; the exact ELEGOO-branded remote was not separately re-tested for protocol this session, but a fetched GitHub example project written specifically for the ELEGOO kit's remote confirms it decodes with the standard IRremote library, which only supports this style of pulse-coded protocol."
+  },
+  "pins": {
+    "pin_count": 0,
+    "pinout": [],
+    "pin_1_identification": "not_applicable, this is a battery-powered handheld transmitter with no exposed circuit pins to probe",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "3.3-5V logic level output from the internal transmitter chip (from a fetched listing for a comparable NEC-protocol remote+receiver kit sold for Arduino, not independently re-measured for the exact ELEGOO unit this session)",
+    "absolute_max_voltage": "unconfirmed this session",
+    "typical_current": "unconfirmed this session",
+    "max_current": "unconfirmed this session",
+    "logic_level": "not_applicable, no digital interface pins on the remote itself; it only emits infrared light",
+    "interface": "none"
+  },
+  "key_specs": {
+    "ir_protocol": "NEC (confirmed for this exact ELEGOO remote's IRremote-library example code, and for the comparable retailer-listed remote kit)",
+    "carrier_frequency": "38 kHz (from the comparable retailer-listed remote kit; matches the 38 kHz rating on this kit's IR receiver module, which is designed to only pick up this exact carrier frequency)",
+    "battery_model": "CR2025 3V coin cell (from the comparable retailer-listed remote kit; matches the seed guess and multiple unfetched search snippets, but not independently confirmed for the exact ELEGOO unit this session)",
+    "claimed_range": "greater than 8 meters typical, about 60 degree effective cone (+/- 30 degrees from center) (from the comparable retailer-listed remote kit, not the exact ELEGOO unit)"
+  },
+  "visual_identification": {
+    "shape_and_size": "Small handheld rectangular remote, similar in size and shape to a compact TV or stereo remote, meant to be held in one hand. Exact dimensions not confirmed this session.",
+    "color_and_markings": "Commonly a light-colored plastic body with a grid of small buttons, based on search result descriptions, but the exact color for this specific unit was not confirmed via a source that loaded this session.",
+    "printed_text_to_look_for": "Buttons are typically printed with symbols and numbers rather than words: a numeric keypad (0 to 9), navigation or playback-style icons (arrows, play/pause), and possibly a power symbol. Look for a small dark or clear lens at the top edge where the infrared light comes out, and a battery compartment cover on the back that may show a printed plus/minus polarity diagram.",
+    "easily_confused_with": [
+      "Generic TV or air-conditioner remote controls (visually similar but a different button layout and possibly a different infrared protocol)",
+      "Other hobby-kit IR remotes bundled with different Arduino starter kit brands (near-identical generic remotes are reused across many kits)"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [],
+    "required_extra_parts": [
+      "IR receiver module (a separate item in this kit) to receive the remote's signal; the microcontroller reads the receiver, not the remote directly",
+      "A coin cell battery for the remote, commonly shipped pre-installed under a pull-tab insulator that must be removed before first use"
+    ],
+    "arduino_library": "IRremote (by shirriff). Confirmed via a fetched GitHub example project written specifically to decode the remote provided in the ELEGOO starter kit, which uses this library."
+  },
+  "safety": {
+    "hazards": [
+      "The internal coin cell battery is a swallowing hazard, especially around young children",
+      "A loose coin cell can short and heat up if it touches metal objects like coins or keys in a pocket or drawer"
+    ],
+    "handling_notes": [
+      "Match the battery's polarity to the marking in the battery compartment when replacing it",
+      "Remove the plastic pull-tab insulator before first use if the battery ships pre-installed",
+      "Keep the remote out of direct sunlight and high heat, since coin cells and plastic housings degrade faster when hot"
+    ],
+    "common_mistakes": [
+      "Forgetting to remove the battery insulator tab, so the remote appears dead out of the box",
+      "Aiming the remote away from the receiver's sensor window, or standing too far away or at too steep an angle",
+      "Assuming the remote works through walls or other solid obstructions; infrared needs a mostly clear line of sight"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "Remote does nothing, no response from the project", "likely_cause": "Battery insulator tab still in place, or battery dead or missing", "check": "Open the battery compartment and confirm a battery is seated and any pull-tab has been removed" },
+      { "symptom": "Some buttons work but others do not", "likely_cause": "Worn or dirty membrane contacts under specific buttons", "check": "Press firmly and squarely on the button; if it still fails, the remote itself likely has a fault" },
+      { "symptom": "Receiver only responds at very close range", "likely_cause": "Weak or low battery, or receiver misaligned", "check": "Swap in a fresh coin cell and re-test at a normal distance and angle" }
+    ],
+    "how_to_test_with_a_multimeter": "A multimeter cannot read the remote's infrared light output directly. The practical checks are: set a multimeter to DC voltage and touch the probes to the battery contacts inside the compartment to confirm the coin cell still reads close to its rated voltage, and separately, view the remote's infrared lens through a phone camera while pressing a button. Phone camera sensors can usually pick up near-infrared light as a faint flicker that the human eye cannot see, which confirms the remote is transmitting."
+  },
+  "market": {
+    "unit_price_usd": 2.0,
+    "price_source_url": "",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "unknown",
+    "typical_suppliers": ["carried over from seed estimate, not independently verified this session (see confidence.notes)", "bundled with ELEGOO Arduino starter kits", "sold standalone by generic Arduino-accessory retailers per search snippets, not independently fetched"]
+  },
+  "sources": [
+    { "title": "IR Remote Control Kit product page, ProtoSupplies", "url": "https://protosupplies.com/product/ir-remote-control-kit/", "type": "retailer", "used_for": "key_specs.ir_protocol, key_specs.carrier_frequency, key_specs.battery_model, key_specs.claimed_range, electrical.operating_voltage -- for a comparable 18-button NEC-protocol IR remote+receiver kit sold for Arduino, used as a generic reference since the exact 21-button ELEGOO remote's own datasheet PDF would not render as text" },
+    { "title": "james1293/ElegooIRRemoteFuncExample (GitHub)", "url": "https://github.com/james1293/ElegooIRRemoteFuncExample", "type": "tutorial", "used_for": "wiring_to_uno.arduino_library, function.how_it_works_briefly -- confirms this example project decodes the exact remote bundled in the ELEGOO starter kit using the IRremote library" }
+  ],
+  "confidence": {
+    "overall": "low",
+    "fields_uncertain": [
+      "identity.manufacturer_part_number",
+      "electrical.operating_voltage (generic reference value, not re-measured for the exact ELEGOO unit)",
+      "electrical.absolute_max_voltage",
+      "electrical.typical_current",
+      "electrical.max_current",
+      "key_specs.key_count (multiple unfetched search snippets say 21 keys for the exact ELEGOO remote, consistent with the seed, but no source that loaded this session states the ELEGOO-specific key count; the one fetched retailer source describing a similar kit has 18 keys, a different remote)",
+      "key_specs.battery_model (generic reference value, not re-confirmed for the exact ELEGOO unit)",
+      "key_specs.claimed_range (generic reference value, not re-confirmed for the exact ELEGOO unit)",
+      "visual_identification.color_and_markings",
+      "market.unit_price_usd",
+      "market.typical_suppliers"
+    ],
+    "notes": "Within budget (3 of 4 searches, 9 of 9 fetches across the original research pass plus a follow-up rescue pass), most direct ELEGOO-specific sources failed to load usable text: the ELEGOO wiki IR receiver and IR-transmitter pages (wiki.elegoo.com) are JavaScript-rendered and returned only navigation/title text to the fetch tool; two different GitHub- and epow0.org-hosted 'ELEGOO IR Remote Controller' datasheet PDFs are scanned images with no extractable text layer; ELEGOO's own blog tutorial returned HTTP 403; a dronebotworkshop.com forum tutorial loaded but did not contain the specific numbers needed. Two sources did load with usable content and are listed above: a retailer page for a comparable (but not identical, 18-key vs this remote's 21-key) NEC-protocol IR remote+receiver kit, used only as a generic reference for protocol/battery/frequency/range with that caveat stated in every field it backs; and a GitHub example project written specifically for the ELEGOO kit's remote, which confirms the IRremote library and that NEC-style decoding works for this exact unit. market.unit_price_usd still carries the seed's 2.00 USD estimate forward, explicitly unverified, since no fetched source gave a standalone price for the exact 21-key ELEGOO remote. Recommend a follow-up pass with a fetch tool that can render JavaScript (for the ELEGOO wiki pages) or an OCR'd copy of the ELEGOO PDF, to properly confirm exact key count, MPN, and price for this specific unit."
+  }
+}
