@@ -5,7 +5,7 @@ import json
 import math
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -342,6 +342,8 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
 
     def __init__(self, *, base_url: str | None, **kwargs: Any) -> None:
         super().__init__(base_url=base_url, **kwargs)
+        self._debugger = AnthropicComponentKnowledgeVLM(base_url=base_url, **kwargs)
+        self._debug_sessions: set[str] = set()
         lines = []
         for record in self._knowledge_base._records:
             visual = record.get("details", {}).get("visual_identification", {})
@@ -367,7 +369,18 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
                 "never invent specifications. Reply with JSON only: {\"id\": \"catalog id or null\", \"confidence\": "
                 "number, \"name\": \"short name\", \"evidence\": \"12 words max\"}.\n\nCatalog:\n" + self._catalog_index)
 
+    async def _debug_breadboard(self, frame: Frame) -> VisionOutput:
+        request = frame.metadata.user_request or "Find visible wiring problems and give the next safe check."
+        metadata = frame.metadata.model_copy(update={
+            "user_request": f"DEBUG MODE: Breadboard jumper-wire circuit. {request}",
+        })
+        output = await self._debugger.analyze(replace(frame, metadata=metadata))
+        analysis = output.analysis or VisionAnalysis(summary="Show the breadboard wiring clearly.")
+        return output.model_copy(update={"analysis": analysis.model_copy(update={"mode": "debug"})})
+
     async def analyze(self, frame: Frame) -> VisionOutput:
+        if frame.session_id in self._debug_sessions:
+            return await self._debug_breadboard(frame)
         try:
             payload = await self._complete(
                 system=self._system_prompt(), text=frame.metadata.user_request or "Identify the component in view.",
@@ -390,6 +403,8 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
             observed_evidence=[evidence] if evidence else [],
         )])
         mode = "debug" if record["id"] == "breadboard-830" else "identification"
+        if mode == "debug":
+            self._debug_sessions.add(frame.session_id)
         output = VisionOutput(analysis=VisionAnalysis(mode=mode,
             summary=str(payload.get("name") or record["canonical_name"]),
             observations=[evidence] if evidence else [], component_guidance=guidance,
