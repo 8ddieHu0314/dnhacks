@@ -5,7 +5,7 @@ from pathlib import Path
 
 import httpx
 
-from vision_api.component_knowledge import AnthropicComponentKnowledgeVLM, ComponentKnowledgeBase
+from vision_api.component_knowledge import AnthropicCatalogIdentificationVLM, AnthropicComponentKnowledgeVLM, ComponentKnowledgeBase
 from vision_api.models import Frame, FrameMetadata
 
 
@@ -59,3 +59,23 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         await engine.analyze(frame)
 
         self.assertEqual(len(calls), 1)
+
+    async def test_uses_the_cached_catalog_identification_shape(self) -> None:
+        calls = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request)
+            content = {"id": "breadboard-830", "confidence": 0.9, "name": "Breadboard", "evidence": "white hole grid"}
+            return httpx.Response(200, json={"content": [{"type": "tool_use", "name": "submit_result", "input": content}]})
+
+        knowledge = ComponentKnowledgeBase.from_path(Path(__file__).parents[1] / "docs/components/components.json")
+        engine = AnthropicCatalogIdentificationVLM(base_url="https://model.example", api_key="test-key",
+            model="claude-test", timeout_seconds=1, knowledge_base=knowledge, transport=httpx.MockTransport(handler))
+        frame = Frame("session", FrameMetadata(frame_id="frame", width=2, height=2), b"image", datetime.now(timezone.utc))
+        output = await engine.analyze(frame)
+
+        body = json.loads(calls[0].content)
+        self.assertEqual(body["max_tokens"], 160)
+        self.assertEqual(body["system"][0]["cache_control"]["type"], "ephemeral")
+        self.assertIn("breadboard-830", body["system"][0]["text"])
+        self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "breadboard-830")
