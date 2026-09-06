@@ -244,7 +244,7 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
     def _body(self, *, system: str, text: str, frame: Frame,
               schema: dict[str, Any] | None = None) -> dict[str, Any]:
         image = base64.b64encode(frame.image_bytes).decode("ascii")
-        body = {"model": self._model, "max_tokens": 1400, "temperature": 0, "system": system,
+        body = {"model": self._model, "max_tokens": 2000, "temperature": 0, "system": system,
                 "messages": [{"role": "user", "content": [
                     {"type": "text", "text": text},
                     {"type": "image", "source": {"type": "base64",
