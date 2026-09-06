@@ -344,10 +344,15 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
                 "number, \"name\": \"short name\", \"evidence\": \"12 words max\"}.\n\nCatalog:\n" + self._catalog_index)
 
     async def analyze(self, frame: Frame) -> VisionOutput:
-        payload = await self._complete(
-            system=self._system_prompt(), text=frame.metadata.user_request or "Identify the component in view.",
-            frame=frame,
-        )
+        try:
+            payload = await self._complete(
+                system=self._system_prompt(), text=frame.metadata.user_request or "Identify the component in view.",
+                frame=frame,
+            )
+        except VisionModelError as exc:
+            if "did not contain a valid JSON" not in str(exc):
+                raise
+            payload = {"id": None, "name": "No component is clear in this frame.", "evidence": ""}
         record = self._knowledge_base.record_for(str(payload.get("id"))) if payload.get("id") else None
         evidence = str(payload.get("evidence", "")).strip()
         if record is None:
