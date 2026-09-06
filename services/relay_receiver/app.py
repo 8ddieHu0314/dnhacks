@@ -487,8 +487,9 @@ def set_reactive(enabled: bool, **kw):
         async def on_result(obj):
             # keep the frame so identifications can be reviewed for accuracy afterwards
             frame_name = f"identify-{int(obj['ts'])}.jpg"
-            if state["latest"]:
-                (FRAMES_DIR / frame_name).write_bytes(state["latest"])
+            analyzed = obj.pop("_frame", None) or state["latest"]
+            if analyzed:
+                (FRAMES_DIR / frame_name).write_bytes(analyzed)
             await _send_all(viewer_sockets, {"type": "identified", **{k: v for k, v in obj.items() if k != "record"},
                                              "record": obj.get("record"), "frame": frame_name})
             entry = {"ts": obj["ts"], "question": "reactive identify", "result": obj.get("spoken") or obj.get("name"),

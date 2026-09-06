@@ -23,17 +23,23 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CATALOG_PATHS = [REPO_ROOT / "docs" / "components" / "components.json",
                  Path(__file__).with_name("components.json")]
 
-MODEL = os.environ.get("INSPECT_MODEL", "claude-opus-5")
+MODEL = os.environ.get("IDENTIFY_MODEL", os.environ.get("INSPECT_MODEL", "claude-sonnet-5"))
 FAKE = os.environ.get("INSPECT_FAKE", "0") == "1"
+MAX_SIDE = int(os.environ.get("IDENTIFY_MAX_SIDE", "512"))
+
+
+def _supports_fallbacks(model: str) -> bool:
+    """Server-side refusal fallbacks exist only on the largest models."""
+    return model.startswith(("claude-opus-5", "claude-fable"))
 
 state = {
     "enabled": False,
     "status": "idle",            # idle | moving | settled | identifying
     "min_confidence": 0.6,
-    "settle_seconds": 0.6,
+    "settle_seconds": 0.4,
     "motion_threshold": 0.035,   # mean abs diff between consecutive thumbnails
     "change_threshold": 0.06,    # diff vs the last identified scene
-    "cooldown_seconds": 3.0,
+    "cooldown_seconds": 1.5,
     "last_id": None,
     "last_result": None,
     "last_spoken_at": 0.0,
@@ -68,19 +74,18 @@ def _sq(v, n):
 
 
 def _index_line(rec: dict) -> str:
-    """One compact line per part for the cached system prompt (~70 tokens each)."""
+    """One compact line per part for the cached system prompt."""
     d = rec.get("details") or {}
     vis = d.get("visual_identification") or {}
-    ident = d.get("identity") or {}
     pid = rec.get("id")
-    name = rec.get("canonical_name") or rec.get("name") or pid
-    kit = rec.get("name_on_kit") or ident.get("name_on_kit") or ""
+    name = _sq(rec.get("canonical_name") or rec.get("name") or pid, 50)
     text = vis.get("printed_text_to_look_for") or rec.get("mpn") or ""
     look = " ".join(x for x in (vis.get("shape_and_size"), vis.get("color_and_markings")) if x)
     confused = vis.get("easily_confused_with") or []
-    return (f"- id={pid} | {_sq(name, 60)}" + (f" (kit label: {_sq(kit, 30)})" if kit else "")
-            + f" | printed text: {_sq(text, 90) or 'none'} | looks: {_sq(look, 200) or 'n/a'}"
-            + (f" | not to be confused with: {_sq(confused, 90)}" if confused else ""))
+    line = f"- {pid}: {name} | text: {_sq(text, 70) or 'none'} | looks: {_sq(look, 130) or 'n/a'}"
+    if confused:
+        line += f" | not: {_sq(confused[:1], 50)}"
+    return line
 
 
 def _words(v, n):
@@ -158,19 +163,17 @@ def spoken_for(rec: dict, fallback: str) -> str:
 # ---------------------------------------------------------------- prompts
 
 def system_prompt() -> str:
-    base = ("You identify electronic and electrical components seen through a technician's smart glasses. "
-            "First read any printed markings or silkscreen text in the frame verbatim; markings beat shape. "
-            "Then decide which catalog entry, if any, is in view. Never invent specifications. "
-            "Reply with JSON only, no prose, exactly: "
-            '{"id": "<catalog id or null>", "name": "<short name>", "confidence": <0..1>, '
-            '"evidence": "<what you saw: markings, shape, color, pins>", '
-            '"spoken": "<one or two short sentences for the wearer: name, key rating, one caution>"}')
+    base = ("You identify electronic components seen through a technician's smart glasses, matching against a catalog. "
+            "Read any printed markings first; markings beat shape. Never invent specifications. "
+            "Reply with JSON only, keys in this order: "
+            '{"id": "<catalog id, or null if no catalog part is clearly in view>", "confidence": <0..1>, '
+            '"name": "<short name>", "evidence": "<at most 12 words>"}')
     if catalog_index:
-        return base + "\n\nCatalog (one line per part):\n" + catalog_index
-    return base + "\n\nNo catalog is loaded: set id to null and identify the part generically."
+        return base + "\n\nCatalog:\n" + catalog_index
+    return base + "\n\nNo catalog is loaded: set id to null and name the part generically."
 
 
-def _downscale(data: bytes, max_side: int = 640) -> bytes:
+def _downscale(data: bytes, max_side: int = MAX_SIDE) -> bytes:
     img = Image.open(io.BytesIO(data))
     img.thumbnail((max_side, max_side))
     out = io.BytesIO()
@@ -190,7 +193,27 @@ def _parse(text: str) -> dict:
     return obj
 
 
-_fake_cycle = ["hc-sr04", "ds3231", "relay-module"]
+async def _call_model(model: str, data: bytes, max_tokens: int = 160):
+    """One vision call with the cached catalog prompt. Kwargs are assembled so the
+    fallbacks parameter is only sent to models that accept it."""
+    import anthropic
+    from typing import Any
+    client = anthropic.AsyncAnthropic()
+    b64 = base64.standard_b64encode(_downscale(data)).decode()
+    kwargs: dict[str, Any] = {
+        "model": model, "max_tokens": max_tokens,
+        "system": [{"type": "text", "text": system_prompt(), "cache_control": {"type": "ephemeral"}}],
+        "messages": [{"role": "user", "content": [
+            {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
+            {"type": "text", "text": "Identify the component in view."}]}],
+    }
+    if _supports_fallbacks(model):
+        kwargs["betas"] = ["server-side-fallback-2026-07-01"]
+        kwargs["fallbacks"] = "default"
+    return await client.beta.messages.create(**kwargs)
+
+
+_fake_cycle = ["hc-sr04", "rtc-ds3231", "relay-5v"]
 
 
 async def identify_frame(data: bytes) -> dict:
@@ -203,18 +226,18 @@ async def identify_frame(data: bytes) -> dict:
                "spoken": f"This looks like the {pid.upper()} module. Fake mode."}
     else:
         import anthropic
-        client = anthropic.AsyncAnthropic()
-        b64 = base64.standard_b64encode(_downscale(data)).decode()
-        system = [{"type": "text", "text": system_prompt(), "cache_control": {"type": "ephemeral"}}]
-        resp = await client.beta.messages.create(
-            model=MODEL, max_tokens=300, system=system,
-            betas=["server-side-fallback-2026-07-01"], fallbacks="default",
-            messages=[{"role": "user", "content": [
-                {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
-                {"type": "text", "text": "Identify the component in view."}]}])
+        resp = await _call_model(MODEL, data)
         text = "".join(b.text for b in resp.content if b.type == "text")
         obj = _parse(text) if resp.stop_reason != "refusal" else {"id": None, "name": "declined", "confidence": 0, "spoken": ""}
+        obj["usage"] = {"cache_read": getattr(resp.usage, "cache_read_input_tokens", 0), "out": resp.usage.output_tokens}
     rec = catalog.get(str(obj.get("id"))) if obj.get("id") else None
+    if not rec and obj.get("id"):
+        # tolerate near-miss ids (e.g. "ds3231" for "rtc-ds3231")
+        want = str(obj["id"]).lower()
+        for k in catalog:
+            if want in k or k in want:
+                rec = catalog[k]; obj["id"] = k; break
+    obj.setdefault("spoken", "")
     if rec:
         obj["spoken"] = spoken_for(rec, obj.get("spoken") or f"This is the {rec.get('name', obj['id'])}.")
         d = rec.get("details") or {}
@@ -244,7 +267,7 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption):
     """get_latest() -> (bytes, ts) | (None, 0); on_result(obj); speak(text); speak_stop(); set_caption(text)."""
     global _prev_thumb, _prev_frame_ts, _last_motion_at, _identified_thumb, _busy
     while state["enabled"]:
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.1)
         data, ts = get_latest()
         now = time.time()
         if not data or ts == _prev_frame_ts or now - ts > 2:
@@ -271,6 +294,7 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption):
             obj = await identify_frame(data)
             _identified_thumb = thumb
             state["last_result"] = obj
+            obj["_frame"] = data
             await on_result(obj)
             pid = obj.get("id")
             conf = float(obj.get("confidence") or 0)
