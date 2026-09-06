@@ -10,6 +10,10 @@ from vision_api.models import Frame, FrameMetadata
 
 
 class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
+    def test_accepts_json_surrounded_by_model_text(self) -> None:
+        payload = AnthropicComponentKnowledgeVLM._json_object("Here is the result: {\"ok\": true}")
+        self.assertEqual(payload, {"ok": True})
+
     async def test_sends_base64_frames_to_messages_api(self) -> None:
         calls = []
 

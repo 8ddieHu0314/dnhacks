@@ -219,6 +219,14 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
                      "media_type": f"image/{frame.metadata.encoding}", "data": image}},
                 ]}]}
 
+    @staticmethod
+    def _json_object(content: str) -> dict[str, Any]:
+        start, end = content.find("{"), content.rfind("}")
+        payload = json.loads(content[start:end + 1])
+        if not isinstance(payload, dict):
+            raise TypeError("completion JSON was not an object")
+        return payload
+
     async def _complete(self, *, system: str, text: str, frame: Frame) -> dict[str, Any]:
         headers = {"content-type": "application/json", "anthropic-version": "2023-06-01"}
         if self._api_key:
@@ -234,10 +242,7 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
                               if block.get("type") == "text")
             if not content:
                 raise TypeError(f"completion contained no text blocks: {[block.get('type') for block in blocks]}")
-            payload = json.loads(content)
-            if not isinstance(payload, dict):
-                raise TypeError("completion JSON was not an object")
-            return payload
+            return self._json_object(content)
         except httpx.HTTPError as exc:
             raise VisionModelError(f"Anthropic request failed: {exc}") from exc
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
