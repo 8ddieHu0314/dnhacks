@@ -15,6 +15,7 @@ import subprocess
 import time
 from pathlib import Path
 
+import identify
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
@@ -39,6 +40,7 @@ Name what is in view, read any labels, gauges, or warnings, and call out hazards
 If nothing meaningful changed, reply with exactly: no change"""
 
 app = FastAPI()
+print("Catalog:", identify.load_catalog())
 
 
 def _lan_ips() -> list[str]:
@@ -157,7 +159,9 @@ def _stats():
             "last_frame_age_s": None if age is None else round(age, 2),
             "frame_kb": round(len(state["latest"]) / 1024, 1) if state["latest"] else 0,
             "viewers": len(viewers), "phones": len(phones), "model": "fake" if FAKE else MODEL,
-            "inspections": len(state["report"]), "narration": narration["enabled"], "interval": narration["interval"]}
+            "inspections": len(state["report"]), "narration": narration["enabled"], "interval": narration["interval"],
+            "reactive": identify.state["enabled"], "reactive_status": identify.state["status"], "last_id": identify.state["last_id"],
+            "catalog_parts": len(identify.catalog)}
 
 
 async def _send_all(sockets: set[WebSocket], msg: dict):
@@ -292,6 +296,9 @@ async def handle_phone_command(msg: dict):
     elif kind == "narrate":
         set_narration(msg.get("enabled", False), msg.get("interval"))
         await _send_all(phones, {"type": "narration", "enabled": narration["enabled"], "interval": narration["interval"]})
+    elif kind == "reactive":
+        set_reactive(msg.get("enabled", False))
+        await _send_all(phones, {"type": "reactive", **_reactive_public()})
 
 
 @app.websocket("/")
@@ -304,6 +311,7 @@ async def ws_ingest(ws: WebSocket):
     await ws.accept()
     phones.add(ws)
     await ws.send_text(json.dumps({"type": "narration", "enabled": narration["enabled"], "interval": narration["interval"]}))
+    await ws.send_text(json.dumps({"type": "reactive", **_reactive_public()}))
     try:
         while True:
             message = await ws.receive()
@@ -403,6 +411,63 @@ async def narrate(request: Request):
     return {"enabled": narration["enabled"], "interval": narration["interval"]}
 
 
+def _reactive_public():
+    st = identify.state
+    return {"enabled": st["enabled"], "status": st["status"], "last_id": st["last_id"],
+            "last_result": st["last_result"], "calls": st["calls"], "catalog": identify.catalog_source,
+            "parts": len(identify.catalog), "min_confidence": st["min_confidence"]}
+
+
+def set_reactive(enabled: bool, **kw):
+    identify.set_enabled(enabled, **kw)
+    t = identify.state.get("task")
+    if enabled and (t is None or t.done()):
+        async def on_result(obj):
+            await _send_all(viewer_sockets, {"type": "identified", **{k: v for k, v in obj.items() if k != "record"},
+                                             "record": obj.get("record")})
+            state["report"].append({"ts": obj["ts"], "question": "reactive identify", "result": obj.get("spoken") or obj.get("name"),
+                                    "id": obj.get("id"), "confidence": obj.get("confidence"), "evidence": obj.get("evidence"),
+                                    "frame": None, "model": "fake" if FAKE else MODEL, "narration": True})
+        async def speak(text):
+            await _send_all(phones, {"type": "speak", "text": text})
+            await _send_all(phones, {"type": "speak_end"})
+        async def speak_stop():
+            await _send_all(phones, {"type": "speak_stop"})
+        identify.state["task"] = asyncio.create_task(identify.reactive_loop(
+            lambda: (state["latest"], state["latest_ts"]), on_result, speak, speak_stop, _caption))
+
+
+@app.post("/reactive")
+async def reactive(request: Request):
+    body = await request.json()
+    set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds")})
+    await _send_all(phones, {"type": "reactive", **_reactive_public()})
+    return _reactive_public()
+
+
+@app.get("/reactive")
+def reactive_status():
+    return _reactive_public()
+
+
+@app.post("/identify")
+async def identify_once():
+    """One-shot identification of the latest frame (no speech)."""
+    if not state["latest"]:
+        return JSONResponse({"error": "no frame yet"}, status_code=409)
+    try:
+        obj = await identify.identify_frame(state["latest"])
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=503)
+    await _send_all(viewer_sockets, {"type": "identified", **{k: v for k, v in obj.items() if k != "record"}, "record": obj.get("record")})
+    return obj
+
+
+@app.post("/catalog/reload")
+def catalog_reload():
+    return {"loaded": identify.load_catalog()}
+
+
 @app.get("/narrate")
 def narrate_status():
     return {"enabled": narration["enabled"], "interval": narration["interval"], "last": narration["last"]}
@@ -444,6 +509,11 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 <input id=q placeholder="Question (optional)">
 <button class=primary onclick="inspect()">Inspect this frame</button>
 <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+  <label style="font-size:14px"><input type=checkbox id=react onchange="reactive()"> <b>Reactive identify</b></label>
+  <span id=rstat style="font:12px ui-monospace,monospace;color:#9f9"></span>
+</div>
+<div id=card style="display:none;margin-top:10px;padding:10px;background:#1c1c1c;border:1px solid #333;border-radius:8px;font-size:13px"></div>
+<div style="display:flex;gap:8px;align-items:center;margin-top:10px">
   <label style="font-size:14px"><input type=checkbox id=narr onchange="narrate()"> Narrate continuously</label>
   <input id=interval type=number min=3 step=1 value=8 style="width:70px;margin:0" onchange="narrate()"> s
 </div>
@@ -467,8 +537,12 @@ function connect(){
   ws.binaryType='blob';
   ws.onmessage=async e=>{
     if(typeof e.data==='string'){const m=JSON.parse(e.data);
+      if(m.type==='identified'){const c=document.getElementById('card');c.style.display='block';
+        c.innerHTML=`<b>${m.name||'?'}</b> <span style="color:#888">id=${m.id} · ${Math.round((m.confidence||0)*100)}%</span><div>${m.spoken||''}</div><div style="color:#888;font-size:12px">${m.evidence||''}</div>`+
+        (m.record?`<pre style="white-space:pre-wrap;font-size:11px;color:#bbb;margin:6px 0 0">${JSON.stringify(m.record,null,1).slice(0,1200)}</pre>`:'');return;}
       if(m.type==='caption'){const out=document.getElementById('out');out.textContent=m.text||(m.final?'':'thinking…');out.style.opacity=m.final?1:0.7;if(m.final&&m.text)loadReport();return;}
-      stats=m;renderHud();document.getElementById('narr').checked=!!m.narration;return;}
+      stats=m;renderHud();document.getElementById('narr').checked=!!m.narration;
+      document.getElementById('react').checked=!!m.reactive;document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
     try{const b=await createImageBitmap(e.data);if(bmp)bmp.close();bmp=b;draw();
       shown++;const now=performance.now();if(now-lastShown>1000){dispFps=shown*1000/(now-lastShown);shown=0;lastShown=now;}}catch(err){}
   };
@@ -481,6 +555,7 @@ window.addEventListener('resize',draw);
 async function inspect(){const out=document.getElementById('out');out.textContent='thinking…';
  const r=await fetch('/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:document.getElementById('q').value||undefined})});
  const j=await r.json();if(j.error)out.textContent=j.error;loadReport();}
+async function reactive(){await fetch('/reactive',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:document.getElementById('react').checked})});}
 async function narrate(){await fetch('/narrate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:document.getElementById('narr').checked,interval:+document.getElementById('interval').value})});}
 async function loadReport(){const rep=await (await fetch('/report')).json();
  document.getElementById('rep').innerHTML=rep.map(e=>`<div class=e><small>${new Date(e.ts*1000).toLocaleTimeString()} · ${e.model}</small><div>${e.result}</div><img src="/frames/${e.frame}"></div>`).join('');}

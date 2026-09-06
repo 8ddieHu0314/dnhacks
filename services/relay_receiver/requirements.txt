@@ -4,3 +4,5 @@ websockets
 anthropic
 python-multipart
 zeroconf
+pillow
+numpy

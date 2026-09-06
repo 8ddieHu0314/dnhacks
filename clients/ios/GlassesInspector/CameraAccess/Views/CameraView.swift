@@ -283,7 +283,7 @@ struct CameraView: View {
           Text("Mac: \(err)").font(.system(size: 11)).foregroundStyle(.yellow)
         }
         HStack(spacing: 10) {
-          CustomButton(title: viewModel.frameRelay.narrationEnabled ? "Narrating…" : "Describe", style: .primary, isDisabled: !viewModel.isStreaming) {
+          CustomButton(title: viewModel.frameRelay.reactiveEnabled ? "Reactive: \(viewModel.frameRelay.reactiveStatus)" : (viewModel.frameRelay.narrationEnabled ? "Narrating…" : "Describe"), style: .primary, isDisabled: !viewModel.isStreaming) {
             viewModel.frameRelay.requestInspect()
           }
           if viewModel.frameRelay.speaker.isSpeaking {
@@ -683,6 +683,11 @@ struct RelaySettingsView: View {
         }
         Section("Claude narration") {
           Toggle("Speak results through glasses", isOn: $relay.speakEnabled)
+          Toggle("Reactive identify (hands-free)", isOn: Binding(
+            get: { relay.reactiveEnabled },
+            set: { relay.setReactive(enabled: $0) }))
+          Text("Reactive: speaks the part name when a new part settles in view; silent otherwise. Runs on the Mac.")
+            .font(.caption).foregroundStyle(.secondary)
           Toggle("Continuous narration (Mac)", isOn: Binding(
             get: { relay.narrationEnabled },
             set: { relay.setNarration(enabled: $0, interval: narrationInterval) }))

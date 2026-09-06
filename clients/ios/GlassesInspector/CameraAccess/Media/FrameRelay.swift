@@ -614,6 +614,10 @@ final class FrameRelay {
   /// Server-side continuous narration state, as reported by the receiver.
   private(set) var narrationEnabled: Bool = false
   private(set) var narrationInterval: Double = 8
+  /// Server-side reactive identification (speaks when a new part comes into view).
+  private(set) var reactiveEnabled: Bool = false
+  private(set) var reactiveStatus: String = "idle"
+  private(set) var reactiveLastID: String?
   private(set) var lastCommandError: String?
 
   private init() {
@@ -722,6 +726,10 @@ final class FrameRelay {
     sendCommand(["type": "narrate", "enabled": enabled, "interval": interval])
   }
 
+  func setReactive(enabled: Bool) {
+    sendCommand(["type": "reactive", "enabled": enabled])
+  }
+
   private func sendCommand(_ msg: [String: Any]) {
     guard let data = try? JSONSerialization.data(withJSONObject: msg), let text = String(data: data, encoding: .utf8) else { return }
     Task { [engine] in
@@ -743,6 +751,13 @@ final class FrameRelay {
       }
     case "speak_end":
       captionFinal = true
+    case "speak_stop":
+      speaker.stop()
+      caption = ""
+    case "reactive":
+      reactiveEnabled = obj["enabled"] as? Bool ?? false
+      reactiveStatus = obj["status"] as? String ?? "idle"
+      reactiveLastID = obj["last_id"] as? String
     case "narration":
       narrationEnabled = obj["enabled"] as? Bool ?? false
       narrationInterval = obj["interval"] as? Double ?? narrationInterval
