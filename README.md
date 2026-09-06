@@ -266,6 +266,24 @@ purpose-fit verdict. Unreadable endpoints remain `unclear` and cause a precise
 view request instead of a guessed wire connection. Identification frames stay
 at 640 px; debug frames use 1024 px so breadboard rows remain legible.
 
+The debug result also contains a phase, a server-controlled power gate, and
+seven verification checks. A visual result cannot satisfy a check that needs a
+meter reading or wearer confirmation. Submit those through the webcam page's
+“new evidence” controls; a glasses companion can send the same
+`reported_evidence` array in `FrameMetadata`. Until all blocking checks pass,
+the server changes `safe_to_energize` to false, removes power-on steps, and the
+speech path says to keep both supplies disconnected.
+
+The matching Arduino program is
+[`firmware/motor_fan_relay/motor_fan_relay.ino`](firmware/motor_fan_relay/motor_fan_relay.ino).
+It boots with the relay off, debounces the D2 `INPUT_PULLUP` button, drives the
+D8 relay transistor while the button is held, and logs button/relay transitions
+as JSON at 115200 baud. With PlatformIO installed, build it with:
+
+```bash
+pio run --project-dir firmware/motor_fan_relay
+```
+
 ## Speech debugging and glasses demo
 
 Set `SPEECH_MODE=computer` to read each new analysis summary with the Mac's
