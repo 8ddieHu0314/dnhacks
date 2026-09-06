@@ -5,7 +5,7 @@ import json
 import math
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -323,6 +323,7 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
 
     def __init__(self, *, base_url: str | None, **kwargs: Any) -> None:
         super().__init__(base_url=base_url, **kwargs)
+        self._debugger = AnthropicComponentKnowledgeVLM(base_url=base_url, **kwargs)
         lines = []
         for record in self._knowledge_base._records:
             visual = record.get("details", {}).get("visual_identification", {})
@@ -348,6 +349,15 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
                 "never invent specifications. Reply with JSON only: {\"id\": \"catalog id or null\", \"confidence\": "
                 "number, \"name\": \"short name\", \"evidence\": \"12 words max\"}.\n\nCatalog:\n" + self._catalog_index)
 
+    async def _debug_breadboard(self, frame: Frame) -> VisionOutput:
+        request = frame.metadata.user_request or "Inspect the visible wiring and explain the next safe check."
+        metadata = frame.metadata.model_copy(update={
+            "user_request": f"Breadboard jumper-wire circuit debugging. {request}",
+        })
+        output = await self._debugger.analyze(replace(frame, metadata=metadata))
+        analysis = output.analysis or VisionAnalysis(summary="Breadboard detected; inspect the wiring.")
+        return output.model_copy(update={"analysis": analysis.model_copy(update={"mode": "debug"})})
+
     async def analyze(self, frame: Frame) -> VisionOutput:
         try:
             payload = await self._complete(
@@ -360,6 +370,8 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
             payload = {"id": None, "name": "No component is clear in this frame.", "evidence": ""}
         record = self._knowledge_base.record_for(str(payload.get("id"))) if payload.get("id") else None
         evidence = str(payload.get("evidence", "")).strip()
+        if record and record["id"] == "breadboard-830" and float(payload.get("confidence", 0)) >= 0.6:
+            return await self._debug_breadboard(frame)
         if record is None:
             return VisionOutput(analysis=VisionAnalysis(
                 summary=str(payload.get("name") or "No catalog component is clear in this frame."),

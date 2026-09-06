@@ -125,6 +125,7 @@ class ComponentGuidance(BaseModel):
 class VisionAnalysis(BaseModel):
     """Grounded VLM observations and VLA-style action proposals for one frame."""
 
+    mode: Literal["identification", "debug"] = "identification"
     summary: str = Field(min_length=1, max_length=2_000)
     observations: list[str] = Field(default_factory=list, max_length=20)
     safety_alerts: list[str] = Field(default_factory=list, max_length=10)
