@@ -299,6 +299,16 @@ struct CameraView: View {
         if let err = viewModel.frameRelay.lastCommandError {
           Text("Mac: \(err)").font(.system(size: 11)).foregroundStyle(.yellow)
         }
+        if viewModel.frameRelay.analysisMode == "debug" {
+          HStack {
+            Image(systemName: viewModel.frameRelay.safeToEnergize ? "checkmark.shield" : "bolt.slash")
+            Text(viewModel.frameRelay.safeToEnergize ? "READY TO TEST" : "POWER LOCKED")
+            Spacer()
+            Text(viewModel.frameRelay.debugPhase.replacingOccurrences(of: "_", with: " "))
+          }
+          .font(.system(size: 12, weight: .bold))
+          .foregroundStyle(viewModel.frameRelay.safeToEnergize ? .green : .orange)
+        }
         HStack(spacing: 10) {
           CustomButton(title: viewModel.frameRelay.reactiveEnabled ? "\(viewModel.frameRelay.reactiveMode == "scene" ? "Scene" : "Parts"): \(viewModel.frameRelay.reactiveStatus)" : "Describe", style: .primary, isDisabled: !viewModel.isStreaming) {
             viewModel.frameRelay.requestInspect()
