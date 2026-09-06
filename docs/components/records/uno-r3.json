@@ -1,6 +1,6 @@
 {
   "id": "uno-r3",
-  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003", "quantity_in_kit": 1 },
   "identity": {
     "name_on_kit": "UNO R3 Controller Board",
     "canonical_name": "ELEGOO UNO R3 controller board (Arduino Uno R3 compatible)",
@@ -18,38 +18,48 @@
     "how_it_works_briefly": "A chip called the ATmega328P stores and runs your program. It talks to your computer over USB through a second small chip (a USB-to-serial converter) so you can load new code and see debug messages."
   },
   "pins": {
-    "pin_count": 28,
+    "pin_count": 38,
     "pinout": [
-      { "pin": 1, "name": "VIN", "role": "power in", "notes": "Unregulated power input, used when powering from a battery or adapter instead of USB. Recommended 7-12V." },
-      { "pin": 2, "name": "GND", "role": "power", "notes": "Ground, power header" },
-      { "pin": 3, "name": "GND", "role": "power", "notes": "Second ground pin on the power header" },
-      { "pin": 4, "name": "5V", "role": "power out", "notes": "Regulated 5V rail" },
-      { "pin": 5, "name": "3V3", "role": "power out", "notes": "Regulated 3.3V rail" },
-      { "pin": 6, "name": "IOREF", "role": "reference", "notes": "Lets a shield read the board's logic voltage (5V on this board)" },
-      { "pin": 7, "name": "RESET", "role": "control", "notes": "Pulling this pin LOW resets the microcontroller" },
-      { "pin": 8, "name": "A0", "role": "analog in", "notes": "Analog input 0, can also be used as a digital pin" },
-      { "pin": 9, "name": "A1", "role": "analog in", "notes": "" },
-      { "pin": 10, "name": "A2", "role": "analog in", "notes": "" },
-      { "pin": 11, "name": "A3", "role": "analog in", "notes": "" },
-      { "pin": 12, "name": "A4", "role": "analog in / I2C data (SDA)", "notes": "Shared with the I2C data line" },
-      { "pin": 13, "name": "A5", "role": "analog in / I2C clock (SCL)", "notes": "Shared with the I2C clock line" },
-      { "pin": 14, "name": "D0", "role": "digital I/O / UART RX", "notes": "Shared with the USB serial connection; avoid driving this pin while uploading code" },
-      { "pin": 15, "name": "D1", "role": "digital I/O / UART TX", "notes": "Shared with the USB serial connection" },
-      { "pin": 16, "name": "D2", "role": "digital I/O", "notes": "" },
-      { "pin": 17, "name": "D3", "role": "digital I/O, PWM", "notes": "Marked with a tilde (~) on the silkscreen for PWM" },
-      { "pin": 18, "name": "D4", "role": "digital I/O", "notes": "" },
-      { "pin": 19, "name": "D5", "role": "digital I/O, PWM", "notes": "" },
-      { "pin": 20, "name": "D6", "role": "digital I/O, PWM", "notes": "" },
-      { "pin": 21, "name": "D7", "role": "digital I/O", "notes": "" },
-      { "pin": 22, "name": "D8", "role": "digital I/O", "notes": "" },
-      { "pin": 23, "name": "D9", "role": "digital I/O, PWM", "notes": "" },
-      { "pin": 24, "name": "D10", "role": "digital I/O, PWM", "notes": "" },
-      { "pin": 25, "name": "D11", "role": "digital I/O, PWM", "notes": "" },
-      { "pin": 26, "name": "D12", "role": "digital I/O", "notes": "" },
-      { "pin": 27, "name": "D13", "role": "digital I/O", "notes": "Also wired to an onboard LED" },
-      { "pin": 28, "name": "AREF", "role": "analog reference", "notes": "External reference voltage input for the analog-to-digital converter" }
+      { "pin": 1, "name": "NC", "role": "no connection", "notes": "Power header, position 1 of 8. Marked NC (not connected) on the official Arduino Uno Rev3 pinout diagram; reserved for future use, not wired to anything on the board." },
+      { "pin": 2, "name": "IOREF", "role": "reference", "notes": "Power header. Lets a shield read the board's logic voltage (5V on this board)." },
+      { "pin": 3, "name": "RESET", "role": "control", "notes": "Power header. Pulling this pin LOW resets the microcontroller. The same reset line also appears on the ICSP header." },
+      { "pin": 4, "name": "3V3", "role": "power out", "notes": "Power header. Regulated 3.3V rail, 50 mA max." },
+      { "pin": 5, "name": "5V", "role": "power out", "notes": "Power header. Regulated 5V rail." },
+      { "pin": 6, "name": "GND", "role": "power", "notes": "Power header, first of two ground pins." },
+      { "pin": 7, "name": "GND", "role": "power", "notes": "Power header, second ground pin." },
+      { "pin": 8, "name": "VIN", "role": "power in", "notes": "Power header. Unregulated power input, used when powering from a battery or adapter instead of USB. Arduino's official pinout diagram gives a 6-20V input limit; 7-12V is the commonly recommended range." },
+      { "pin": 9, "name": "A0", "role": "analog in", "notes": "Analog header, position 1 of 6. Can also be used as a digital pin." },
+      { "pin": 10, "name": "A1", "role": "analog in", "notes": "Analog header." },
+      { "pin": 11, "name": "A2", "role": "analog in", "notes": "Analog header." },
+      { "pin": 12, "name": "A3", "role": "analog in", "notes": "Analog header." },
+      { "pin": 13, "name": "A4", "role": "analog in / I2C data (SDA)", "notes": "Analog header. Shares the I2C data line with the SDA pin on the digital header." },
+      { "pin": 14, "name": "A5", "role": "analog in / I2C clock (SCL)", "notes": "Analog header. Shares the I2C clock line with the SCL pin on the digital header." },
+      { "pin": 15, "name": "SCL", "role": "I2C clock", "notes": "Digital header. Extra pin added next to AREF on the R3 revision; same electrical signal as A5." },
+      { "pin": 16, "name": "SDA", "role": "I2C data", "notes": "Digital header. Extra pin added next to AREF on the R3 revision; same electrical signal as A4." },
+      { "pin": 17, "name": "AREF", "role": "analog reference", "notes": "Digital header. External reference voltage input for the analog-to-digital converter." },
+      { "pin": 18, "name": "GND", "role": "power", "notes": "Digital header ground pin, next to AREF (a separate physical pin from the two GND pins on the power header)." },
+      { "pin": 19, "name": "D13", "role": "digital I/O", "notes": "Digital header. Also wired to an onboard LED." },
+      { "pin": 20, "name": "D12", "role": "digital I/O", "notes": "Digital header." },
+      { "pin": 21, "name": "D11", "role": "digital I/O, PWM", "notes": "Digital header. PWM-capable, marked with a tilde (~) on the silkscreen, confirmed on Arduino's official pinout diagram." },
+      { "pin": 22, "name": "D10", "role": "digital I/O, PWM", "notes": "Digital header. PWM-capable, confirmed on Arduino's official pinout diagram." },
+      { "pin": 23, "name": "D9", "role": "digital I/O, PWM", "notes": "Digital header. PWM-capable, confirmed on Arduino's official pinout diagram." },
+      { "pin": 24, "name": "D8", "role": "digital I/O", "notes": "Digital header." },
+      { "pin": 25, "name": "D7", "role": "digital I/O", "notes": "Digital header." },
+      { "pin": 26, "name": "D6", "role": "digital I/O, PWM", "notes": "Digital header. PWM-capable, confirmed on Arduino's official pinout diagram." },
+      { "pin": 27, "name": "D5", "role": "digital I/O, PWM", "notes": "Digital header. PWM-capable, confirmed on Arduino's official pinout diagram." },
+      { "pin": 28, "name": "D4", "role": "digital I/O", "notes": "Digital header." },
+      { "pin": 29, "name": "D3", "role": "digital I/O, PWM", "notes": "Digital header. PWM-capable, confirmed on Arduino's official pinout diagram." },
+      { "pin": 30, "name": "D2", "role": "digital I/O", "notes": "Digital header." },
+      { "pin": 31, "name": "D1", "role": "digital I/O / UART TX", "notes": "Digital header. Shared with the USB serial connection; also labeled D1/TX." },
+      { "pin": 32, "name": "D0", "role": "digital I/O / UART RX", "notes": "Digital header. Shared with the USB serial connection; also labeled D0/RX. Avoid driving this pin while uploading code." },
+      { "pin": 33, "name": "MISO", "role": "SPI data out", "notes": "6-pin ICSP header (2x3 block near the ATmega328P chip), position 1 of 6." },
+      { "pin": 34, "name": "5V", "role": "power out", "notes": "ICSP header, position 2 of 6." },
+      { "pin": 35, "name": "SCK", "role": "SPI clock", "notes": "ICSP header, position 3 of 6." },
+      { "pin": 36, "name": "MOSI", "role": "SPI data in", "notes": "ICSP header, position 4 of 6." },
+      { "pin": 37, "name": "RESET", "role": "control", "notes": "ICSP header, position 5 of 6. Same reset line as the power header RESET pin." },
+      { "pin": 38, "name": "GND", "role": "power", "notes": "ICSP header, position 6 of 6." }
     ],
-    "pin_1_identification": "There is no single numbered pin 1. Orientation is found by locating the USB-B connector and the round DC barrel jack, which sit together on one short edge of the board; the power header (VIN/GND/5V/3V3/IOREF/RESET) is printed on the same edge.",
+    "pin_1_identification": "There is no single numbered pin 1; the board exposes four separate pin-header strips instead of one connector. The power header (NC, IOREF, RESET, 3V3, 5V, GND, GND, VIN) sits on the short edge next to the USB-B connector and the round DC barrel jack. The analog header (A0-A5) runs along one long edge. The digital header (SCL, SDA, AREF, GND, D13 down to D0) runs along the opposite long edge, with the SCL/SDA/AREF end nearest the reset button and the D0/D1 end nearest the USB port. The 6-pin ICSP header is its own 2x3 pin block near the middle of the board, next to the ATmega328P chip.",
     "polarity_sensitive": true
   },
   "electrical": {
@@ -62,6 +72,7 @@
   },
   "key_specs": {
     "microcontroller": "ATmega328P",
+    "microcontroller_chip_pin_count": "28 pins in the DIP-28 through-hole package (seen on the ATMEGA16U2-USB kit revision per an Amazon listing), or 32 pins in the surface-mount TQFP/MLF package (seen on the CH340C kit revision confirmed via 3DJake). This is the ATmega328P chip's own package pin count, separate from pins.pin_count (38), which counts the board's exposed header pins (power, analog, digital, and ICSP).",
     "clock_speed": "16 MHz",
     "flash_memory": "32 KB (0.5 KB used by bootloader)",
     "sram": "2 KB",
@@ -69,14 +80,14 @@
     "digital_io_pins": 14,
     "pwm_pins": 6,
     "analog_input_pins": 6,
-    "usb_to_serial_chip": "CH340C (standalone ELEGOO board, confirmed) or ATMEGA16U2 (some kit bundle revisions, per Amazon listing)",
+    "usb_to_serial_chip": "CH340C (standalone ELEGOO board, confirmed) or ATMEGA16U2 (some kit bundle revisions, per Amazon listing). ELEGOO's own product pages (elegoo.com, us.elegoo.com, eu.elegoo.com) returned HTTP 403 to the fetch tool on this research pass, so the exact chip on this specific kit revision remains unconfirmed.",
     "board_dimensions_mm": "68.6 x 53.4 (official Arduino Uno Rev3 reference dimensions)",
     "weight_g": 25
   },
   "visual_identification": {
     "shape_and_size": "Rectangular PCB about 7 cm x 5.5 cm, with a USB-B port and a round DC barrel power jack on one short edge, and a row of black plastic pin-header sockets along each long edge.",
     "color_and_markings": "Most ELEGOO boards are blue soldermask (some are black); a black rectangular IC sits in the middle (either a wide DIP-28 through-hole chip or a small square surface-mount chip, depending on revision); a small silver 3-legged crystal/resonator sits near it; a small square reset button is near the USB port; a few tiny surface-mount LEDs sit near the USB connector (a steady power LED and a blinking TX/RX pair).",
-    "printed_text_to_look_for": "Silkscreen reads \"UNO R3\", \"ARDUINO\" or \"ELEGOO\" plus pin labels above each header: POWER (IOREF, RESET, 3V3, 5V, GND, GND, VIN), ANALOG IN (A0-A5), and DIGITAL (AREF, GND, D13 down to D0, with a tilde ~ before PWM-capable pin numbers).",
+    "printed_text_to_look_for": "Silkscreen reads \"UNO R3\", \"ARDUINO\" or \"ELEGOO\" plus pin labels above each header: POWER (NC, IOREF, RESET, 3V3, 5V, GND, GND, VIN), ANALOG IN (A0-A5), and DIGITAL (SCL, SDA, AREF, GND, D13 down to D0, with a tilde ~ before PWM-capable pin numbers 3, 5, 6, 9, 10, 11).",
     "easily_confused_with": ["Arduino Mega 2560 (larger board, many more pins)", "other-brand Uno R3 clones with an identical header layout", "ELEGOO Mega board"]
   },
   "wiring_to_uno": {
@@ -109,16 +120,19 @@
     { "title": "ELEGOO UNO R3 Board ATmega328P ATMEGA16U2 with USB Cable (Amazon listing)", "url": "https://www.amazon.com/ELEGOO-Board-ATmega328P-ATMEGA16U2-Compliant/dp/B01EWOE0UU", "type": "retailer", "used_for": "identity.manufacturer_part_number ATMEGA16U2 variant note, key_specs digital I/O count, flash memory, clock speed" },
     { "title": "Arduino Uno Rev3 - Tech Specs (Arduino Store)", "url": "https://store.arduino.cc/products/arduino-uno-rev3", "type": "manufacturer", "used_for": "electrical.operating_voltage, electrical.absolute_max_voltage, electrical.max_current, key_specs flash/SRAM/EEPROM/clock speed/dimensions/weight" },
     { "title": "Elegoo UNO R3 Controller Board - 3DJake", "url": "https://www.3djake.com/elegoo/uno-r3-controller-board", "type": "retailer", "used_for": "market.unit_price_usd, identity USB chip (CH340C) and SMD chip package for the standalone ELEGOO board SKU" },
-    { "title": "Arduino Uno Rev3 documentation", "url": "https://docs.arduino.cc/hardware/uno-rev3/", "type": "manufacturer", "used_for": "confirming 14 digital I/O / 6 PWM / 6 analog input pin counts and 16 MHz clock speed" }
+    { "title": "Arduino Uno Rev3 documentation", "url": "https://docs.arduino.cc/hardware/uno-rev3/", "type": "manufacturer", "used_for": "confirming 14 digital I/O / 6 PWM / 6 analog input pin counts and 16 MHz clock speed" },
+    { "title": "Arduino UNO Rev3 full pinout diagram (A000066-full-pinout.pdf)", "url": "https://content.arduino.cc/assets/A000066-full-pinout.pdf", "type": "manufacturer", "used_for": "pins.pinout header layout and order: power header (NC, IOREF, RESET, +3V3, +5V, GND, GND, VIN), analog header (A0-A5), digital header (SCL, SDA, AREF, GND, D13 down to D0), and the 6-pin ICSP header (MISO, +5V, SCK, MOSI, RESET, GND); also confirms D3, D5, D6, D9, D10, D11 are the PWM-capable digital pins (marked with a tilde in the diagram) and that VIN accepts 6-20V" },
+    { "title": "ELEGOO Arduino UNO Project Super Starter Kit with Tutorial and UNO R3 Compatible with Arduino IDE (Educational Engineering Store)", "url": "https://shop.eduengteam.com/products/elegoo-arduino-uno-project-super-starter-kit-with-tutorial-and-uno-r3-compatible-with-arduino-ide", "type": "retailer", "used_for": "kit.sku confirmation: the page's specifications section lists Model Number EL-KIT-003 for this exact kit" },
+    { "title": "ELEGOO UNO R3 Super Starter Kit (Besomi)", "url": "https://besomi.com/ae_en/eleg0019-elegoo-uno-r3-super-starter-kit.html", "type": "retailer", "used_for": "kit.sku confirmation: the page lists a manufacturer Part Number of EL-KIT-003, separate from the retailer's own SKU (DEDK0319), independently corroborating the eduengteam.com source" },
+    { "title": "Elegoo Super Starter Kit for UNO tutorial PDF (V1.0.18.12.18), packing list pages", "url": "https://www.uastem.com/wp-content/uploads/2021/10/Elegoo_Super_Starter_Kit_for_UNO_V1.0.2019.09.17.pdf", "type": "manufacturer", "used_for": "confirms the kit's official ELEGOO packing list of exactly 35 items (UNO R3 board, LCD1602, prototype expansion module, power supply module, ULN2003 driver, stepper motor, SG90 servo, 5V relay, IR receiver, joystick, DHT11, ultrasonic sensor, fan blade and 3-6V motor, active buzzer, passive buzzer, 74HC595, L293D, 5 buttons, 10K potentiometer, 1-digit and 4-digit 7-segment displays, tilt switch, remote, 830-point breadboard, USB cable, 10 female-to-male Dupont wires, 65 jumper wires, 9V battery clip, 120 resistors, 25 LEDs, 2 RGB LEDs, thermistor, 2 diode rectifiers, 2 photoresistors, 2 PN2222 transistors), matching the item list used to identify kit.sku EL-KIT-003" }
   ],
   "confidence": {
     "overall": "medium",
     "fields_uncertain": [
-      "exact USB-to-serial chip and MCU package on this specific ELEGOO kit bundle revision (CH340C+SMD confirmed for the standalone board vs ATMEGA16U2+DIP-28 seen on an Amazon listing of the same product name)",
-      "which specific digital pins are PWM-capable (listed here as D3, D5, D6, D9, D10, D11 by standard Arduino Uno Rev3 convention; only the count of 6 was confirmed via a fetched source, not the individual pin numbers)",
+      "exact USB-to-serial chip and MCU package on this specific ELEGOO kit bundle revision (CH340C+SMD confirmed for the standalone board vs ATMEGA16U2+DIP-28 seen on an Amazon listing of the same product name); ELEGOO's own product pages returned HTTP 403 to the fetch tool on this research pass, so this could not be resolved further",
       "board dimensions and weight are the official Arduino Uno Rev3 reference numbers, not independently confirmed for the ELEGOO clone",
       "5V/3.3V rail and per-pin current limits are official Arduino Uno Rev3 numbers, assumed to apply to the ELEGOO clone but not independently verified"
     ],
-    "notes": "ELEGOO has shipped at least two distinct UNO R3 board revisions across kit generations: one with a surface-mount ATmega328P and CH340C USB chip (confirmed via the 3DJake listing), and one with a through-hole DIP-28 ATmega328P and ATMEGA16U2 USB chip (per an Amazon listing title). Both are electrically and pin-compatible Arduino Uno R3 clones, so the pin table above applies to either. The ELEGOO product page (us.elegoo.com) is JavaScript-rendered and did not return readable spec text to the fetch tool; specs above are corroborated from the official Arduino Uno Rev3 reference design plus retailer listings of the ELEGOO board itself."
+    "notes": "Second research pass. Fixed two issues from the first pass: (1) pins.pin_count previously reported the ATmega328P chip's own pin count (28); it now reports the board's 38 exposed header pins (8 power, 6 analog, 18 digital, 6 ICSP), rebuilt and PWM-marked from Arduino's official full pinout PDF (content.arduino.cc/assets/A000066-full-pinout.pdf), with the chip's own 28 (DIP-28) or 32 (TQFP/MLF SMD) pin count now noted separately in key_specs.microcontroller_chip_pin_count. (2) kit.sku was \"EL-KIT-003 (verify)\"; it is now confirmed plain EL-KIT-003, corroborated independently by two retailer pages (shop.eduengteam.com's specifications section and besomi.com's manufacturer Part Number field), both for the exact product carrying the 35-item packing list confirmed against ELEGOO's own tutorial PDF. ELEGOO has shipped at least two distinct UNO R3 board revisions across kit generations: one with a surface-mount ATmega328P and CH340C USB chip (confirmed via the 3DJake listing), and one with a through-hole DIP-28 ATmega328P and ATMEGA16U2 USB chip (per an Amazon listing title). Both are electrically and pin-compatible Arduino Uno R3 clones, so the pin table above applies to either. ELEGOO's own site (elegoo.com, us.elegoo.com, eu.elegoo.com) returned HTTP 403 Forbidden to the fetch tool on every attempt this pass, so the USB chip on this specific kit revision still could not be confirmed directly from ELEGOO; specs above are corroborated from the official Arduino Uno Rev3 reference design plus retailer listings of the ELEGOO board itself."
   }
 }
