@@ -59,5 +59,6 @@ class SpeechRouter:
     async def _send(self, session_id: str, websocket: WebSocket, frame_id: str, text: str) -> None:
         try:
             await websocket.send_json({"type": "speak", "frame_id": frame_id, "text": text})
+            await websocket.send_json({"type": "speak_end", "frame_id": frame_id})
         except Exception:
             self.detach(session_id, websocket)

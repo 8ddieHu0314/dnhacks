@@ -51,4 +51,4 @@ class SpeechRouterTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(launched, [["say", "Breadboard visible."]])
         self.assertEqual(socket.messages, [{
             "type": "speak", "frame_id": "frame-1", "text": "Breadboard visible.",
-        }])
+        }, {"type": "speak_end", "frame_id": "frame-1"}])
