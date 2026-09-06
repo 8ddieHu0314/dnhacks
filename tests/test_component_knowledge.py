@@ -38,7 +38,9 @@ class ComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         output = await engine.analyze(frame)
 
         self.assertEqual(len(calls), 2)
+        self.assertIn("What is this sensor?", calls[0]["messages"][0]["content"])
         self.assertIn("hc-sr04", calls[1]["messages"][0]["content"])
+        self.assertIn("sources", calls[1]["messages"][0]["content"])
         self.assertEqual(output.analysis.component_guidance.retrieved_components[0].component_id, "hc-sr04")
         self.assertEqual([item.component_id for item in output.analysis.component_guidance.identified_components], ["hc-sr04"])
 
