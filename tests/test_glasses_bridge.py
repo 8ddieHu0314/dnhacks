@@ -60,17 +60,22 @@ class GlassesBridgeTests(unittest.TestCase):
             with TestClient(app) as client:
                 with client.websocket_connect("/ws/ingest") as socket:
                     socket.receive_json()
+                    status = socket.receive_json()
                     socket.send_json({"type": "ask", "text": "Which wire is ground?"})
                     socket.send_bytes(JPEG)
                     spoken = socket.receive_json()
                     finished = socket.receive_json()
                     state = socket.receive_json()
+                    socket.send_json({"type": "hush"})
+                    stopped = socket.receive_json()
         finally:
             main.speech._mode, main.pipeline._engine = prior_mode, prior_engine
         self.assertEqual(spoken["type"], "speak")
         self.assertEqual(spoken["text"], "Breadboard visible.")
         self.assertEqual(finished["type"], "speak_end")
         self.assertEqual(state, {"type": "debug_state", "mode": "identification"})
+        self.assertEqual(status["status"], "circuit bridge")
+        self.assertEqual(stopped["type"], "speak_stop")
         self.assertEqual(engine.requests, ["Which wire is ground?"])
 
 

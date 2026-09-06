@@ -288,6 +288,11 @@ async def ingest_existing_ios_relay(websocket: WebSocket) -> None:
     await websocket.accept()
     speech.attach(session_id, websocket)
     await websocket.send_json({"type": "relay_session", "session_id": session_id})
+    await websocket.send_json({
+        "type": "reactive", "enabled": True, "mode": "parts", "status": "circuit bridge",
+        "voice": "apple", "models": {"identify": settings.vlm_model, "scene": settings.vlm_model},
+        "detector_enabled": False, "report_page": False,
+    })
     last_submitted = 0.0
     question: str | None = None
     evidence: list[dict] = []
