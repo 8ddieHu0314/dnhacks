@@ -217,6 +217,7 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
     name = "anthropic-component-knowledge-vlm"
 
     def __init__(self, *, base_url: str | None, **kwargs: Any) -> None:
+        kwargs["timeout_seconds"] = max(float(kwargs["timeout_seconds"]), 45.0)
         super().__init__(base_url=base_url or "https://api.anthropic.com", **kwargs)
 
     def _body(self, *, system: str, text: str, frame: Frame) -> dict[str, Any]:
