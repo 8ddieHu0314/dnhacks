@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     vision_frame_queue_capacity: int = 4
     vision_result_history: int = 30
     vision_max_frame_bytes: int = 6_000_000
+    glasses_frame_interval_seconds: float = 1.0
     vision_backend: str = "mock"
     vlm_base_url: str | None = None
     vlm_api_key: str | None = None
