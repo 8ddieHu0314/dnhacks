@@ -769,18 +769,6 @@ function draw(){
   ctx.save();ctx.translate(cv.width/2,cv.height/2);ctx.rotate(rot*Math.PI/180);
   ctx.drawImage(bmp,-bmp.width*s/2,-bmp.height*s/2,bmp.width*s,bmp.height*s);ctx.restore();
   if(showBoxes)drawBoxes(s);
-  drawClaudeBox(s);
-}
-function drawClaudeBox(s){
-  // Claude's own box for the last identification (settle path). Stays until the next answer replaces it.
-  if(!ident||!ident.box||!ident.id||ident.trigger==='detector')return;
-  const bw=bmp.width*s,bh=bmp.height*s,cx=cv.width/2,cy=cv.height/2,a=rot*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a);
-  const tp=(nx,ny)=>{const x=nx*bw-bw/2,y=ny*bh-bh/2;return [cx+x*ca-y*sa,cy+x*sa+y*ca]};
-  const [x1,y1,x2,y2]=ident.box;const pts=[tp(x1,y1),tp(x2,y1),tp(x2,y2),tp(x1,y2)];
-  ctx.save();ctx.lineWidth=4;ctx.strokeStyle='#2b6';ctx.shadowColor='#000';ctx.shadowBlur=6;ctx.beginPath();ctx.moveTo(...pts[0]);for(const p of pts.slice(1))ctx.lineTo(...p);ctx.closePath();ctx.stroke();ctx.shadowBlur=0;
-  const top=pts.reduce((m,p)=>p[1]<m[1]?p:m);const label=`${ident.name} · ${Math.round((ident.confidence||0)*100)}% · Claude`;
-  ctx.font='bold 14px system-ui';const tw=ctx.measureText(label).width+12;
-  ctx.fillStyle='#2b6';ctx.fillRect(top[0],top[1]-22,tw,22);ctx.fillStyle='#000';ctx.fillText(label,top[0]+6,top[1]-6);ctx.restore();
 }
 function drawBoxes(s){
   // boxes are normalized to the image; map through the same rotate/fit transform as drawImage
