@@ -27,6 +27,21 @@ class VisionPipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(results[0].backend, "mock")
         self.assertEqual(results[0].regions[0].label, "mock-region")
 
+    async def test_notifies_a_result_handler(self) -> None:
+        received = []
+
+        async def collect(result) -> None:
+            received.append(result.frame_id)
+
+        pipeline = VisionPipeline(MockSegmentationEngine(), queue_capacity=1, result_history=1, on_result=collect)
+        await pipeline.start()
+        try:
+            await pipeline.submit("session", FrameMetadata(frame_id="spoken", width=2, height=2), b"frame")
+            await asyncio.wait_for(pipeline._queue.join(), timeout=1)
+            self.assertEqual(received, ["spoken"])
+        finally:
+            await pipeline.stop()
+
     async def test_records_a_model_failure_without_stopping_the_worker(self) -> None:
         class FailingEngine:
             name = "failing"
