@@ -344,6 +344,7 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
         super().__init__(base_url=base_url, **kwargs)
         self._debugger = AnthropicComponentKnowledgeVLM(base_url=base_url, **kwargs)
         self._debug_sessions: set[str] = set()
+        self._debug_components: dict[str, list[str]] = {}
         lines = []
         for record in self._knowledge_base._records:
             visual = record.get("details", {}).get("visual_identification", {})
@@ -366,15 +367,25 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
 
     def _system_prompt(self) -> str:
         return ("Identify the electronic component in view against this catalog. Read printed markings first; "
-                "never invent specifications. Reply with JSON only: {\"id\": \"catalog id or null\", \"confidence\": "
-                "number, \"name\": \"short name\", \"evidence\": \"12 words max\"}.\n\nCatalog:\n" + self._catalog_index)
+                "never invent specifications. Include up to five clearly visible catalog ids. Reply with JSON only: "
+                "{\"id\": \"primary catalog id or null\", \"visible_ids\": [\"catalog id\"], \"confidence\": number, "
+                "\"name\": \"short name\", \"evidence\": \"12 words max\"}.\n\nCatalog:\n" + self._catalog_index)
 
     async def _debug_breadboard(self, frame: Frame) -> VisionOutput:
         request = frame.metadata.user_request or "Find visible wiring problems and give the next safe check."
         metadata = frame.metadata.model_copy(update={
             "user_request": f"DEBUG MODE: Breadboard jumper-wire circuit. {request}",
         })
-        output = await self._debugger.analyze(replace(frame, metadata=metadata))
+        ids = self._debug_components.get(frame.session_id) or ["breadboard-830", "jumper-wire"]
+        matches = [ComponentMatch(record, 100.0) for item in ids
+                   if (record := self._knowledge_base.record_for(item)) is not None]
+        records = self._knowledge_base.prompt_records(matches)
+        debug_frame = replace(frame, metadata=metadata)
+        output = VisionOutput.model_validate(await self._debugger._complete(
+            system=self._debugger._guidance_prompt(debug_frame, records), text="Build or update the debug plan.",
+            frame=debug_frame, schema=self._debugger._guidance_schema(ids),
+        ))
+        output = self._debugger._ground(output, matches)
         analysis = output.analysis or VisionAnalysis(summary="Show the breadboard wiring clearly.")
         return output.model_copy(update={"analysis": analysis.model_copy(update={"mode": "debug"})})
 
@@ -383,6 +394,7 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
             request = (frame.metadata.user_request or "").lower()
             if any(command in request for command in ("exit debug mode", "stop debugging", "identification mode")):
                 self._debug_sessions.discard(frame.session_id)
+                self._debug_components.pop(frame.session_id, None)
                 return VisionOutput(analysis=VisionAnalysis(
                     mode="identification", summary="Debug mode ended. Show me a component to identify."
                 ))
@@ -411,6 +423,8 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
         mode = "debug" if record["id"] == "breadboard-830" else "identification"
         if mode == "debug":
             self._debug_sessions.add(frame.session_id)
+            ids = [str(item) for item in payload.get("visible_ids", []) if self._knowledge_base.record_for(str(item))]
+            self._debug_components[frame.session_id] = list(dict.fromkeys([record["id"], *ids]))[:5]
         output = VisionOutput(analysis=VisionAnalysis(mode=mode,
             summary=str(payload.get("name") or record["canonical_name"]),
             observations=[evidence] if evidence else [], component_guidance=guidance,
