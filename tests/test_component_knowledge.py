@@ -8,11 +8,22 @@ from fastapi.testclient import TestClient
 
 from vision_api.component_knowledge import ComponentKnowledgeBase, ComponentKnowledgeVLM, SceneDescription
 from vision_api.main import app
-from vision_api.models import Frame, FrameMetadata
+from vision_api.models import Frame, FrameMetadata, VisionAnalysis
 from vision_api.segmentation import build_vision_engine
 
 
 class ComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
+    def test_debug_steps_require_confirmation_and_can_request_a_view(self) -> None:
+        analysis = VisionAnalysis.model_validate({"summary": "Inspect power.", "mode": "debug",
+            "debug_guidance": {"status": "needs_context", "problem": "Power is unclear.",
+                "steps": [{"instruction": "Disconnect power.", "reason": "Avoid shorts.",
+                    "expected_evidence": "Power LED turns off.", "requires_confirmation": False}],
+                "visual_clarification": {"target": "power rails", "requested_view": "top-down close-up",
+                    "reason": "Rail breaks are hidden."}}})
+
+        self.assertTrue(analysis.debug_guidance.steps[0].requires_confirmation)
+        self.assertEqual(analysis.debug_guidance.visual_clarification.requested_view, "top-down close-up")
+
     def test_accepts_string_or_mapping_retrieval_cues(self) -> None:
         scene = SceneDescription.model_validate({"scene_description": "breadboard",
             "visible_text": {"label": "HC-SR04"}, "likely_component_terms": "sensor"})

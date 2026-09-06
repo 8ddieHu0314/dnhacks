@@ -122,6 +122,36 @@ class ComponentGuidance(BaseModel):
     data_caveats: list[str] = Field(default_factory=list, max_length=5)
 
 
+class DebugStep(BaseModel):
+    """One observable, reversible action in a breadboard debugging plan."""
+
+    instruction: str = Field(min_length=1, max_length=500)
+    reason: str = Field(min_length=1, max_length=500)
+    expected_evidence: str = Field(min_length=1, max_length=500)
+    safety_note: str | None = Field(default=None, max_length=500)
+    requires_confirmation: bool = True
+
+    @field_validator("requires_confirmation")
+    @classmethod
+    def require_step_confirmation(cls, _value: bool) -> bool:
+        return True
+
+
+class VisualClarification(BaseModel):
+    """A view the wearer should provide before the model makes another claim."""
+
+    target: str = Field(min_length=1, max_length=240)
+    requested_view: str = Field(min_length=1, max_length=240)
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class DebugGuidance(BaseModel):
+    status: Literal["needs_context", "in_progress", "ready_to_test", "resolved"]
+    problem: str = Field(min_length=1, max_length=1_000)
+    steps: list[DebugStep] = Field(default_factory=list, max_length=8)
+    visual_clarification: VisualClarification | None = None
+
+
 class VisionAnalysis(BaseModel):
     """Grounded VLM observations and VLA-style action proposals for one frame."""
 
@@ -131,6 +161,7 @@ class VisionAnalysis(BaseModel):
     safety_alerts: list[str] = Field(default_factory=list, max_length=10)
     proposed_actions: list[ActionProposal] = Field(default_factory=list, max_length=10)
     component_guidance: ComponentGuidance | None = None
+    debug_guidance: DebugGuidance | None = None
 
 
 class VisionOutput(BaseModel):
