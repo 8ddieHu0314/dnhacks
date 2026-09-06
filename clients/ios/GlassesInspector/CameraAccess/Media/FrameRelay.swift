@@ -533,6 +533,13 @@ final class MainThreadMeter {
 @Observable
 @MainActor
 final class FrameRelay {
+  /// One relay for the whole app. SwiftUI re-runs `CameraView.init` (and so
+  /// `CameraViewModel.init`) on every parent re-render; a per-model relay leaked a
+  /// timer, a stats loop, a Bonjour browser and a speech synthesizer each time.
+  static let shared = FrameRelay()
+  /// How many times a CameraViewModel has been constructed (diagnostics).
+  static var viewModelsCreated = 0
+
   static let serviceKey = "relayService"
   static let manualURLKey = "relayManualURL"
   static let useManualKey = "relayUseManual"
@@ -580,7 +587,7 @@ final class FrameRelay {
   private(set) var cpuPercent: Int = 0
   private(set) var encodeMillis: Int = 0
 
-  var diagnostics: [String] { (browser.events.suffix(4) + socketEvents.suffix(14)) }
+  var diagnostics: [String] { ["view models created: \(Self.viewModelsCreated)"] + browser.events.suffix(4) + socketEvents.suffix(14) }
 
   var activeTargetDescription: String {
     if useManualURL { return "\(manualURL) via \(pathDescription)" }
@@ -609,7 +616,7 @@ final class FrameRelay {
   private(set) var narrationInterval: Double = 8
   private(set) var lastCommandError: String?
 
-  init() {
+  private init() {
     let d = UserDefaults.standard
     serviceName = d.string(forKey: Self.serviceKey) ?? ""
     manualURL = d.string(forKey: Self.manualURLKey) ?? d.string(forKey: "relayURL") ?? "http://Eddies-MacBook-Pro.local:8787"

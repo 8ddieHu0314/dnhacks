@@ -16,3 +16,6 @@ services/relay_receiver/report.jsonl
 services/relay_receiver/server.log
 
 clients/ios/GlassesInspector/server.log
+
+# untouched Meta sample used only for A/B lag testing
+clients/ios/StockSample/

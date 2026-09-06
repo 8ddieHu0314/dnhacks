@@ -208,7 +208,8 @@ final class CameraViewModel {
     wearables: WearablesInterface,
     backgroundStopErrorSuppressionTimeout: Duration = .seconds(5)
   ) {
-    self.frameRelay = FrameRelay()
+    FrameRelay.viewModelsCreated += 1
+    self.frameRelay = FrameRelay.shared
     self.wearables = wearables
     self.deviceSelector = AutoDeviceSelector(wearables: wearables)
     self.backgroundStopErrorSuppressionTimeout = backgroundStopErrorSuppressionTimeout
