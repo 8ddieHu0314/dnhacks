@@ -52,7 +52,7 @@ state = {
     "stable_frames": 2,          # consecutive frames a box must persist before Claude is called
     "det_min_conf": 0.5,         # ignore boxes below this
     "triggers": {"detector": 0, "settle": 0},
-    "preannounce": True,         # speak the detector's catalog name into the glasses before Claude answers
+    "preannounce": False,        # speak the detector's catalog name into the glasses before Claude answers (off: rarely fires, can contradict Claude)
     "agreement": {"agree": 0, "disagree": 0, "no_hint": 0},   # Claude's id vs the detector's catalog hint
     "last_detected": None,       # the box announced most recently (for the dashboard banner)
     "last_id": None,

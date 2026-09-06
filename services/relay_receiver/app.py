@@ -838,7 +838,7 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
   <b style="font-size:14px;margin-left:8px">Voice</b>
   <select id=voice onchange="setVoice()" style="background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:4px">
     <option value="apple">Apple (on phone)</option><option value="elevenlabs">ElevenLabs</option></select>
-  <label style="font-size:13px;color:#ccc" title="Speak the detector's catalog name into the glasses the moment a part is spotted, before Claude answers"><input type=checkbox id=pre checked onchange="reactive()"> pre-announce</label>
+  <label style="font-size:13px;color:#ccc" title="Speak the detector's catalog name into the glasses the moment a part is spotted, before Claude answers"><input type=checkbox id=pre onchange="reactive()"> pre-announce</label>
   <span id=rstat style="font:12px ui-monospace,monospace;color:#9f9"></span>
 </div>
 <div id=card style="display:none;margin-top:10px;padding:10px;background:#1c1c1c;border:1px solid #333;border-radius:8px;font-size:13px"></div>

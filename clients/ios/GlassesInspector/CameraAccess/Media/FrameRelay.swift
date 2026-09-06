@@ -678,7 +678,7 @@ final class FrameRelay {
     targetFPS = d.object(forKey: Self.fpsKey) as? Double ?? 15
     jpegQuality = d.object(forKey: Self.qualityKey) as? Double ?? 0.6
     speakEnabled = d.object(forKey: "relaySpeak") as? Bool ?? true
-    preannounce = d.object(forKey: "preannounce") as? Bool ?? true
+    preannounce = d.object(forKey: "preannounce") as? Bool ?? false
     reportPageEnabled = d.object(forKey: "reportPage") as? Bool ?? false
     partsModel = d.string(forKey: "partsModel") ?? "sonnet"
     sceneModel = d.string(forKey: "sceneModel") ?? "sonnet"
