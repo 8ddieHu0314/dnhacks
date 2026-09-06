@@ -7,11 +7,13 @@ capture timestamp header the phone sends.
     python3 webcam_feed.py                      # camera 0, 8 fps, 960 px wide, to localhost:8787
     python3 webcam_feed.py --fps 5 --width 640 --camera 1 --url http://localhost:8787
     python3 webcam_feed.py --rotate 90          # mimic the glasses' portrait frames
+    python3 webcam_feed.py --save sessions/components_a   # also record every frame (training data capture)
 
 Needs OpenCV; the repo-root .venv or .venv-inf have it (the relay venv does not, on purpose).
 macOS will ask for camera permission for your terminal the first time.
 """
 import argparse
+import os
 import sys
 import time
 
@@ -28,6 +30,7 @@ def main():
     ap.add_argument("--quality", type=int, default=80)
     ap.add_argument("--rotate", type=int, default=0, choices=[0, 90, 180, 270], help="rotate frames clockwise before sending")
     ap.add_argument("--reactive", default="parts", choices=["off", "parts", "scene"], help="hands-free mode to enable on the relay")
+    ap.add_argument("--save", default="", help="also write every frame as JPEG under <dir>/frames/ (training data capture)")
     a = ap.parse_args()
 
     cap = cv2.VideoCapture(a.camera)
@@ -42,6 +45,11 @@ def main():
     rot = {90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}.get(a.rotate)
     period = 1.0 / a.fps
     sent, failed, t_report = 0, 0, time.time()
+    save_dir = None
+    if a.save:
+        save_dir = os.path.join(a.save, "frames")
+        os.makedirs(save_dir, exist_ok=True)
+        print(f"recording every frame to {save_dir}")
     print(f"webcam {a.camera} -> {a.url}/frame at {a.fps} fps, {a.width}px wide, rotate {a.rotate}. Ctrl-C to stop.")
     try:
         while True:
@@ -56,6 +64,9 @@ def main():
             if w > a.width:
                 frame = cv2.resize(frame, (a.width, int(h * a.width / w)), interpolation=cv2.INTER_AREA)
             ok, jpg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, a.quality])
+            if save_dir:
+                with open(os.path.join(save_dir, f"{sent:06d}.jpg"), "wb") as f:
+                    f.write(jpg.tobytes())
             try:
                 client.post("/frame", content=jpg.tobytes(), headers={"x-capture-ts": str(int(t0 * 1000))})
                 sent += 1
