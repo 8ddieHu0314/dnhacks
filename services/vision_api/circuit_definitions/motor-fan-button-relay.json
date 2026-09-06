@@ -27,6 +27,15 @@
     {"source": "motor diode cathode (stripe)", "target": "motor +", "role": "motor flyback clamp"},
     {"source": "motor diode anode", "target": "motor -", "role": "motor flyback clamp"}
   ],
+  "verification_checks": [
+    {"id": "power-disconnected", "required_evidence": "user_report", "blocks_power": true, "pass_condition": "USB and external 5 V motor supply are disconnected."},
+    {"id": "relay-pin-map", "required_evidence": "measurement", "blocks_power": true, "pass_condition": "Unpowered meter finds about 70 ohm across the coil and continuity only between COM and NC."},
+    {"id": "no-supply-short", "required_evidence": "measurement", "blocks_power": true, "pass_condition": "No continuity exists directly between either 5 V rail and its return."},
+    {"id": "driver-chain", "required_evidence": "visual", "blocks_power": true, "pass_condition": "D8 reaches base only through 1 kOhm; emitter reaches GND; collector reaches coil."},
+    {"id": "flyback-polarity", "required_evidence": "visual", "blocks_power": true, "pass_condition": "Both diode stripes face the positive side of their inductive load."},
+    {"id": "button-operation", "required_evidence": "measurement", "blocks_power": true, "pass_condition": "Unpowered continuity changes only while the button is held."},
+    {"id": "powered-function", "required_evidence": "user_report", "blocks_power": false, "pass_condition": "Relay clicks and fan runs only while the button is held."}
+  ],
   "safety_invariants": [
     "Never connect the relay coil or motor directly to an Arduino GPIO pin.",
     "Disconnect every power source before moving wires or using continuity mode.",
