@@ -280,6 +280,20 @@ When this fast pass identifies `breadboard-830`, it sets `analysis.mode` to
 `debug`; every other result remains `identification` mode. Switching modes does
 not make another model request.
 
+The next frame in that session starts the debugging loop. The initial catalog
+reply also retains up to five visible component IDs, so the debugger receives
+their researched pin, voltage, wiring, safety, and troubleshooting records.
+`analysis.debug_guidance` contains a problem statement, status, and up to eight
+ordered remaining steps. Every step includes an instruction, reason, expected
+evidence, optional safety note, and forced human confirmation.
+
+When the image is insufficient, `visual_clarification` names the target, the
+requested view, and why it is needed. The speech path asks for that view before
+reading an action. Otherwise it reads the first remaining step and expected
+evidence. Later frames and `user_request` transcripts update the saved plan for
+that session. Say or type `exit debug mode`, `stop debugging`, or
+`identification mode` to return to identification without a model call.
+
 ## Speech debugging and glasses demo
 
 Set `SPEECH_MODE=computer` to read each new analysis summary with the Mac's
