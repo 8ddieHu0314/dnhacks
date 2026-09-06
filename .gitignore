@@ -23,4 +23,7 @@ clients/ios/GlassesInspector/server.log
 clients/ios/StockSample/
 
 # model weights (fetched, see services/relay_receiver/README.md)
-weights/
+weights/*
+!weights/components_yolov8.onnx
+!weights/components_yolov8.classes.txt
+!weights/README.md

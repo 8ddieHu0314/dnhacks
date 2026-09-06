@@ -1,0 +1,14 @@
+7-seg
+arduino
+diodo
+drv8825
+esp82
+lcd
+led
+pot
+pulsador
+resistencia
+sensor ultrasonico
+servomotor
+transistor
+ttl
