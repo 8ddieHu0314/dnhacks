@@ -6,13 +6,19 @@ from pathlib import Path
 import httpx
 from fastapi.testclient import TestClient
 
-from vision_api.component_knowledge import ComponentKnowledgeBase, ComponentKnowledgeVLM
+from vision_api.component_knowledge import ComponentKnowledgeBase, ComponentKnowledgeVLM, SceneDescription
 from vision_api.main import app
 from vision_api.models import Frame, FrameMetadata
 from vision_api.segmentation import build_vision_engine
 
 
 class ComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
+    def test_accepts_string_or_mapping_retrieval_cues(self) -> None:
+        scene = SceneDescription.model_validate({"scene_description": "breadboard",
+            "visible_text": {"label": "HC-SR04"}, "likely_component_terms": "sensor"})
+        self.assertEqual(scene.visible_text, ["HC-SR04"])
+        self.assertEqual(scene.likely_component_terms, ["sensor"])
+
     def setUp(self) -> None:
         self.knowledge = ComponentKnowledgeBase.from_path(
             Path(__file__).parents[1] / "docs/components/components.json"
