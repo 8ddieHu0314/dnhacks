@@ -7,6 +7,8 @@
 <p>This same-origin harness sends one JPEG at a time and waits for its model result. In local mock mode, the typed cue drives retrieval; it does not identify pixels.</p>
 <input id="question" size="48" placeholder="Visible marking or question, e.g. HC-SR04">
 <button id="camera">Enable camera</button><button id="start">Start test</button><button id="stop">Stop</button>
+<p><select id="check"><option value="">No new evidence</option><option value="power-disconnected" data-source="user_report">Power disconnected</option><option value="relay-pin-map" data-source="measurement">Relay pin mapping</option><option value="no-supply-short" data-source="measurement">No supply short</option><option value="button-operation" data-source="measurement">Button continuity</option><option value="powered-function" data-source="user_report">Powered function</option></select>
+<input id="evidence" size="48" placeholder="Exact observation or meter reading"></p>
 <p id="status">Camera disabled.</p><video id="video" autoplay playsinline muted></video><canvas id="canvas" hidden></canvas><img id="sent" alt="Exact JPEG submitted to the API">
 <section id="circuit" hidden><h2>Observed circuit</h2><pre id="diagram"></pre></section>
 <h2>Full analysis</h2><pre id="result">No result yet.</pre>
@@ -50,7 +52,9 @@ async function tick(){
     canvas.width=width; canvas.height=height; canvas.getContext("2d").drawImage(video,0,0,width,height);
     const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.7));
     if(sentUrl)URL.revokeObjectURL(sentUrl); sentUrl=URL.createObjectURL(blob); sent.src=sentUrl;
-    const frameId=crypto.randomUUID(), metadata={frame_id:frameId,captured_at:new Date().toISOString(),width,height,encoding:"jpeg",user_request:$("question").value||null};
+    const selected=$("check").selectedOptions[0], evidence=$("evidence").value.trim();
+    const reported_evidence=selected.value&&evidence?[{check_id:selected.value,evidence_source:selected.dataset.source,value:evidence}]:[];
+    const frameId=crypto.randomUUID(), metadata={frame_id:frameId,captured_at:new Date().toISOString(),width,height,encoding:"jpeg",user_request:$("question").value||null,reported_evidence};
     const frameResponse=await fetch(`/v1/sessions/${sessionId}/frames`,{method:"POST",headers:{"x-frame-metadata":JSON.stringify(metadata)},body:blob});
     if(!frameResponse.ok) throw new Error(await frameResponse.text());
     const latest=await latestResult(frameId); debugMode=latest.analysis?.mode==="debug"; renderCircuit(latest.analysis); result.textContent=JSON.stringify(latest.analysis,null,2);
