@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from typing import Protocol
 
+from .component_knowledge import ComponentKnowledgeBase, ComponentKnowledgeVLM
 from .models import BoundingBox, Frame, SegmentationRegion, VisionOutput
 from .vlm import OpenAICompatibleVLM
 
@@ -46,7 +47,8 @@ class MockSegmentationEngine:
 
 
 def build_vision_engine(
-    *, base_url: str | None, api_key: str | None, backend: str, model: str, timeout_seconds: float
+    *, base_url: str | None, api_key: str | None, backend: str, model: str, timeout_seconds: float,
+    component_knowledge: ComponentKnowledgeBase | None = None, component_knowledge_top_k: int = 3,
 ) -> VisionEngine:
     if backend == "mock":
         return MockSegmentationEngine()
@@ -56,5 +58,12 @@ def build_vision_engine(
             api_key=api_key,
             model=model,
             timeout_seconds=timeout_seconds,
+        )
+    if backend == "component_knowledge":
+        if component_knowledge is None:
+            raise ValueError("A component knowledge base is required for component_knowledge")
+        return ComponentKnowledgeVLM(
+            base_url=base_url, api_key=api_key, model=model, timeout_seconds=timeout_seconds,
+            knowledge_base=component_knowledge, top_k=component_knowledge_top_k,
         )
     raise ValueError(f"Unsupported VISION_BACKEND={backend!r}")
