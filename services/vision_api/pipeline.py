@@ -61,6 +61,8 @@ class VisionPipeline:
             except asyncio.CancelledError:
                 pass
             self._worker = None
+        # A stopped app can be started by a new ASGI event loop (including tests).
+        self._queue = asyncio.Queue(maxsize=self._queue.maxsize)
 
     async def submit(
         self,
