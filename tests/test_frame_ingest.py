@@ -1,4 +1,5 @@
 import json
+import time
 import unittest
 
 from fastapi.testclient import TestClient
@@ -33,3 +34,13 @@ class FrameIngestTests(unittest.TestCase):
         page = self.client.get("/webcam")
         self.assertEqual(page.status_code, 200)
         self.assertIn("Component knowledge webcam test", page.text)
+
+    def test_returns_only_the_latest_result_for_polling_clients(self) -> None:
+        self.assertEqual(self.client.get(f"/v1/sessions/{self.session_id}/results/latest").status_code, 204)
+        self.post_frame(b"\xff\xd8\xff\x00")
+        for _ in range(20):
+            latest = self.client.get(f"/v1/sessions/{self.session_id}/results/latest")
+            if latest.status_code == 200:
+                break
+            time.sleep(0.01)
+        self.assertEqual(latest.json()["frame_id"], "frame")
