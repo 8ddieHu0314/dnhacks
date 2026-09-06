@@ -618,6 +618,7 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, n
 
 def set_enabled(enabled: bool, **kw):
     global _identified_thumb
+    mode_before = state["mode"]
     for k in ("min_confidence", "settle_seconds", "motion_threshold", "change_threshold", "cooldown_seconds", "sharp_threshold"):
         if kw.get(k) is not None:
             state[k] = float(kw[k])
@@ -638,8 +639,12 @@ def set_enabled(enabled: bool, **kw):
         state["preannounce"] = bool(kw["preannounce"])
     if kw.get("det_trigger") is not None:
         state["det_trigger"] = bool(kw["det_trigger"])
+    was_on, old_mode = state["enabled"], mode_before
     state["enabled"] = bool(enabled)
-    if enabled:
+    # Forget the announced part only when hands-free actually turns on or switches mode. The phone
+    # re-sends its settings on every reconnect; resetting here on each of those re-announced the
+    # part still in view.
+    if enabled and (not was_on or state["mode"] != old_mode):
         state["last_id"] = None
         state["last_det_label"] = None
         state["pending"] = None

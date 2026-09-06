@@ -139,6 +139,7 @@ actor RelaySocket {
 
   var onClose: (@Sendable () -> Void)?
   func setCloseHandler(_ h: @escaping @Sendable () -> Void) { onClose = h }
+  private var opening = false
 
   func close() {
     connection?.c.cancel()
@@ -201,6 +202,7 @@ actor RelaySocket {
     let params = makeParameters(cableInterface: cableIface)
     if cableByProhibition { params.prohibitedInterfaceTypes = [.wifi, .cellular] }
     log("open \(ep) via \(cableIface.map { "\($0.name)/\($0.type)" } ?? (cableByProhibition ? "non-Wi-Fi (169.254 route)" : "any interface"))")
+    connection?.c.cancel()   // never keep two sockets alive; the Mac would speak to both
     let box = ConnectionBox(NWConnection(to: ep, using: params))
     let id = box.id
     box.c.stateUpdateHandler = { [weak self] state in
@@ -255,12 +257,13 @@ actor RelaySocket {
 
   /// Drain incoming messages so pings and close frames are handled promptly.
   private func receiveNext(_ box: ConnectionBox) {
+    guard connection?.id == box.id else { return }   // an orphaned socket stops feeding the handler
     box.c.receiveMessage { [weak self] content, context, _, error in
       if error == nil {
         if let content,
           let meta = context?.protocolMetadata(definition: NWProtocolWebSocket.definition) as? NWProtocolWebSocket.Metadata,
           meta.opcode == .text, let text = String(data: content, encoding: .utf8) {
-          Task { await self?.deliverText(text) }
+          Task { await self?.deliverText(text, from: box.id) }
         }
         Task { await self?.receiveNext(box) }
       } else {
@@ -273,8 +276,16 @@ actor RelaySocket {
   /// timeout or cancellation can never strand a task-group child.
   private func ensureReady(timeout: TimeInterval) async throws {
     if connection == nil {
-      lastFailure = nil
-      try await open()
+      // open() awaits an interface lookup before it records the connection. A frame send and a
+      // command landing in that window used to open two sockets, and the Mac then spoke to both.
+      if opening {
+        while opening { try await Task.sleep(for: .milliseconds(40)) }
+      } else {
+        opening = true
+        defer { opening = false }
+        lastFailure = nil
+        try await open()
+      }
     }
     // A cable attempt gets a short budget; a timeout there switches to any interface.
     let budget = usingCable ? min(timeout, 3) : timeout
@@ -295,7 +306,10 @@ actor RelaySocket {
     }
   }
 
-  private func deliverText(_ text: String) { textHandler?(text) }
+  private func deliverText(_ text: String, from id: ObjectIdentifier) {
+    guard connection?.id == id else { return }   // only the live socket speaks
+    textHandler?(text)
+  }
 
   /// Sends a small JSON/text message to the receiver (commands such as "inspect").
   func sendText(_ text: String) async throws {

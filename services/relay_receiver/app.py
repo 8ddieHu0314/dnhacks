@@ -38,7 +38,7 @@ def set_models(**kw):
             continue
         mid = MODEL_CHOICES.get(str(v).lower(), str(v))
         if key == "identify":
-            identify.set_enabled(identify.state["enabled"], model=mid)
+            identify.state["model"] = mid      # not set_enabled(): that would forget the part already announced
         else:
             models[key] = mid
 SPEAK = os.environ.get("SPEAK", "0") == "1"           # also say results on the Mac speaker
@@ -660,6 +660,15 @@ async def ws_ingest_root(ws: WebSocket):
 @app.websocket("/ws/ingest")
 async def ws_ingest(ws: WebSocket):
     await ws.accept()
+    # A phone that reconnects (cable retry, app relaunch) can leave its previous socket open until
+    # the ping timeout; speech would then go to both and play twice. Keep one socket per client host.
+    host = ws.client.host if ws.client else None
+    for old in [p for p in phones if p is not ws and p.client and p.client.host == host]:
+        phones.discard(old)
+        try:
+            await old.close(code=1000)
+        except Exception:
+            pass
     phones.add(ws)
     await ws.send_text(json.dumps({"type": "narration", "enabled": narration["enabled"], "interval": narration["interval"]}))
     await ws.send_text(json.dumps({"type": "reactive", **_reactive_public()}))
