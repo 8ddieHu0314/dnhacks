@@ -695,6 +695,18 @@ struct RelaySettingsView: View {
           Text("Mac: \(relay.reactiveEnabled ? "\(relay.reactiveMode) · \(relay.reactiveStatus)" : "off")")
             .font(.caption.monospaced()).foregroundStyle(.secondary)
         }
+        Section("Models") {
+          Picker("Parts", selection: $relay.partsModel) {
+            Text("Sonnet 5 (fast)").tag("sonnet")
+            Text("Opus 5").tag("opus")
+          }
+          Picker("Scene", selection: $relay.sceneModel) {
+            Text("Sonnet 5 (fast)").tag("sonnet")
+            Text("Opus 5").tag("opus")
+          }
+          Text("Sonnet answers in about 1.8 s, Opus in about 3.5 s; both read markings well. Describe always uses Opus. Active on Mac: parts \(relay.activeModels["identify"] ?? "?"), scene \(relay.activeModels["scene"] ?? "?").")
+            .font(.caption).foregroundStyle(.secondary)
+        }
         Section("Voice") {
           Picker("Voice", selection: $relay.voiceProvider) {
             Text("Apple (phone)").tag("apple")
