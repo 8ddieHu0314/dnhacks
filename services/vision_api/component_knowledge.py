@@ -242,6 +242,22 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
             raise TypeError("completion JSON was not an object")
         return payload
 
+    @staticmethod
+    def _guidance_schema(ids: list[str]) -> dict[str, Any]:
+        string_list = {"type": "array", "items": {"type": "string"}}
+        identification = {"type": "object", "properties": {
+            "component_id": {"type": "string", "enum": ids}, "confidence": {"type": "number"},
+            "observed_evidence": string_list, "uncertainty": {"type": ["string", "null"]},
+        }, "required": ["component_id", "confidence"]}
+        guidance = {"type": "object", "properties": {
+            "identified_components": {"type": "array", "items": identification},
+            "wiring_feedback": string_list, "clarifying_questions": string_list, "data_caveats": string_list,
+        }, "required": []}
+        analysis = {"type": "object", "properties": {"summary": {"type": "string"},
+            "observations": string_list, "safety_alerts": string_list, "component_guidance": guidance},
+            "required": ["summary", "component_guidance"]}
+        return {"type": "object", "properties": {"analysis": analysis}, "required": ["analysis"]}
+
     async def _complete(self, *, system: str, text: str, frame: Frame,
                         schema: dict[str, Any] | None = None) -> dict[str, Any]:
         headers = {"content-type": "application/json", "anthropic-version": "2023-06-01"}
@@ -273,8 +289,10 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
             frame=frame, schema=SceneDescription.model_json_schema(),
         ))
         matches = self._knowledge_base.search(scene.query(frame.metadata.user_request), limit=self._top_k)
+        records = self._knowledge_base.prompt_records(matches)
         output = VisionOutput.model_validate(await self._complete(
-            system=self._guidance_prompt(frame, self._knowledge_base.prompt_records(matches)),
-            text="Give grounded component guidance.", frame=frame, schema=VisionOutput.model_json_schema(),
+            system=self._guidance_prompt(frame, records),
+            text="Give grounded component guidance.", frame=frame,
+            schema=self._guidance_schema([record["id"] for record in records]),
         ))
         return self._ground(output, matches)
