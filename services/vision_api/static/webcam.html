@@ -33,9 +33,9 @@ async function latestResult(frameId){
 async function tick(){
   if(!running) return;
   try{
-    const width=video.videoWidth||640, height=Math.round(width/(video.videoWidth/video.videoHeight||4/3));
+    const width=Math.min(video.videoWidth||640,640), height=Math.round(width/(video.videoWidth/video.videoHeight||4/3));
     canvas.width=width; canvas.height=height; canvas.getContext("2d").drawImage(video,0,0,width,height);
-    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.8));
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.7));
     if(sentUrl)URL.revokeObjectURL(sentUrl); sentUrl=URL.createObjectURL(blob); sent.src=sentUrl;
     const frameId=crypto.randomUUID(), metadata={frame_id:frameId,captured_at:new Date().toISOString(),width,height,encoding:"jpeg",user_request:$("question").value||null};
     const frameResponse=await fetch(`/v1/sessions/${sessionId}/frames`,{method:"POST",headers:{"x-frame-metadata":JSON.stringify(metadata)},body:blob});

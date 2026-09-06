@@ -52,7 +52,8 @@ class ComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(calls), 2)
         self.assertIn("Describe this frame for retrieval.", calls[0]["messages"][1]["content"][0]["text"])
         self.assertIn("hc-sr04", calls[1]["messages"][0]["content"])
-        self.assertIn("sources", calls[1]["messages"][0]["content"])
+        records = json.loads(calls[1]["messages"][0]["content"].split("Candidate records:\n", 1)[1])
+        self.assertNotIn("sources", records[0])
         self.assertEqual(output.analysis.component_guidance.retrieved_components[0].component_id, "hc-sr04")
         self.assertEqual([item.component_id for item in output.analysis.component_guidance.identified_components], ["hc-sr04"])
 

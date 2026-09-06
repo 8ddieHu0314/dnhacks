@@ -37,6 +37,7 @@ class FrameIngestTests(unittest.TestCase):
         self.assertIn("latestResult", page.text)
         self.assertIn("latestResult(frameId)", page.text)
         self.assertIn("payload.frame_id===frameId", page.text)
+        self.assertIn("Math.min(video.videoWidth||640,640)", page.text)
         self.assertIn("Exact JPEG submitted", page.text)
 
     def test_returns_only_the_latest_result_for_polling_clients(self) -> None:
