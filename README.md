@@ -253,6 +253,19 @@ evidence. Later frames and `user_request` transcripts update the saved plan for
 that session. Say or type `exit debug mode`, `stop debugging`, or
 `identification mode` to return to identification without a model call.
 
+Breadboard debugging currently compares the image against the hardcoded
+[`motor-fan-button-relay`](services/vision_api/circuit_definitions/motor-fan-button-relay.json)
+target. Its default behavior is “fan runs while the button is held”: D2 uses
+`INPUT_PULLUP`, D8 drives the bare 5 V relay through a 1 kOhm resistor and
+PN2222, and the normally-open contact switches a separate regulated 5 V motor
+supply. Flyback diodes protect both inductive loads.
+
+Claude must return an observed component-and-connection graph before it gives
+instructions. The webcam page renders that graph, its visual confidence, and a
+purpose-fit verdict. Unreadable endpoints remain `unclear` and cause a precise
+view request instead of a guessed wire connection. Identification frames stay
+at 640 px; debug frames use 1024 px so breadboard rows remain legible.
+
 ## Speech debugging and glasses demo
 
 Set `SPEECH_MODE=computer` to read each new analysis summary with the Mac's
