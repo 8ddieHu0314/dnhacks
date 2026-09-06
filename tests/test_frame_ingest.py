@@ -4,7 +4,9 @@ import unittest
 
 from fastapi.testclient import TestClient
 
+from vision_api import main
 from vision_api.main import app
+from vision_api.models import VisionAnalysis, VisionOutput
 
 
 class FrameIngestTests(unittest.TestCase):
@@ -50,3 +52,19 @@ class FrameIngestTests(unittest.TestCase):
                 break
             time.sleep(0.01)
         self.assertEqual(latest.json()["frame_id"], "frame")
+
+    def test_forwards_demo_speech_to_a_companion_socket(self) -> None:
+        class SpeakingEngine:
+            name = "speaking"
+
+            async def analyze(self, _frame):
+                return VisionOutput(analysis=VisionAnalysis(summary="Breadboard visible."))
+
+        prior_mode, prior_engine = main.speech._mode, main.pipeline._engine
+        main.speech._mode, main.pipeline._engine = "glasses", SpeakingEngine()
+        try:
+            with self.client.websocket_connect(f"/v1/sessions/{self.session_id}/speech") as socket:
+                self.post_frame(b"\xff\xd8\xff\x00")
+                self.assertEqual(socket.receive_json(), {"type": "speak", "frame_id": "frame", "text": "Breadboard visible."})
+        finally:
+            main.speech._mode, main.pipeline._engine = prior_mode, prior_engine
