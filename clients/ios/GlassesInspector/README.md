@@ -2,6 +2,8 @@
 
 A sample iOS application demonstrating integration with Meta Wearables Device Access Toolkit. This app walks the SDK's camera lifecycle as explicit steps — start a session, start the preview, capture or record, stop the preview, end the session — on a single full-bleed camera screen.
 
+For the Claude circuit-debug path, follow the [device test runbook](../../../docs/glasses-circuit-debug.md).
+
 ## Features
 
 - Connect to Meta AI glasses

@@ -35,8 +35,8 @@ terminal with `curl http://127.0.0.1:8000/health`.
 ## Install the iPhone app
 
 1. Open `clients/ios/GlassesInspector/CameraAccess.xcodeproj` in full Xcode.
-2. Select the `CameraAccess` target and your signing team. Keep the configured
-   Meta App ID, client token, URL scheme, and wearable entitlement intact.
+2. Select the `CameraAccess` target and your signing team. Debug builds use Meta
+   App ID `0`; production builds need Wearables Developer Center credentials.
 3. Select the physical iPhone as the run destination and press Run.
 4. In Meta AI, confirm Developer Mode is still enabled.
 5. In Glasses Inspector, tap Connect and complete the Meta AI registration.
