@@ -10,6 +10,7 @@ line). Both are gitignored; see README for how to fetch them. If either is missi
 disables itself and the relay behaves as before.
 """
 import io
+import json
 import os
 import time
 from pathlib import Path
@@ -68,6 +69,7 @@ state = {
 _session = None
 _input_name = None
 _size = 640
+_resize_mode = "stretch"   # "stretch" (Roboflow-trained models) or "letterbox" (ultralytics-trained, see <name>.json sidecar)
 
 
 def english(label: str) -> str:
@@ -76,7 +78,7 @@ def english(label: str) -> str:
 
 def load() -> str:
     """Create the onnxruntime session. Returns a one-line status for /health."""
-    global _session, _input_name, _size
+    global _session, _input_name, _size, _resize_mode
     if not ENABLED:
         state.update(available=False, reason="disabled (DETECT=0)")
         return state["reason"]
@@ -93,10 +95,14 @@ def load() -> str:
         _input_name = inp.name
         _size = int(inp.shape[-1]) if isinstance(inp.shape[-1], int) else 640
         state["classes"] = [l.strip() for l in CLASSES.read_text().splitlines() if l.strip()]
+        side = WEIGHTS.with_suffix(".json")
+        cfg = json.loads(side.read_text()) if side.exists() else {}
+        _resize_mode = cfg.get("resize_mode", "stretch")
+        state["resize_mode"] = _resize_mode
         state["allow"] = sorted(ALLOW & set(state["classes"])) if ALLOW else None
         state["provider"] = _session.get_providers()[0]
         state.update(available=True, reason="ok")
-        return f"{WEIGHTS.name} ({len(state['classes'])} classes, {state['provider']})"
+        return f"{WEIGHTS.name} ({len(state['classes'])} classes, {state['provider']}, {_resize_mode})"
     except Exception as e:  # pragma: no cover - environment dependent
         state.update(available=False, reason=f"load failed: {e}")
         return state["reason"]
@@ -133,11 +139,23 @@ def display_name(label: str) -> str:
 
 
 def _preprocess(data: bytes):
+    """Returns (tensor, w, h, geometry). Geometry maps model-space boxes back to normalized frame
+    coordinates: stretch = plain divide; letterbox = (box - pad) / scale, then divide by frame size."""
     img = Image.open(io.BytesIO(data)).convert("RGB")
     w, h = img.size
-    x = np.asarray(img.resize((_size, _size), Image.BILINEAR), dtype=np.float32) / 255.0  # stretch, rgb, /255
+    if _resize_mode == "letterbox":
+        r = min(_size / w, _size / h)
+        nw, nh = max(1, round(w * r)), max(1, round(h * r))
+        px, py = (_size - nw) / 2, (_size - nh) / 2
+        canvas = Image.new("RGB", (_size, _size), (114, 114, 114))
+        canvas.paste(img.resize((nw, nh), Image.BILINEAR), (int(px), int(py)))
+        x = np.asarray(canvas, dtype=np.float32) / 255.0
+        geo = (r, int(px), int(py))
+    else:
+        x = np.asarray(img.resize((_size, _size), Image.BILINEAR), dtype=np.float32) / 255.0  # stretch, rgb, /255
+        geo = None
     x = np.transpose(x, (2, 0, 1))[None]
-    return np.ascontiguousarray(x), w, h
+    return np.ascontiguousarray(x), w, h, geo
 
 
 def _nms(boxes: np.ndarray, scores: np.ndarray, iou: float) -> list[int]:
@@ -166,7 +184,7 @@ def detect(data: bytes, conf: float = CONF) -> list[dict]:
     if not state["available"]:
         return []
     t0 = time.perf_counter()
-    x, w, h = _preprocess(data)
+    x, w, h, geo = _preprocess(data)
     out = _session.run(None, {_input_name: x})[0]          # (1, 4+nc, 8400)
     pred = out[0].T                                         # (8400, 4+nc)
     scores_all = pred[:, 4:]
@@ -183,7 +201,13 @@ def detect(data: bytes, conf: float = CONF) -> list[dict]:
     if m.any():
         p, cls, scores = pred[m], cls[m], scores[m]
         cx, cy, bw, bh = p[:, 0], p[:, 1], p[:, 2], p[:, 3]
-        boxes = np.stack([cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2], 1) / _size  # normalized, stretch undone
+        boxes = np.stack([cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2], 1)
+        if geo is None:
+            boxes = boxes / _size                                    # stretch undone
+        else:
+            r, px, py = geo
+            boxes = (boxes - np.array([px, py, px, py])) / r          # letterbox undone, now in frame pixels
+            boxes = boxes / np.array([w, h, w, h])
         boxes = np.clip(boxes, 0, 1)
         keep = _nms(boxes, scores, IOU)
         names = state["classes"]

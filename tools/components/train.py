@@ -8,6 +8,7 @@ exports best.pt to ONNX (opset 12, static 640, the same shape detect.py already 
 to weights/<name>.onnx with a one-line classes file. Run tools/components/eval_gate.py before swapping it in.
 """
 import argparse
+import json
 import os
 import shutil
 from pathlib import Path
@@ -63,6 +64,9 @@ def main():
     out = Path("weights") / f"{a.name}.onnx"
     shutil.copy(onnx, out)
     (Path("weights") / f"{a.name}.classes.txt").write_text("component\n")
+    # ultralytics trains and validates with letterbox; the relay must not stretch the frame (recall 28% -> 42% at 0.4)
+    (Path("weights") / f"{a.name}.json").write_text(json.dumps({"resize_mode": "letterbox", "imgsz": a.imgsz, "base": a.base,
+                                                                "own": a.own, "universe": a.universe, "epochs": a.epochs}, indent=1))
     print("exported:", out, flush=True)
 
 
