@@ -198,6 +198,8 @@ state = {
     "report": [],
     "busy": False,         # one answer at a time
     "last_qa": None,       # (ts, question, answer): short-term memory for follow-ups ("does it need a driver?")
+    "gaps": [],            # recent frame gaps > 2 s: {"at", "gap_s", "while_speaking"}; freeze telemetry
+    "speaking_until": 0.0, # when the last spoken sentence is expected to finish playing
 }
 MEMORY_SECONDS = 120
 viewers: set[asyncio.Queue] = set()
@@ -219,6 +221,12 @@ if REPORT_PATH.exists():
 
 def _ingest(data: bytes, capture_ts: float | None):
     now = time.time()
+    # Freeze telemetry: a gap in frames from the phone, and whether the glasses were talking.
+    if state["latest_ts"] and now - state["latest_ts"] > 2.0:
+        gap = {"at": round(state["latest_ts"], 1), "gap_s": round(now - state["latest_ts"], 1),
+               "while_speaking": state["latest_ts"] < state["speaking_until"]}
+        state["gaps"] = (state["gaps"] + [gap])[-20:]
+        print(f"frame gap: {gap['gap_s']} s ending now" + (" (glasses were speaking)" if gap["while_speaking"] else ""), flush=True)
     state["latest"] = data
     state["latest_ts"] = now
     state["capture_ts"] = capture_ts or 0.0
@@ -304,7 +312,7 @@ def _stats():
             "last_frame_age_s": None if age is None else round(age, 2),
             "frame_kb": round(len(state["latest"]) / 1024, 1) if state["latest"] else 0,
             "frame_px": _frame_size(),
-            "recent": len(state["recent"]),
+            "recent": len(state["recent"]), "gaps": state["gaps"][-10:],
             "viewers": len(viewers), "phones": len(phones), "model": "fake" if FAKE else MODEL,
             "thinking": THINKING_MODE, "effort": EFFORT if OUTPUT_CONFIG else None,
             "frames_per_ask": FRAMES_PER_ASK, "busy": state["busy"],
@@ -365,6 +373,7 @@ async def _say(text: str) -> float:
     With ElevenLabs active the phone shows the caption and waits for PCM audio; otherwise it
     speaks the text with Apple's voice."""
     secs = speech_seconds(text)
+    state["speaking_until"] = max(state["speaking_until"], time.time()) + secs
     if _voice_active() != "elevenlabs":
         await _send_all(phones, {"type": "speak", "text": text})
         return secs

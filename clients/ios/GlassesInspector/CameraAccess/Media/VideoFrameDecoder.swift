@@ -30,13 +30,16 @@ final class VideoFrameDecoder: Sendable {
     var fresh: Int = 0                 // frames actually decoded
     var failures: Int = 0              // decode calls that failed
     var awaitingSince: TimeInterval?   // when we started waiting for a keyframe
+    var lastError: OSStatus = 0        // most recent VideoToolbox decode status that was not noErr
   }
 
   /// Glasses Inspector: decoder health. `awaitingSeconds` > 0 means the stream has not sent a
   /// keyframe since the session was rebuilt; the preview and the relay hold still until it does.
-  func stats() -> (fresh: Int, failures: Int, awaitingSeconds: Double) {
+  /// `lastError` is the raw VideoToolbox status (-12909 bad data, -12911 missing reference,
+  /// -12903 invalid session, ...), for the field notes.
+  func stats() -> (fresh: Int, failures: Int, awaitingSeconds: Double, lastError: Int32) {
     state.withLockUnchecked { s in
-      (s.fresh, s.failures, s.awaitingSince.map { Date().timeIntervalSince1970 - $0 } ?? 0)
+      (s.fresh, s.failures, s.awaitingSince.map { Date().timeIntervalSince1970 - $0 } ?? 0, s.lastError)
     }
   }
 
@@ -146,14 +149,17 @@ final class VideoFrameDecoder: Sendable {
       }
     }
 
-    // After 3 consecutive failures, invalidate so the next frame builds a fresh session
-    // — tolerates transient errors while still recovering from a persistent one
-    // (e.g. a pre-iOS 17 session torn down after backgrounding).
+    // Glasses Inspector: a bad or dropped frame (the Bluetooth link shared with audio) used to
+    // cost the whole session after 3 failures, and with no keyframe coming that froze the
+    // preview until a restart. Now only an invalid session, or a long run of failures (about a
+    // second of frames), throws the session and its reference frames away; single bad frames
+    // are skipped and decoding continues from the next one.
     if decodeStatus != noErr {
       return state.withLockUnchecked { state in
         state.consecutiveFailures += 1
         state.failures += 1
-        if state.consecutiveFailures >= 3 {
+        state.lastError = decodeStatus
+        if decodeStatus == kVTInvalidSessionErr || state.consecutiveFailures >= 24 {
           if let session = state.session {
             VTDecompressionSessionInvalidate(session)
           }

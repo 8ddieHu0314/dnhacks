@@ -369,6 +369,7 @@ final class CameraViewModel {
         let silent = Date().timeIntervalSince1970 - self.lastFrameAt.withLock { $0 }
         let d = self.videoFrameDecoder.stats()
         self.decoderStatus = "decoder: \(d.fresh) fresh · \(d.failures) failed"
+          + (d.lastError != 0 ? " · last error \(d.lastError)" : "")
           + (d.awaitingSeconds > 0.5 ? String(format: " · waiting for a keyframe %.0f s", d.awaitingSeconds) : "")
           + " · restarts \(self.stallRestarts)"
         if self.streamState == .streaming, !self.isRecording, !self.restartingStream, silent > Self.stallSeconds {
@@ -636,8 +637,12 @@ final class CameraViewModel {
     camera?.stop()
     camera = nil
     streamState = .stopped
-    currentVideoFrame = nil
-    hasReceivedFirstFrame = false
+    // Glasses Inspector: through a watchdog restart keep the last picture up instead of a black
+    // spinner; the stall note says what is happening and the next keyframe replaces it.
+    if !restartingStream {
+      currentVideoFrame = nil
+      hasReceivedFirstFrame = false
+    }
   }
 
   /// Appends a frame to the recorder. `nonisolated` so it keeps writing while the
