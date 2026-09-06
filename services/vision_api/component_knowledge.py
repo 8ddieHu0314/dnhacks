@@ -301,12 +301,21 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
             "safety_issues": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
         }, "required": ["fits_purpose", "explanation", "matches", "mismatches",
                         "missing_or_unclear", "safety_issues"]}
+        check = {"type": "object", "properties": {
+            "check_id": {"type": "string"},
+            "status": {"type": "string", "enum": ["pending", "pass", "fail"]},
+            "evidence_source": {"type": "string", "enum": ["visual", "user_report", "measurement", "unknown"]},
+            "evidence": {"type": "string"},
+        }, "required": ["check_id", "status", "evidence_source", "evidence"]}
         debug = {"type": "object", "properties": {
             "status": {"type": "string", "enum": ["needs_context", "in_progress", "ready_to_test", "resolved"]},
+            "phase": {"type": "string", "enum": ["inspect_unpowered", "verify_unpowered", "ready_to_power", "test_powered", "resolved"]},
+            "safe_to_energize": {"type": "boolean"},
             "problem": {"type": "string"}, "steps": {"type": "array", "items": step, "maxItems": 8},
+            "checks": {"type": "array", "items": check, "maxItems": 12},
             "visual_clarification": {"anyOf": [clarification, {"type": "null"}]},
             "observed_circuit": circuit, "comparison": comparison,
-        }, "required": ["status", "problem", "steps", "visual_clarification",
+        }, "required": ["status", "phase", "safe_to_energize", "problem", "checks", "steps", "visual_clarification",
                         "observed_circuit", "comparison"]}
         analysis = {"type": "object", "properties": {"mode": {"type": "string", "enum": ["identification", "debug"]},
             "summary": {"type": "string"}, "observations": string_list, "safety_alerts": string_list,
