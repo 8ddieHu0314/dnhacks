@@ -381,6 +381,7 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
         self._debug_sessions: set[str] = set()
         self._debug_components: dict[str, list[str]] = {}
         self._debug_history: dict[str, dict[str, Any]] = {}
+        self._debug_evidence: dict[str, dict[str, Any]] = {}
         target_path = Path(__file__).with_name("circuit_definitions") / "motor-fan-button-relay.json"
         self._target_circuit = json.loads(target_path.read_text())
         lines = []
@@ -409,7 +410,7 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
                 "{\"id\": \"primary catalog id or null\", \"visible_ids\": [\"catalog id\"], \"confidence\": number, "
                 "\"name\": \"short name\", \"evidence\": \"12 words max\"}.\n\nCatalog:\n" + self._catalog_index)
 
-    def _enforce_power_gate(self, analysis: VisionAnalysis) -> VisionAnalysis:
+    def _enforce_power_gate(self, analysis: VisionAnalysis, session_id: str = "") -> VisionAnalysis:
         debug = analysis.debug_guidance
         if debug is None:
             return analysis
@@ -420,8 +421,10 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
             check_id=item["id"], status="pending", evidence_source="unknown",
             evidence="No acceptable evidence has been reported yet.") for item in definitions]
         blocking = [item for item in definitions if item["blocks_power"]]
+        submitted = self._debug_evidence.get(session_id, {})
         safe = all((result := reported.get(item["id"])) is not None
                    and result.status == "pass" and result.evidence_source == item["required_evidence"]
+                   and (item["required_evidence"] == "visual" or item["id"] in submitted)
                    for item in blocking)
         steps = debug.steps
         if not safe:
@@ -449,6 +452,10 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
         debug_frame = replace(frame, metadata=metadata)
         previous = self._debug_history.get(frame.session_id)
         task = "Build or update the debug plan."
+        evidence = self._debug_evidence.setdefault(frame.session_id, {})
+        evidence.update({item.check_id: item.model_dump(mode="json") for item in frame.metadata.reported_evidence})
+        if evidence:
+            task += " Wearer-submitted evidence: " + json.dumps(list(evidence.values()), ensure_ascii=True)
         if previous:
             task += " Previous plan: " + json.dumps(previous, ensure_ascii=True)
         system = self._debugger._guidance_prompt(debug_frame, records) + f"""
@@ -471,7 +478,7 @@ that gate opens. The observed_circuit and comparison objects are mandatory even 
         ))
         output = self._debugger._ground(output, matches)
         analysis = output.analysis or VisionAnalysis(summary="Show the breadboard wiring clearly.")
-        analysis = self._enforce_power_gate(analysis)
+        analysis = self._enforce_power_gate(analysis, frame.session_id)
         if analysis.debug_guidance is not None:
             self._debug_history[frame.session_id] = analysis.debug_guidance.model_dump(mode="json")
         return output.model_copy(update={"analysis": analysis.model_copy(update={"mode": "debug"})})
@@ -483,6 +490,7 @@ that gate opens. The observed_circuit and comparison objects are mandatory even 
                 self._debug_sessions.discard(frame.session_id)
                 self._debug_components.pop(frame.session_id, None)
                 self._debug_history.pop(frame.session_id, None)
+                self._debug_evidence.pop(frame.session_id, None)
                 return VisionOutput(analysis=VisionAnalysis(
                     mode="identification", summary="Debug mode ended. Show me a component to identify."
                 ))
