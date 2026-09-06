@@ -89,13 +89,20 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(output.analysis.mode, "identification")
         self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "hc-sr04")
 
-    async def test_marks_a_breadboard_identification_as_debug_mode(self) -> None:
+    async def test_breadboard_switches_follow_up_frames_to_debugger(self) -> None:
         calls = []
 
         def handler(request: httpx.Request) -> httpx.Response:
             calls.append(json.loads(request.content))
-            content = {"id": "breadboard-830", "confidence": 0.9, "name": "Breadboard", "evidence": "power rails"}
-            return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps(content)}]})
+            if len(calls) == 1:
+                content = {"id": "breadboard-830", "confidence": 0.9, "name": "Breadboard", "evidence": "power rails"}
+                return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps(content)}]})
+            content = {"analysis": {"summary": "Inspect the split power rail.", "component_guidance": {},
+                "debug_guidance": {"status": "in_progress", "problem": "Rail continuity is unclear.",
+                    "steps": [{"instruction": "Disconnect power.", "reason": "Prevent a short.",
+                        "expected_evidence": "Power LED is off.", "requires_confirmation": True}],
+                    "visual_clarification": None}}}
+            return httpx.Response(200, json={"content": [{"type": "tool_use", "name": "submit_result", "input": content}]})
 
         knowledge = ComponentKnowledgeBase.from_path(Path(__file__).parents[1] / "docs/components/components.json")
         engine = AnthropicCatalogIdentificationVLM(base_url="https://model.example", api_key="test-key",
@@ -107,6 +114,12 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(output.analysis.mode, "debug")
         self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "breadboard-830")
+        follow_up = frame.__class__(frame.session_id, frame.metadata.model_copy(update={"frame_id": "next"}),
+                                    frame.image_bytes, frame.received_at)
+        debug_output = await engine.analyze(follow_up)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(debug_output.analysis.mode, "debug")
+        self.assertEqual(debug_output.analysis.debug_guidance.steps[0].instruction, "Disconnect power.")
 
     async def test_treats_non_json_catalog_responses_as_unclear(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
