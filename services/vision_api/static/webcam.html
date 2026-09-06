@@ -31,8 +31,8 @@ async function tick(){
     const metadata={frame_id:crypto.randomUUID(),captured_at:new Date().toISOString(),width,height,encoding:"jpeg",user_request:$("question").value||null};
     const sent=await fetch(`/v1/sessions/${sessionId}/frames`,{method:"POST",headers:{"x-frame-metadata":JSON.stringify(metadata)},body:blob});
     if(!sent.ok) throw new Error(await sent.text());
-    await pause(150); const results=await fetch(`/v1/sessions/${sessionId}/results`).then(response=>response.json());
-    const latest=results.at(-1); if(latest) result.textContent=JSON.stringify(latest.analysis,null,2);
+    await pause(150); const response=await fetch(`/v1/sessions/${sessionId}/results/latest`);
+    if(response.ok){const latest=await response.json(); result.textContent=JSON.stringify(latest.analysis,null,2);}
   }catch(error){status.textContent=`Camera test error: ${error.message}`;running=false;return;}
   setTimeout(tick,1000);
 }

@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 from .component_knowledge import ComponentKnowledgeBase
 from .config import settings
@@ -241,6 +241,13 @@ async def ingest_frames_websocket(websocket: WebSocket, session_id: str) -> None
 async def get_results(session_id: str) -> JSONResponse:
     validate_session(session_id)
     return JSONResponse([result.model_dump(mode="json") for result in pipeline.results_for(session_id)])
+
+
+@app.get("/v1/sessions/{session_id}/results/latest")
+async def get_latest_result(session_id: str) -> Response:
+    validate_session(session_id)
+    results = pipeline.results_for(session_id)
+    return JSONResponse(results[-1].model_dump(mode="json")) if results else Response(status_code=204)
 
 
 @app.get("/v1/sessions/{session_id}/metrics", response_model=SessionMetrics)
