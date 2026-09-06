@@ -62,6 +62,7 @@ state = {
     "latest_frame": None,  # the JPEG those boxes were computed on (so consumers never pair boxes with a newer frame)
     "allow": None,       # class allowlist in effect (None = every class in classes.txt)
     "hints": {},         # label -> {"catalog_id", "display", "in_catalog"} after bind_catalog()
+    "almost": None,      # best candidate below the confidence threshold, for tuning ("almost: lcd 22%")
 }
 _session = None
 _input_name = None
@@ -170,6 +171,12 @@ def detect(data: bytes, conf: float = CONF) -> list[dict]:
     scores_all = pred[:, 4:]
     cls = scores_all.argmax(1)
     scores = scores_all[np.arange(len(cls)), cls]
+    best = int(scores.argmax())
+    state["almost"] = None if scores[best] >= conf else {
+        "label": state["classes"][cls[best]] if cls[best] < len(state["classes"]) else str(cls[best]),
+        "conf": round(float(scores[best]), 3)}
+    if state["almost"]:
+        state["almost"]["display"] = display_name(state["almost"]["label"])
     m = scores >= conf
     dets: list[dict] = []
     if m.any():

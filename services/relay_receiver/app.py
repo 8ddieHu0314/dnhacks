@@ -401,7 +401,8 @@ async def _detect_loop():
             return
         detect.state["latest_ts"] = ts
         if viewer_sockets:
-            await _send_all(viewer_sockets, {"type": "detections", "ts": ts, "ms": detect.state["ms"], "boxes": dets})
+            await _send_all(viewer_sockets, {"type": "detections", "ts": ts, "ms": detect.state["ms"], "boxes": dets,
+                                             "almost": detect.state["almost"]})
 
 
 async def _narration_loop():
@@ -652,7 +653,7 @@ async def identify_once():
     """One-shot identification of the latest frame (no speech)."""
     if not state["latest"]:
         return JSONResponse({"error": "no frame yet"}, status_code=409)
-    top = detect.primary([d for d in detect.state["latest"] if d["conf"] >= identify.state["det_min_conf"]])
+    top = detect.primary([d for d in detect.state["latest"] if identify.usable_box(d)])
     try:
         obj = await identify.identify_frame(state["latest"], top)
     except Exception as e:
@@ -677,7 +678,7 @@ def debug_tasks():
 @app.get("/detections")
 def detections():
     """Latest local detector boxes (normalized x1,y1,x2,y2) plus detector status."""
-    return {"ts": detect.state["latest_ts"], "ms": detect.state["ms"], "boxes": detect.state["latest"],
+    return {"ts": detect.state["latest_ts"], "ms": detect.state["ms"], "boxes": detect.state["latest"], "almost": detect.state["almost"],
             "available": detect.state["available"], "reason": detect.state["reason"], "model": detect.state["model"],
             "classes": detect.state["classes"], "allow": detect.state["allow"], "hints": detect.state["hints"]}
 
@@ -754,7 +755,7 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 <script>
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),hud=document.getElementById('hud'),stage=document.getElementById('stage');
 let bmp=null,rot=0,fit=true,stats={},shown=0,lastShown=performance.now(),dispFps=0;
-let dets=[],detMs=0,showBoxes=true,ident=null;   // local detector boxes (normalized) and the last Claude identification
+let dets=[],detMs=0,showBoxes=true,ident=null,almost=null;   // local detector boxes (normalized) and the last Claude identification
 const COLORS={arduino:'#4cf',lcd:'#4cf',servomotor:'#fc4','sensor ultrasonico':'#fc4','7-seg':'#c8f',led:'#f66',pot:'#8f8',resistencia:'#8f8',diodo:'#8f8',transistor:'#8f8',pulsador:'#8f8'};
 function iou(a,b){const ix=Math.max(0,Math.min(a[2],b[2])-Math.max(a[0],b[0])),iy=Math.max(0,Math.min(a[3],b[3])-Math.max(a[1],b[1]));const i=ix*iy;const u=(a[2]-a[0])*(a[3]-a[1])+(b[2]-b[0])*(b[3]-b[1])-i;return u>0?i/u:0}
 function draw(){
@@ -777,7 +778,8 @@ function drawBoxes(s){
     const [x1,y1,x2,y2]=d.box;const pts=[tp(x1,y1),tp(x2,y1),tp(x2,y2),tp(x1,y2)];
     const hit=fresh&&ident.det&&iou(ident.det.box,d.box)>0.4;
     const col=hit?'#2b6':(COLORS[d.label]||'#fc6');
-    ctx.save();ctx.lineWidth=hit?4:2;ctx.strokeStyle=col;ctx.beginPath();ctx.moveTo(...pts[0]);for(const p of pts.slice(1))ctx.lineTo(...p);ctx.closePath();ctx.stroke();
+    const usable=d.conf>=0.6&&(x2-x1)*(y2-y1)>=0.02&&x1>0.01&&y1>0.01&&x2<0.99&&y2<0.99;
+    ctx.save();ctx.lineWidth=hit?4:2;ctx.strokeStyle=col;if(!usable&&!hit)ctx.setLineDash([6,6]);ctx.beginPath();ctx.moveTo(...pts[0]);for(const p of pts.slice(1))ctx.lineTo(...p);ctx.closePath();ctx.stroke();
     const top=pts.reduce((m,p)=>p[1]<m[1]?p:m);const label=hit?`${ident.name} · ${Math.round(ident.confidence*100)}%`:`${d.display||d.name} ${Math.round(d.conf*100)}%`;
     ctx.font=(hit?'bold 14px':'12px')+' system-ui';const tw=ctx.measureText(label).width+10;
     ctx.fillStyle=col;ctx.fillRect(top[0],top[1]-20,tw,20);ctx.fillStyle='#000';ctx.fillText(label,top[0]+5,top[1]-6);
@@ -788,13 +790,13 @@ function drawBoxes(s){
 }
 function renderDetbar(){const el=document.getElementById('detbar');const d=stats.detector||{};
   if(!d.available){el.innerHTML=`detector: <b>off</b> ${d.reason||''}`;return}
-  const t=stats.triggers||{};el.innerHTML=`detector <b>${d.model}</b> · ${detMs||d.ms} ms · ${dets.length} box${dets.length===1?'':'es'}${dets.length?' · '+dets.map(x=>(x.display||x.name)+' '+Math.round(x.conf*100)+'%').join(', '):''} · claude via detector ${t.detector||0} / settle ${t.settle||0}${stats.agreement?` · agree ${stats.agreement.agree} / disagree ${stats.agreement.disagree}`:''}`}
+  const t=stats.triggers||{};el.innerHTML=`detector <b>${d.model}</b> · ${detMs||d.ms} ms · ${dets.length} box${dets.length===1?'':'es'}${dets.length?' · '+dets.map(x=>(x.display||x.name)+' '+Math.round(x.conf*100)+'%').join(', '):''} · claude via detector ${t.detector||0} / settle ${t.settle||0}${!dets.length&&almost?` · <span style="color:#888">almost: ${almost.display||almost.label} ${Math.round(almost.conf*100)}%</span>`:''}${stats.agreement?` · agree ${stats.agreement.agree} / disagree ${stats.agreement.disagree}`:''}`}
 function connect(){
   const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/view');
   ws.binaryType='blob';
   ws.onmessage=async e=>{
     if(typeof e.data==='string'){const m=JSON.parse(e.data);
-      if(m.type==='detections'){dets=m.boxes||[];detMs=m.ms||0;draw();renderDetbar();return;}
+      if(m.type==='detections'){dets=m.boxes||[];detMs=m.ms||0;almost=m.almost||null;draw();renderDetbar();return;}
       if(m.type==='detected'){banner('det',`⚡ Electronic component: ${m.display||m.label}<small>${Math.round(m.conf*100)}% · asking Claude…</small>`,8000);return;}
       if(m.type==='identified'){ident=m;draw();
         if(m.trigger==='detector'){const ok=m.agrees;banner(ok?'ok':(m.agrees===false?'dis':'ok'),ok?`✓ ${m.name}<small>Claude agrees with the detector · ${Math.round((m.confidence||0)*100)}%</small>`:(m.agrees===false?`${m.name}<small>detector said ${m.det.display}, Claude disagrees · ${Math.round((m.confidence||0)*100)}%</small>`:`${m.name}<small>detector: ${m.det.display} (not a catalog part) · ${Math.round((m.confidence||0)*100)}%</small>`),6000);}
