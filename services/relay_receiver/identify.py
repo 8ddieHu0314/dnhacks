@@ -185,9 +185,11 @@ def spoken_for(rec: dict, fallback: str) -> str:
 def system_prompt() -> str:
     base = ("You identify electronic components seen through a technician's smart glasses, matching against a catalog. "
             "Read any printed markings first; markings beat shape. Never invent specifications.\n"
-            "Answer in exactly two lines and nothing else:\n"
+            "Answer in exactly three lines and nothing else:\n"
             "line 1: <catalog id, or none> <confidence 0-1>\n"
-            "line 2: <at most 12 words of evidence: markings, shape, color, pins>")
+            "line 2: <at most 12 words of evidence: markings, shape, color, pins>\n"
+            "line 3: box <x1> <y1> <x2> <y2> tightly around the part, as fractions 0-1 of image width and height "
+            "(0 0 is top-left), or 'box none' when no part is in view")
     if catalog_index:
         return base + "\n\nCatalog:\n" + catalog_index
     return base + "\n\nNo catalog is loaded: answer 'none 0' and name the part on line 2."
@@ -214,6 +216,20 @@ def _parse_line1(line: str):
     return pid, conf
 
 
+_BOX = re.compile(r"box\s+(0?\.\d+|[01](?:\.\d+)?)\s+(0?\.\d+|[01](?:\.\d+)?)\s+(0?\.\d+|[01](?:\.\d+)?)\s+(0?\.\d+|[01](?:\.\d+)?)", re.I)
+
+
+def _parse_box(text: str):
+    """Claude's box line -> normalized [x1,y1,x2,y2], or None. Rejects degenerate boxes."""
+    m = _BOX.search(text)
+    if not m:
+        return None
+    x1, y1, x2, y2 = (min(1.0, max(0.0, float(v))) for v in m.groups())
+    if x2 - x1 < 0.02 or y2 - y1 < 0.02:
+        return None
+    return [round(x1, 3), round(y1, 3), round(x2, 3), round(y2, 3)]
+
+
 def _parse(text: str) -> dict:
     lines = [l for l in text.strip().splitlines() if l.strip()]
     first = _parse_line1(lines[0]) if lines else None
@@ -227,7 +243,7 @@ def _parse(text: str) -> dict:
         except Exception:
             return {"id": None, "confidence": 0.0, "name": "unknown", "evidence": text[:120]}
     pid, conf = first
-    return {"id": pid, "confidence": conf, "evidence": " ".join(lines[1:2]).strip()[:160]}
+    return {"id": pid, "confidence": conf, "evidence": " ".join(lines[1:2]).strip()[:160], "box": _parse_box(text)}
 
 
 def _hint_text(det: dict | None) -> str:
@@ -242,7 +258,7 @@ def _hint_text(det: dict | None) -> str:
     return hint + " Confirm or correct by reading the markings; the detector is only a hint."
 
 
-def _kwargs(model: str, data: bytes, max_tokens: int = 60, det: dict | None = None):
+def _kwargs(model: str, data: bytes, max_tokens: int = 90, det: dict | None = None):
     """Request kwargs; the fallbacks parameter is only sent to models that accept it.
     With `det` (a detector box, see detect.py) Claude sees the padded crop plus a hint."""
     from typing import Any
@@ -263,13 +279,13 @@ def _kwargs(model: str, data: bytes, max_tokens: int = 60, det: dict | None = No
     return kwargs
 
 
-async def _call_model(model: str, data: bytes, max_tokens: int = 60, det: dict | None = None):
+async def _call_model(model: str, data: bytes, max_tokens: int = 90, det: dict | None = None):
     import anthropic
     client = anthropic.AsyncAnthropic()
     return await client.beta.messages.create(**_kwargs(model, data, max_tokens, det))
 
 
-async def _stream_model(model: str, data: bytes, on_first_line, max_tokens: int = 60, det: dict | None = None) -> tuple[str, object]:
+async def _stream_model(model: str, data: bytes, on_first_line, max_tokens: int = 90, det: dict | None = None) -> tuple[str, object]:
     """Stream the answer; call on_first_line(pid, conf) as soon as line 1 is complete."""
     import anthropic
     client = anthropic.AsyncAnthropic()
@@ -341,7 +357,7 @@ async def identify_frame(data: bytes, on_early=None, det: dict | None = None) ->
         else:
             pid = _fake_cycle[state["calls"] % len(_fake_cycle)]
         await first_line(pid, 0.9)
-        obj = {"id": pid, "confidence": 0.9, "evidence": "fake mode" + (" via detector" if det else "")}
+        obj = {"id": pid, "confidence": 0.9, "evidence": "fake mode" + (" via detector" if det else ""), "box": [0.35, 0.3, 0.65, 0.7]}
         usage = None
     else:
         text, final = await _stream_model(MODEL, data, first_line, det=det)
@@ -363,6 +379,10 @@ async def identify_frame(data: bytes, on_early=None, det: dict | None = None) ->
     obj["timing"] = {"id_at_ms": int((early["at"] or 0) * 1000), "total_ms": int((time.time() - t0) * 1000)}
     obj["ts"] = time.time()
     obj["trigger"] = "detector" if det else "settle"
+    if det:
+        obj["box"] = det["box"]           # Claude saw the crop; the box in frame coordinates is the detector's
+    elif not obj.get("id"):
+        obj["box"] = None                 # no part, no box
     if det:
         obj["det"] = {k: det.get(k) for k in ("label", "name", "display", "conf", "box", "catalog_hint")}
         hint = det.get("catalog_hint")
