@@ -23,10 +23,10 @@ async function start(){
   sessionId=created.session_id; running=true; status.textContent=`Streaming to session ${sessionId}.`; tick();
 }
 async function latestResult(frameId){
-  for(let attempt=0;attempt<90;attempt++){
+  for(let attempt=0;attempt<360;attempt++){
     const response=await fetch(`/v1/sessions/${sessionId}/results/latest`);
     if(response.status===200){const payload=await response.json();if(payload.frame_id===frameId)return payload;}
-    await pause(1000);
+    await pause(250);
   }
   throw new Error("Timed out waiting for model result");
 }
