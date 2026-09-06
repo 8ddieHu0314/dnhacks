@@ -370,6 +370,8 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
         self._debug_sessions: set[str] = set()
         self._debug_components: dict[str, list[str]] = {}
         self._debug_history: dict[str, dict[str, Any]] = {}
+        target_path = Path(__file__).with_name("circuit_definitions") / "motor-fan-button-relay.json"
+        self._target_circuit = json.loads(target_path.read_text())
         lines = []
         for record in self._knowledge_base._records:
             visual = record.get("details", {}).get("visual_identification", {})
@@ -410,8 +412,18 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
         task = "Build or update the debug plan."
         if previous:
             task += " Previous plan: " + json.dumps(previous, ensure_ascii=True)
+        system = self._debugger._guidance_prompt(debug_frame, records) + f"""
+
+Configured target circuit:
+{json.dumps(self._target_circuit, ensure_ascii=True)}
+
+Before suggesting a fix, reconstruct the observed circuit as components and pairwise connections.
+Mark every edge visible, inferred, or unclear and cite image evidence. Then compare that graph with
+every configured target connection and safety invariant. Do not treat a component's presence as proof
+of a connection. Use visual_clarification when an essential endpoint, relay pin, or breadboard row is
+not readable. The observed_circuit and comparison objects are mandatory even when uncertain."""
         output = VisionOutput.model_validate(await self._debugger._complete(
-            system=self._debugger._guidance_prompt(debug_frame, records), text=task,
+            system=system, text=task,
             frame=debug_frame, schema=self._debugger._guidance_schema(ids),
         ))
         output = self._debugger._ground(output, matches)
