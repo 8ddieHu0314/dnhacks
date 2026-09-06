@@ -631,6 +631,10 @@ final class FrameRelay {
   /// Live text of the current/last analysis (for the on-screen caption).
   private(set) var caption: String = ""
   private(set) var captionFinal: Bool = true
+  private(set) var analysisMode: String = "identification"
+  private(set) var debugPhase: String = ""
+  private(set) var debugStatus: String = ""
+  private(set) var safeToEnergize: Bool = false
   /// Server-side continuous narration state, as reported by the receiver.
   private(set) var narrationEnabled: Bool = false
   private(set) var narrationInterval: Double = 8
@@ -900,6 +904,11 @@ final class FrameRelay {
       speaker.stop()
       // Keep the wearer's own question on screen; the Mac hushes before answering it.
       if !caption.hasPrefix("You: ") { caption = "" }
+    case "debug_state":
+      analysisMode = obj["mode"] as? String ?? "identification"
+      debugPhase = obj["phase"] as? String ?? ""
+      debugStatus = obj["status"] as? String ?? ""
+      safeToEnergize = obj["safe_to_energize"] as? Bool ?? false
     case "reactive":
       // First "reactive" after a connect is the Mac's hello: push our saved preferences.
       if !announcedPrefs {
