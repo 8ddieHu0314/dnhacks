@@ -114,3 +114,26 @@ class ComponentKnowledgeVLM:
                     {"type": "text", "text": text},
                     {"type": "image_url", "image_url": {"url": encoded_image_url(frame)}},
                 ]}]}
+
+    async def _complete(self, *, system: str, text: str, frame: Frame) -> dict[str, Any]:
+        headers = {"content-type": "application/json"}
+        if self._api_key:
+            headers["authorization"] = f"Bearer {self._api_key}"
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
+                response = await client.post(f"{self._base_url}/chat/completions", headers=headers,
+                                             json=self._body(system=system, text=text, frame=frame))
+                response.raise_for_status()
+            content = response.json()["choices"][0]["message"]["content"]
+            if isinstance(content, list):
+                content = "".join(item.get("text", "") for item in content if item.get("type") == "text")
+            if not isinstance(content, str):
+                raise TypeError("completion content was not text")
+            payload = json.loads(content)
+            if not isinstance(payload, dict):
+                raise TypeError("completion JSON was not an object")
+            return payload
+        except httpx.HTTPError as exc:
+            raise VisionModelError(f"VLM request failed: {exc}") from exc
+        except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise VisionModelError("VLM response did not contain a valid JSON object") from exc
