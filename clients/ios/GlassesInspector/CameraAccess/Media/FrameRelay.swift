@@ -747,8 +747,22 @@ final class FrameRelay {
       if let t = obj["text"] as? String {
         caption = caption.isEmpty ? t : caption + " " + t
         captionFinal = false
-        if speakEnabled { speaker.speak(t) }
+        // "audio": true means the Mac is streaming an ElevenLabs rendering of this sentence;
+        // PCM chunks follow as "audio" messages. Otherwise read it with the on-device voice.
+        let macAudio = obj["audio"] as? Bool ?? false
+        if speakEnabled && !macAudio { speaker.speak(t) }
       }
+    case "audio":
+      if speakEnabled, let id = obj["id"] as? Int, let b64 = obj["pcm"] as? String,
+        let data = Data(base64Encoded: b64) {
+        let rate = obj["rate"] as? Double ?? 24000
+        speaker.playPCM(id: id, data: data, sampleRate: rate)
+      }
+    case "audio_end":
+      if let id = obj["id"] as? Int { speaker.finishPCM(id: id) }
+    case "speak_fallback":
+      // ElevenLabs failed before any audio played; the Mac asks us to read the text instead.
+      if speakEnabled, let t = obj["text"] as? String { speaker.speak(t) }
     case "speak_end":
       captionFinal = true
     case "speak_stop":

@@ -19,6 +19,8 @@ import identify
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
+import tts_elevenlabs as tts
+
 MODEL = os.environ.get("INSPECT_MODEL", "claude-opus-5")
 SPEAK = os.environ.get("SPEAK", "0") == "1"           # also say results on the Mac speaker
 FAKE = os.environ.get("INSPECT_FAKE", "0") == "1"      # stream canned text (no API key needed) to test the audio path
@@ -125,6 +127,8 @@ viewer_sockets: set[WebSocket] = set()   # for text (stats/caption) pushes
 phones: set[WebSocket] = set()           # ingest sockets: frames in, speech text out
 caption = {"text": "", "final": True}
 narration = {"enabled": False, "interval": 8.0, "busy": False, "last": "", "task": None}
+# ElevenLabs sentences queue up here and a single worker streams them to the phone in order.
+speech = {"queue": None, "task": None, "next_id": 0, "chars": 0, "errors": 0, "last_error": ""}
 
 if REPORT_PATH.exists():
     state["report"] = [json.loads(l) for l in REPORT_PATH.read_text().splitlines() if l.strip()]
@@ -161,7 +165,9 @@ def _stats():
             "viewers": len(viewers), "phones": len(phones), "model": "fake" if FAKE else MODEL,
             "inspections": len(state["report"]), "narration": narration["enabled"], "interval": narration["interval"],
             "reactive": identify.state["enabled"], "reactive_status": identify.state["status"], "last_id": identify.state["last_id"],
-            "catalog_parts": len(identify.catalog)}
+            "catalog_parts": len(identify.catalog),
+            "tts": {"provider": "elevenlabs" if tts.enabled() else "apple", "chars": speech["chars"],
+                    "errors": speech["errors"], "last_error": speech["last_error"]}}
 
 
 async def _send_all(sockets: set[WebSocket], msg: dict):
@@ -179,6 +185,62 @@ async def _caption(text: str, final: bool):
 
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+async def _say(text: str):
+    """Send one sentence to the phone. With ElevenLabs configured the phone shows the caption and
+    waits for PCM audio; otherwise it speaks the text with Apple's voice as before."""
+    if not tts.enabled():
+        await _send_all(phones, {"type": "speak", "text": text})
+        return
+    speech["next_id"] += 1
+    uid = speech["next_id"]
+    await _send_all(phones, {"type": "speak", "text": text, "id": uid, "audio": True})
+    if speech["queue"] is None:
+        speech["queue"] = asyncio.Queue()
+    speech["queue"].put_nowait((uid, text))
+    t = speech.get("task")
+    if t is None or t.done():
+        speech["task"] = asyncio.create_task(_tts_worker())
+
+
+def _drop_pending_speech():
+    """Forget sentences not yet rendered, so a stop does not get followed by stale audio."""
+    q = speech.get("queue")
+    if q is None:
+        return
+    while not q.empty():
+        try:
+            q.get_nowait()
+            q.task_done()
+        except asyncio.QueueEmpty:
+            break
+
+
+async def _tts_worker():
+    """Drain the sentence queue one at a time so audio reaches the phone in order."""
+    q = speech["queue"]
+    while not q.empty():
+        uid, text = await q.get()
+        sent = 0
+        t0 = time.time()
+        try:
+            async for chunk in tts.stream_pcm(text):
+                if sent == 0:
+                    speech["chars"] += len(text)
+                await _send_all(phones, {"type": "audio", "id": uid, "rate": tts.SAMPLE_RATE,
+                                         "pcm": base64.b64encode(chunk).decode()})
+                sent += 1
+            await _send_all(phones, {"type": "audio_end", "id": uid, "ms": int((time.time() - t0) * 1000)})
+        except Exception as e:
+            speech["errors"] += 1
+            speech["last_error"] = str(e)[:200]
+            if sent == 0:
+                # nothing played yet: let the phone read it with the built in voice
+                await _send_all(phones, {"type": "speak_fallback", "id": uid, "text": text})
+            else:
+                await _send_all(phones, {"type": "audio_end", "id": uid, "ms": int((time.time() - t0) * 1000)})
+        q.task_done()
 
 
 async def _fake_stream(question: str):
@@ -234,11 +296,11 @@ async def analyze(question: str, *, narrate: bool = False, speak: bool = True) -
             for sentence in parts[:-1]:
                 sentence = sentence.strip()
                 if sentence and speak and sentence.lower() != "no change":
-                    await _send_all(phones, {"type": "speak", "text": sentence})
+                    await _say(sentence)
             pending = parts[-1]
     tail = pending.strip()
     if tail and speak and tail.lower() != "no change":
-        await _send_all(phones, {"type": "speak", "text": tail})
+        await _say(tail)
     await _send_all(phones, {"type": "speak_end"})
     text = full.strip()
     await _caption(text, final=True)
@@ -289,7 +351,7 @@ async def handle_phone_command(msg: dict):
             try:
                 await analyze(msg.get("question") or "Inspect this frame.")
             except Exception as e:
-                await _send_all(phones, {"type": "speak", "text": f"Inspection failed: {e}"})
+                await _say(f"Inspection failed: {e}")
                 await _send_all(phones, {"type": "speak_end"})
             finally:
                 narration["busy"] = False
@@ -436,9 +498,10 @@ def set_reactive(enabled: bool, **kw):
             with REPORT_PATH.open("a") as f:
                 f.write(json.dumps(entry) + "\n")
         async def speak(text):
-            await _send_all(phones, {"type": "speak", "text": text})
+            await _say(text)
             await _send_all(phones, {"type": "speak_end"})
         async def speak_stop():
+            _drop_pending_speech()
             await _send_all(phones, {"type": "speak_stop"})
         identify.state["task"] = asyncio.create_task(identify.reactive_loop(
             lambda: (state["latest"], state["latest_ts"]), on_result, speak, speak_stop, _caption))

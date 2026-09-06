@@ -6,3 +6,4 @@ python-multipart
 zeroconf
 pillow
 numpy
+httpx

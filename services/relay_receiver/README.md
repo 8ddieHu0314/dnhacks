@@ -15,3 +15,20 @@ never needs a typed IP. `--ws-ping-timeout 90` matters: the phone's socket stall
 finished sentence to the connected phone(s) as `{"type":"speak","text":...}` then `{"type":"speak_end"}`; the iOS
 app speaks them into the glasses. Put `ANTHROPIC_API_KEY=...` in `services/relay_receiver/.env` (gitignored);
 `INSPECT_FAKE=1 ./run.sh` streams canned sentences to test the audio path without a key.
+
+## Voice: ElevenLabs on the Mac, Apple voice as fallback
+
+With `ELEVENLABS_API_KEY` in `services/relay_receiver/.env`, the relay renders each finished
+sentence with ElevenLabs (`eleven_flash_v2_5`, raw 24 kHz PCM) and streams it to the phone as
+`{"type":"audio","id":n,"rate":24000,"pcm":"<base64>"}` chunks of about 200 ms, ending with
+`{"type":"audio_end","id":n}`. The matching `speak` message carries `"audio": true` so the phone
+shows the caption but does not synthesize. If ElevenLabs fails before any audio is sent, the
+relay sends `{"type":"speak_fallback","text":...}` and the phone reads it with Apple's voice.
+Without the key, behaviour is unchanged: plain `speak` messages, Apple voice on the phone.
+
+    ELEVENLABS_API_KEY=sk_...
+    ELEVENLABS_VOICE_ID=mqlDiDxS84MhnMijtd3t    # Christopher, Friendly American
+    ELEVENLABS_MODEL=eleven_flash_v2_5          # optional
+
+`GET /health` reports `tts.provider`, characters sent, and the last error. The starter plan
+caps at 30,000 characters a month, roughly 300 narration sentences.
