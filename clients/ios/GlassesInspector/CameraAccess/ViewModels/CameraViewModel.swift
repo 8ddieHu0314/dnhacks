@@ -72,6 +72,16 @@ final class CameraViewModel {
   /// no live stream.
   var streamState: StreamState = .stopped
 
+  // MARK: - Glasses Inspector: stall watchdog
+  /// Shown under the chips while the watchdog restarts a stalled stream.
+  private(set) var stallNote: String?
+  private(set) var stallRestarts: Int = 0
+  /// Seconds of "streaming" with no decoded frame before the stream is restarted.
+  static let stallSeconds: TimeInterval = 6
+  @ObservationIgnored nonisolated private let lastFrameAt = OSAllocatedUnfairLock<TimeInterval>(initialState: 0)
+  @ObservationIgnored private var stallTask: Task<Void, Never>?
+  @ObservationIgnored private var restartingStream = false
+
   // MARK: - Capture preview
 
   /// The capture currently shown in the preview/share sheet (photo or video).
@@ -336,10 +346,47 @@ final class CameraViewModel {
       // Reflect the in-flight request immediately; the observer drives it onward.
       streamState = .starting
       newCamera.stream.start()
+      startStallWatchdog()
     } catch {
       camera = nil
       showError(error.localizedDescription)
     }
+  }
+
+  /// Glasses Inspector: the glasses stream can stop delivering frames while the SDK still
+  /// reports "streaming" (seen after minutes at 720p, and when Bluetooth is shared with the
+  /// microphone). Restart it through the sample's own stop/start paths rather than sit frozen.
+  /// A device-initiated pause (a tap on the glasses) is a different state and is left alone.
+  private func startStallWatchdog() {
+    stallTask?.cancel()
+    lastFrameAt.withLock { $0 = Date().timeIntervalSince1970 }   // grace period from start
+    stallTask = Task { [weak self] in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(1))
+        guard let self, !Task.isCancelled else { return }
+        let silent = Date().timeIntervalSince1970 - self.lastFrameAt.withLock { $0 }
+        if self.streamState == .streaming, !self.isRecording, !self.restartingStream, silent > Self.stallSeconds {
+          self.restartingStream = true
+          self.stallRestarts += 1
+          self.stallNote = "Stream stalled (\(Int(silent)) s without a frame); restarting…"
+          // Separate task: the stop below tears this watchdog down with the stream.
+          Task { [weak self] in await self?.restartStalledStream() }
+          return
+        }
+      }
+    }
+  }
+
+  private func restartStalledStream() async {
+    defer { restartingStream = false }
+    stopStreaming()
+    for _ in 0..<50 {                       // wait for the SDK's .stopped teardown (up to 5 s)
+      if streamState == .stopped { break }
+      try? await Task.sleep(for: .milliseconds(100))
+    }
+    await startStreaming()
+    try? await Task.sleep(for: .seconds(4))
+    stallNote = nil
   }
 
   /// Stops the camera stream but keeps the `DeviceSession` connected, so
@@ -530,6 +577,8 @@ final class CameraViewModel {
       // keeps writing while the app is backgrounded.
       self.appendVideoFrame(frame)
 
+      // Glasses Inspector: stamp the frame for the stall watchdog.
+      self.lastFrameAt.withLock { $0 = Date().timeIntervalSince1970 }
       // Decode the compressed hvc1 frame for preview off the main actor.
       let previewImage = self.videoFrameDecoder.decode(frame.sampleBuffer)
       // Glasses Inspector: relay off the main actor too (throttle/encode/send in an actor).
@@ -572,6 +621,8 @@ final class CameraViewModel {
   /// Single stream-teardown convergence point.
   private func clearStreamResources() {
     streamTokenBag.clear()
+    stallTask?.cancel()
+    stallTask = nil
     // Detach the camera (idempotent) so a subsequent addCamera() can register a new one. On the
     // user-stop and session-end paths the camera is already stopped, so this is a no-op; it is
     // load-bearing only when the stream terminates on its own (a stream-level error while the

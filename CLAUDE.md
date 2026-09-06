@@ -251,7 +251,10 @@ in three files plus small hooks:
   most one main-actor hop is in flight. Do not reintroduce a per-frame `Task { @MainActor }`;
   that unbounded backlog is what froze the UI at 720p. Stream resolution and fps are read from
   the `streamResolution` / `streamFPS` `UserDefaults` keys in `beginStream`, so they apply on
-  the next Preview (default High, 15 fps).
+  the next Preview (default High, 15 fps). A stall watchdog (`startStallWatchdog`) restarts the
+  stream through the sample's own stop/start paths when the SDK still says "streaming" but no
+  frame has arrived for `stallSeconds` (6), never during a recording; a device-initiated
+  `.paused` (a tap on the glasses' touchpad) is a different state and is left alone.
 - `VideoFrameDecoder` prefers hardware VideoToolbox decode and a GPU `CIContext`; software HEVC
   decode was the dominant CPU cost.
 - `CameraView` shows the relay and mic chips, the live "You: …" transcript, the caption overlay,

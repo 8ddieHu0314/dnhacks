@@ -333,4 +333,12 @@ Glasses camera -> (Meta AI app / DAT, BT+WiFi) -> iOS app GlassesInspector -> HT
   default text). VoiceInput reports when the sentence started.
 - Untested on the hardware in this edition: 720p over Bluetooth with HFP active, and whether the
   close-up crop lands on the right part on real 720p frames.
+- Freeze report (2026-09-06, ~05:30): "after turning on preview for a while, the camera just
+  freezes." The relay saw the phone stream at 16.6 fps for about 7 minutes, then no frames for
+  90 s+ with the phone socket still open; an earlier phone socket had died with a keepalive
+  ping timeout (the phone went silent for 90 s). Two candidates, not yet separated: the SDK's
+  device-initiated `.paused` (a single tap on the glasses' touchpad; the sample shows a dimmed
+  frame with "Tap your glasses to resume"), or the stream stalling while the SDK still reports
+  streaming (720p over Bluetooth Classic, possibly with HFP audio on the same link). Added a
+  stall watchdog in CameraViewModel: streaming with no frame for 6 s -> stop + start.
 

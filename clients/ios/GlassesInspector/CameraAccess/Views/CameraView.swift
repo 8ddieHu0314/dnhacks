@@ -299,6 +299,9 @@ struct CameraView: View {
         if let err = viewModel.frameRelay.lastCommandError {
           Text("Mac: \(err)").font(.system(size: 11)).foregroundStyle(.yellow)
         }
+        if let note = viewModel.stallNote {
+          Text(note).font(.system(size: 11)).foregroundStyle(.yellow)
+        }
         HStack(spacing: 10) {
           CustomButton(title: viewModel.frameRelay.macBusy ? "Answering…" : "What's here?", style: .primary, isDisabled: !viewModel.isStreaming || viewModel.frameRelay.macBusy) {
             viewModel.frameRelay.requestInspect()
