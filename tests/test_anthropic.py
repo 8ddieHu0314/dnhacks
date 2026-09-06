@@ -24,7 +24,7 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
                 content = {"regions": [], "analysis": {"summary": "Sensor visible.",
                     "component_guidance": {"identified_components": [{"component_id": "hc-sr04",
                     "confidence": 0.9, "observed_evidence": ["label"]}]}}}
-            return httpx.Response(200, json={"content": [{"type": "tool_use", "name": "submit_result", "input": content}]})
+            return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps(content)}]})
 
         knowledge = ComponentKnowledgeBase.from_path(Path(__file__).parents[1] / "docs/components/components.json")
         engine = AnthropicComponentKnowledgeVLM(base_url="https://model.example", api_key="test-key",
@@ -78,4 +78,6 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body["max_tokens"], 160)
         self.assertEqual(body["system"][0]["cache_control"]["type"], "ephemeral")
         self.assertIn("breadboard-830", body["system"][0]["text"])
+        self.assertNotIn("temperature", body)
+        self.assertNotIn("tools", body)
         self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "breadboard-830")
