@@ -75,7 +75,7 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         debug_schema = schema["properties"]["analysis"]["properties"]["debug_guidance"]
         self.assertIn("observed_circuit", debug_schema["required"])
         self.assertIn("comparison", debug_schema["required"])
-        self.assertEqual(guidance_body["max_tokens"], 1400)
+        self.assertEqual(guidance_body["max_tokens"], 2000)
         self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "hc-sr04")
 
     async def test_uses_typed_cue_without_a_scene_round_trip(self) -> None:
