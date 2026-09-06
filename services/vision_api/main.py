@@ -15,6 +15,7 @@ from .models import (
     AdvisoryFieldSignalAcknowledgement,
     FrameMetadata,
     IngestAcknowledgement,
+    RetrievedComponent,
     SessionCreated,
     SessionMetrics,
     SessionRequest,
@@ -96,6 +97,21 @@ async def health() -> dict[str, str]:
 @app.get("/v1/workflows", response_model=list[WorkflowDefinition])
 async def list_workflows() -> list[WorkflowDefinition]:
     return workflow_registry.list()
+
+
+@app.get("/v1/components/search", response_model=list[RetrievedComponent])
+async def search_components(q: str, limit: int = 3) -> list[RetrievedComponent]:
+    """Return deterministic knowledge-base candidates for a spoken or typed phrase."""
+
+    return component_knowledge.summaries(component_knowledge.search(q, limit=min(max(limit, 1), 5)))
+
+
+@app.get("/v1/components/{component_id}")
+async def get_component(component_id: str) -> JSONResponse:
+    record = component_knowledge.record_for(component_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Unknown component")
+    return JSONResponse(record)
 
 
 @app.post("/v1/sessions", response_model=SessionCreated, status_code=201)
