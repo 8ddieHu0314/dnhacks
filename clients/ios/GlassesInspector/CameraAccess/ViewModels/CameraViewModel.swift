@@ -76,6 +76,8 @@ final class CameraViewModel {
   /// Shown under the chips while the watchdog restarts a stalled stream.
   private(set) var stallNote: String?
   private(set) var stallRestarts: Int = 0
+  /// Decoder health for the diagnostics section: fresh frames, failures, keyframe wait.
+  private(set) var decoderStatus: String = ""
   /// Seconds of "streaming" with no decoded frame before the stream is restarted.
   static let stallSeconds: TimeInterval = 6
   @ObservationIgnored nonisolated private let lastFrameAt = OSAllocatedUnfairLock<TimeInterval>(initialState: 0)
@@ -365,10 +367,14 @@ final class CameraViewModel {
         try? await Task.sleep(for: .seconds(1))
         guard let self, !Task.isCancelled else { return }
         let silent = Date().timeIntervalSince1970 - self.lastFrameAt.withLock { $0 }
+        let d = self.videoFrameDecoder.stats()
+        self.decoderStatus = "decoder: \(d.fresh) fresh · \(d.failures) failed"
+          + (d.awaitingSeconds > 0.5 ? String(format: " · waiting for a keyframe %.0f s", d.awaitingSeconds) : "")
+          + " · restarts \(self.stallRestarts)"
         if self.streamState == .streaming, !self.isRecording, !self.restartingStream, silent > Self.stallSeconds {
           self.restartingStream = true
           self.stallRestarts += 1
-          self.stallNote = "Stream stalled (\(Int(silent)) s without a frame); restarting…"
+          self.stallNote = "Stream stalled (\(Int(silent)) s without a decodable frame, \(d.failures) decode failures); restarting…"
           // Separate task: the stop below tears this watchdog down with the stream.
           Task { [weak self] in await self?.restartStalledStream() }
           return
@@ -577,10 +583,10 @@ final class CameraViewModel {
       // keeps writing while the app is backgrounded.
       self.appendVideoFrame(frame)
 
-      // Glasses Inspector: stamp the frame for the stall watchdog.
-      self.lastFrameAt.withLock { $0 = Date().timeIntervalSince1970 }
-      // Decode the compressed hvc1 frame for preview off the main actor.
+      // Decode the compressed hvc1 frame for preview off the main actor. nil = held (decoder
+      // waiting for a keyframe or failing); only a fresh image feeds the watchdog and the relay.
       let previewImage = self.videoFrameDecoder.decode(frame.sampleBuffer)
+      if previewImage != nil { self.lastFrameAt.withLock { $0 = Date().timeIntervalSince1970 } }
       // Glasses Inspector: relay off the main actor too (throttle/encode/send in an actor).
       if let previewImage { self.frameRelay.push(previewImage) }
 

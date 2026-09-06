@@ -256,7 +256,11 @@ in three files plus small hooks:
   frame has arrived for `stallSeconds` (6), never during a recording; a device-initiated
   `.paused` (a tap on the glasses' touchpad) is a different state and is left alone.
 - `VideoFrameDecoder` prefers hardware VideoToolbox decode and a GPU `CIContext`; software HEVC
-  decode was the dominant CPU cost.
+  decode was the dominant CPU cost. After three consecutive decode failures it rebuilds the
+  session and waits for a keyframe; a held or failed frame now returns nil (Meta's sample
+  returned the last good image, which made a stalled decoder look like a live stream to both
+  the preview and the relay). `stats()` exposes fresh frames, failures and the keyframe wait;
+  the stall watchdog counts only fresh frames, and the gear menu's Diagnostics shows the line.
 - `CameraView` shows the relay and mic chips, the live "You: …" transcript, the caption overlay,
   the What's here? and Hush buttons, and the `RelaySettingsView` sheet (Inspector section with the
   detector toggle, Stream, Voice, Voice input, Report, Diagnostics).

@@ -239,7 +239,7 @@ struct CameraView: View {
         showSettingsMenu = true
       }
       .sheet(isPresented: $showSettingsMenu) {
-        RelaySettingsView(relay: viewModel.frameRelay, wearablesVM: wearablesVM)
+        RelaySettingsView(relay: viewModel.frameRelay, wearablesVM: wearablesVM, decoderStatus: viewModel.decoderStatus)
       }
     }
   }
@@ -635,6 +635,7 @@ struct UpdateRequiredMessage: View {
 struct RelaySettingsView: View {
   @Bindable var relay: FrameRelay
   @Bindable var wearablesVM: WearablesViewModel
+  var decoderStatus: String = ""
   @AppStorage("streamResolution") private var streamResolution: String = "high"
   @AppStorage("streamFPS") private var streamFPS: Int = 15
   @Environment(\.dismiss) private var dismiss
@@ -728,6 +729,9 @@ struct RelaySettingsView: View {
             .font(.caption).foregroundStyle(.secondary)
         }
         Section("Diagnostics") {
+          if !decoderStatus.isEmpty {
+            Text(decoderStatus).font(.system(size: 10).monospaced()).foregroundStyle(.secondary)
+          }
           if relay.diagnostics.isEmpty {
             Text("no events yet").font(.caption).foregroundStyle(.secondary)
           }

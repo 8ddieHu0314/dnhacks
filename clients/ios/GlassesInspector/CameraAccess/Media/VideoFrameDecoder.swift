@@ -26,6 +26,26 @@ final class VideoFrameDecoder: Sendable {
     var consecutiveFailures: Int = 0
     var lastGoodImage: UIImage?
     var awaitingKeyframe: Bool = false
+    // Glasses Inspector: health counters for the stall watchdog and the on-screen diagnostics.
+    var fresh: Int = 0                 // frames actually decoded
+    var failures: Int = 0              // decode calls that failed
+    var awaitingSince: TimeInterval?   // when we started waiting for a keyframe
+  }
+
+  /// Glasses Inspector: decoder health. `awaitingSeconds` > 0 means the stream has not sent a
+  /// keyframe since the session was rebuilt; the preview and the relay hold still until it does.
+  func stats() -> (fresh: Int, failures: Int, awaitingSeconds: Double) {
+    state.withLockUnchecked { s in
+      (s.fresh, s.failures, s.awaitingSince.map { Date().timeIntervalSince1970 - $0 } ?? 0)
+    }
+  }
+
+  /// Glasses Inspector: a failed or held frame returns nil rather than the last good image.
+  /// Re-sending a stale picture to the Mac and re-stamping the watchdog hid decoder stalls as
+  /// "still streaming"; the preview keeps its last image on its own.
+  private func held(_ s: inout State) -> UIImage? {
+    if s.awaitingKeyframe, s.awaitingSince == nil { s.awaitingSince = Date().timeIntervalSince1970 }
+    return nil
   }
 
   private let state: OSAllocatedUnfairLock<State>
@@ -44,7 +64,7 @@ final class VideoFrameDecoder: Sendable {
     guard CMSampleBufferGetDataBuffer(sampleBuffer) != nil,
       let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer)
     else {
-      return state.withLockUnchecked { $0.lastGoodImage }
+      return state.withLockUnchecked { held(&$0) }
     }
 
     let isKeyframe = sampleBuffer.isHEVCKeyframe()
@@ -101,13 +121,13 @@ final class VideoFrameDecoder: Sendable {
       return (newSession, true)
     }
 
-    // Awaiting a keyframe after (re)creating the session: hold the last good frame.
+    // Awaiting a keyframe after (re)creating the session: hold (nil) until one arrives.
     if awaitingKeyframe && !isKeyframe {
-      return state.withLockUnchecked { $0.lastGoodImage }
+      return state.withLockUnchecked { held(&$0) }
     }
 
     guard let session else {
-      return state.withLockUnchecked { $0.lastGoodImage }
+      return state.withLockUnchecked { held(&$0) }
     }
 
     // The handler runs synchronously on this thread because flags is empty, so capturing
@@ -132,6 +152,7 @@ final class VideoFrameDecoder: Sendable {
     if decodeStatus != noErr {
       return state.withLockUnchecked { state in
         state.consecutiveFailures += 1
+        state.failures += 1
         if state.consecutiveFailures >= 3 {
           if let session = state.session {
             VTDecompressionSessionInvalidate(session)
@@ -141,7 +162,7 @@ final class VideoFrameDecoder: Sendable {
           state.consecutiveFailures = 0
           state.awaitingKeyframe = true
         }
-        return state.lastGoodImage
+        return held(&state)
       }
     }
 
@@ -149,11 +170,12 @@ final class VideoFrameDecoder: Sendable {
       $0.consecutiveFailures = 0
       if isKeyframe {
         $0.awaitingKeyframe = false
+        $0.awaitingSince = nil
       }
     }
 
     guard let pixelBuffer = outputPixelBuffer else {
-      return state.withLockUnchecked { $0.lastGoodImage }
+      return state.withLockUnchecked { held(&$0) }
     }
 
     let cgImage = ciContext.createCGImage(
@@ -163,11 +185,11 @@ final class VideoFrameDecoder: Sendable {
         width: CVPixelBufferGetWidth(pixelBuffer),
         height: CVPixelBufferGetHeight(pixelBuffer)))
     guard let cgImage else {
-      return state.withLockUnchecked { $0.lastGoodImage }
+      return state.withLockUnchecked { held(&$0) }
     }
 
     let image = UIImage(cgImage: cgImage)
-    state.withLockUnchecked { $0.lastGoodImage = image }
+    state.withLockUnchecked { $0.lastGoodImage = image; $0.fresh += 1 }
     return image
   }
 }

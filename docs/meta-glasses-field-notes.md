@@ -341,4 +341,15 @@ Glasses camera -> (Meta AI app / DAT, BT+WiFi) -> iOS app GlassesInspector -> HT
   frame with "Tap your glasses to resume"), or the stream stalling while the SDK still reports
   streaming (720p over Bluetooth Classic, possibly with HFP audio on the same link). Added a
   stall watchdog in CameraViewModel: streaming with no frame for 6 s -> stop + start.
+- Freeze diagnosed (answers: Stream chip "streaming", Relay chip "in 30.2 fps" still moving,
+  phone preview AND Mac dashboard frozen, voice input on, Medium, right after an answer,
+  Preview off/on recovers). The glasses keep sending; the HEVC decoder is what stalls: after
+  3 consecutive decode failures it rebuilds the session and waits for a keyframe, and Meta's
+  sample returns the last good image for every held frame, so the preview shows it, the relay
+  keeps re-sending it, and the fps counter keeps climbing. If no keyframe comes, that is
+  permanent until the stream restarts. Likely trigger: a dropped/corrupt frame while the
+  Bluetooth link carries HFP audio during the answer. Fix on the branch: held frames return
+  nil, the watchdog restarts the stream after 6 s without a fresh frame, the Diagnostics line
+  shows "waiting for a keyframe N s" and decode failures. If the failures cluster on answers
+  with the glasses mic, the "Microphone: Phone" setting (A2DP) is the workaround to try.
 
