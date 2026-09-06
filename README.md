@@ -272,6 +272,11 @@ one grounded vision request; without one, it falls back to scene retrieval then
 guidance. Keep keys out of `.env` files that might be committed; export them
 only in the terminal session running the server.
 
+For the glasses-style fast identification path, use
+`VISION_BACKEND=anthropic_catalog_identification`. It caches a compact catalog
+prompt and returns a catalog ID, confidence, name, and visual evidence; use the
+regular component-knowledge backend when you need detailed wiring guidance.
+
 ## Arduino context node
 
 [`firmware/context_node/context_node.ino`](firmware/context_node/context_node.ino)
