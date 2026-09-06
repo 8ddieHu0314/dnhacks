@@ -33,7 +33,8 @@ class SpeechRouterTests(unittest.IsolatedAsyncioTestCase):
                 "steps": [{"instruction": "Disconnect power.", "reason": "Change wiring safely.",
                     "expected_evidence": "The power LED turns off."}], "visual_clarification": None}})
 
-        self.assertEqual(spoken_guidance(analysis), "Next: Disconnect power. Expected: The power LED turns off.")
+        self.assertEqual(spoken_guidance(analysis),
+            "Keep all power disconnected. Next: Disconnect power. Expected: The power LED turns off.")
 
     async def test_mirrors_the_same_message_to_mac_and_glasses(self) -> None:
         launched = []
