@@ -1,0 +1,111 @@
+{
+  "id": "elegoo-uno-r3-kit/photoresistor",
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 2 },
+  "identity": {
+    "name_on_kit": "Photoresistor (Photocell)",
+    "canonical_name": "light-dependent resistor (LDR)",
+    "aliases": ["LDR", "CdS cell", "photocell", "photoconductive cell"],
+    "category": "sensor",
+    "manufacturer": "generic (GL55 series is a widely second-sourced part made by multiple Chinese photoresistor manufacturers; no single confirmed OEM found in this research)",
+    "manufacturer_part_number": "GL5528",
+    "generic_equivalents": ["GL5516", "GL5537", "GL5539", "GL5549", "generic 5mm CdS photoresistor modules"],
+    "serial_number": "not_applicable",
+    "package": "5mm through-hole (flat epoxy-coated disc on two leads; the GL55-series datasheet labels the package type 'TO-18 Epoxy Resin')"
+  },
+  "function": {
+    "one_sentence_plain_english": "It is a small light sensor whose resistance drops as the light around it gets brighter, so an Arduino can read it to tell how bright or dark a room is.",
+    "what_it_is_used_for": "Sensing ambient light level for projects like automatic night lights, light-triggered alarms, or dimming controls. It is wired into a voltage divider (a pair of resistors that splits a voltage) so the changing resistance turns into a changing voltage that the Arduino can measure.",
+    "how_it_works_briefly": "The disc is coated with cadmium sulfide (CdS), a material whose electrical resistance falls when more light hits it. In the dark its resistance is very high (over 1 megaohm, meaning 1,000,000 ohms), and in typical room-level light (defined as 10 lux, a unit of light brightness) it drops to roughly 8,000 to 20,000 ohms for this part. Paired with a second, fixed resistor, it forms a voltage divider whose midpoint voltage rises and falls with light level, and the Arduino reads that voltage with analogRead()."
+  },
+  "pins": {
+    "pin_count": 2,
+    "pinout": [
+      { "pin": 1, "name": "Lead 1", "role": "sensor terminal, no polarity", "notes": "electrically identical to lead 2, can go to either side of the voltage divider" },
+      { "pin": 2, "name": "Lead 2", "role": "sensor terminal, no polarity", "notes": "electrically identical to lead 1, can go to either side of the voltage divider" }
+    ],
+    "pin_1_identification": "There is no pin 1 or polarity to find, both leads are electrically identical and interchangeable. Identify the part itself by its small flat disc (about 5 mm across) with a visible zig-zag light-sensitive track on its face, and two bare wire leads coming out of the same edge of the disc.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "No supply voltage of its own; it is a passive resistor used as one leg of a voltage divider, commonly wired into a 5V divider on the Uno.",
+    "absolute_max_voltage": "100 V DC (Vmax, the maximum voltage that may be applied continuously while the part is in darkness, per the GL55-series datasheet)",
+    "typical_current": "Not given as a device rating. Current through the part depends on the divider resistor value, the supply voltage, and the light level, since it is a variable resistor, not an active component.",
+    "max_current": "Not stated directly. Bounded indirectly by the 100 mW maximum power rating (Pmax) at the applied voltage.",
+    "logic_level": "Not applicable, this is a passive analog resistive sensor, not a logic-level device.",
+    "interface": "analog"
+  },
+  "key_specs": {
+    "photo_resistance_at_10_lux": "8 kOhm to 20 kOhm (GL5528, measured at 10 lux per the GL55-series datasheet)",
+    "dark_resistance": "1.0 MOhm minimum (measured 10 seconds after the light is removed, per datasheet)",
+    "spectral_peak": "540 nm (green light, close to the peak sensitivity of the human eye)",
+    "response_time": "typical rise time ~45 ms, typical fall time ~55 ms",
+    "max_power_rating": "100 mW (Pmax)",
+    "photoconductive_material": "CdS (cadmium sulfide)",
+    "package_dimensions": "about 5.1 mm head diameter, 4.3 mm head width, 1.8 mm thick, leads 3.4 mm apart, lead length ~36 mm, lead diameter ~0.5 mm"
+  },
+  "visual_identification": {
+    "shape_and_size": "A small, flat, roughly circular disc about 5 mm across and under 2 mm thick, with two thin bare wire leads exiting from the same edge of the disc, running parallel to each other.",
+    "color_and_markings": "The disc face is typically orange-red or reddish-brown with a visible zig-zag (serpentine) light-sensitive track pressed into the surface, sometimes covered by a thin clear or translucent coating. There is usually no printed part number legible on the tiny part itself.",
+    "printed_text_to_look_for": "Generally none readable on the component. The part identity (e.g. GL5528) is normally only found on the kit's parts bag, tray label, or tutorial booklet, not stamped on the part.",
+    "easily_confused_with": [
+      "NTC thermistor: a small rounded bead or blob on two leads (no flat disc, no visible zig-zag surface)",
+      "small ceramic disc capacitor: similar flat disc silhouette on two leads, but usually blue, tan, or brown with no zig-zag pattern, and it is not light sensitive"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "Lead 1", "uno_pin": "5V" },
+      { "part_pin": "Lead 2 (divider midpoint, also joined to one leg of a fixed resistor whose other leg goes to GND)", "uno_pin": "A0" }
+    ],
+    "required_extra_parts": [
+      "one fixed resistor to complete the voltage divider (commonly 10 kOhm in typical Arduino tutorials; the exact value used in ELEGOO's own kit tutorial could not be confirmed in this research pass because elegoo.com blocked automated fetches)"
+    ],
+    "arduino_library": "none required, read directly with analogRead() on an analog input pin"
+  },
+  "safety": {
+    "hazards": [
+      "None significant at hobbyist voltages, this is a low-voltage passive component",
+      "Contains cadmium sulfide (CdS), the light-sensitive material inside the disc. Do not crush, burn, or ingest the part, and dispose of it as electronic waste rather than household trash if it breaks"
+    ],
+    "handling_notes": [
+      "No electrostatic discharge (ESD) sensitivity concerns like there are with chips",
+      "The two leads are thin and can fatigue or snap if bent sharply and repeatedly right at the base of the disc"
+    ],
+    "common_mistakes": [
+      "Expecting a simple on/off (digital HIGH/LOW) signal, when it actually needs a voltage divider and an analog reading",
+      "Wiring it alone to an analog pin with no second resistor, which gives a reading that barely changes with light",
+      "Mistaking it for a thermistor and expecting it to respond to temperature instead of light"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "analogRead() always returns nearly the same value no matter the light level", "likely_cause": "the fixed divider resistor is missing, or there is an open or shorted connection", "check": "confirm a second resistor completes the divider between the sensor node and ground or 5V, then check continuity on both leads with a multimeter" },
+      { "symptom": "the reading moves opposite to what the code expects (goes down in bright light instead of up, or vice versa)", "likely_cause": "the divider is wired with the photoresistor on the opposite leg from what the sketch assumes", "check": "trace which lead goes toward 5V and which goes toward GND/A0, and match that to the sketch's logic" },
+      { "symptom": "reading is stuck near 0 or near the maximum value regardless of light", "likely_cause": "a short or open circuit in the sensor itself or its partner resistor", "check": "disconnect the sensor and measure resistance directly across its two leads in bright light and then fully covered" }
+    ],
+    "how_to_test_with_a_multimeter": "Set the multimeter to resistance (ohms) mode and measure directly across the two leads with the part disconnected from the circuit (or at least isolated). Under normal indoor room light, expect roughly 8 to 20 kOhm (thousands of ohms) for this part at a moderate 10 lux brightness. Fully cover the disc so no light reaches it, and the reading should climb to over 1 MOhm (millions of ohms)."
+  },
+  "market": {
+    "unit_price_usd": 0.95,
+    "price_source_url": "https://www.adafruit.com/product/161",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Adafruit", "Amazon (multi-packs of GL5528 from various sellers)", "Walmart (Uxcell multi-pack listing)"]
+  },
+  "sources": [
+    { "title": "GL55 Series Photo Resistor (LDR) User Guide", "url": "https://www.handsontec.com/dataspecs/sensor/GL55-LDR.pdf", "type": "datasheet", "used_for": "pins.pin_count, pins.polarity_sensitive, electrical.absolute_max_voltage, electrical.max_current basis (Pmax), key_specs.photo_resistance_at_10_lux, key_specs.dark_resistance, key_specs.spectral_peak, key_specs.response_time, key_specs.max_power_rating, key_specs.photoconductive_material, key_specs.package_dimensions, identity.package, visual_identification shape/dimensions" },
+    { "title": "Photo Cell (CdS Photoresistor) - Adafruit product 161", "url": "https://www.adafruit.com/product/161", "type": "retailer", "used_for": "market.unit_price_usd, market.price_source_url (used as a same-category retail price proxy; see confidence.notes for caveat)" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer (no single OEM confirmed; GL55 series is widely second-sourced)",
+      "kit.sku (ELEGOO's exact SKU not verified; elegoo.com blocked automated fetches with HTTP 403 on both the product page and the tutorial blog page)",
+      "confirmation that the ELEGOO Super Starter Kit specifically ships the GL5528 variant rather than a sibling like GL5516 or GL5537 (could not confirm directly from ELEGOO's own materials; based on the seed record and consistent third-party documentation of ELEGOO kits, not on a fetched ELEGOO source)",
+      "wiring_to_uno.required_extra_parts divider resistor value (commonly 10 kOhm in generic Arduino tutorials, not confirmed from an ELEGOO-specific source)",
+      "electrical.typical_current and electrical.max_current (not given as explicit device ratings by the datasheet, only power and voltage maximums)",
+      "market.unit_price_usd (see notes, this is a proxy from a similar but not confirmed-identical part)"
+    ],
+    "notes": "ELEGOO's own product page (elegoo.com/products/elegoo-uno-r3-super-starter-kit) and tutorial blog page both returned HTTP 403 Forbidden to automated fetches, so the exact kit SKU and ELEGOO's own stated part number could not be verified directly; the GL5528 identification here rests on the seed record plus the fact that GL5528 is the standard part documented across independent LDR datasheets and widely reported as the part used in ELEGOO-style starter kits. Electrical specs (resistance ranges, voltage/power ratings, response time, package dimensions) are sourced from a GL55-series datasheet hosted by Handson Technology, which explicitly tabulates GL5506 vs GL5516 vs GL5528 so the GL5528 row was used precisely. For price, DigiKey (403 Forbidden) and one Amazon GL5528 listing (HTTP 500) could not be fetched within the research budget; Adafruit's 'Photo Cell (CdS Photoresistor)' product 161 loaded successfully at $0.95/unit, but its own description states a light/dark resistance range (~1 kOhm lit, ~10 kOhm dark) that does not match the GL5528's datasheet spec (8-20 kOhm lit, >1 MOhm dark), suggesting it is a different sibling part (closer to a GL5516-class device) rather than GL5528 itself. It is used here only as a same-category, similarly-priced retail proxy, not as a confirmed GL5528 listing. All research stayed within the allotted 4 WebSearch / 6 WebFetch call budget."
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "id": "elegoo-uno-r3-kit/pn2222",
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 2 },
+  "identity": {
+    "name_on_kit": "NPN Transistor PN2222",
+    "canonical_name": "PN2222A NPN general-purpose transistor",
+    "aliases": ["PN2222", "PN2222A", "2N2222", "2N2222A", "MMBT2222A (surface-mount version)"],
+    "category": "passive",
+    "manufacturer": "onsemi (this part line was originally Fairchild Semiconductor, now part of onsemi; other brands such as Central Semiconductor and STMicroelectronics also sell parts marked PN2222A)",
+    "manufacturer_part_number": "PN2222A",
+    "generic_equivalents": ["2N2222", "2N2222A", "KSP2222A", "MMBT2222A (surface-mount equivalent)"],
+    "serial_number": "not_applicable",
+    "package": "TO-92"
+  },
+  "function": {
+    "one_sentence_plain_english": "A tiny electronic switch that lets a weak signal from the Arduino turn a bigger current on or off.",
+    "what_it_is_used_for": "In this kit it is used to let a small 5V signal from the UNO control something that needs more current than an Arduino pin can safely supply, such as a relay coil or a small motor. It can also amplify a weak signal.",
+    "how_it_works_briefly": "It is an NPN bipolar transistor with three legs: base, collector, and emitter. A small current flowing into the base lets a much larger current flow from the collector to the emitter, acting like a switch controlled by voltage."
+  },
+  "pins": {
+    "pin_count": 3,
+    "pinout": [
+      { "pin": 1, "name": "E", "role": "Emitter", "notes": "Usually wired toward ground (ground side of the load path)." },
+      { "pin": 2, "name": "B", "role": "Base", "notes": "The control input. Drive this from an Arduino pin through a series resistor (about 1k Ohm), never straight from the pin." },
+      { "pin": 3, "name": "C", "role": "Collector", "notes": "Usually wired to the negative side of the load being switched." }
+    ],
+    "pin_1_identification": "Hold the transistor with the flat printed face toward you and the three wire legs pointing down. Reading left to right in that orientation, the legs are Emitter, Base, Collector (E-B-C), per the onsemi/Fairchild datasheet's TO-92 pin diagram.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "Not self-powered; it switches whatever voltage the load circuit uses, up to its maximum ratings below. The base can be driven directly from a 5V Arduino digital pin through a base resistor.",
+    "absolute_max_voltage": "Collector-Emitter (VCEO): 40V. Collector-Base (VCBO): 75V. Emitter-Base (VEBO): 6.0V.",
+    "typical_current": "Datasheet describes it as suited for medium-power switching and amplifying up to about 500 mA of collector current in typical use.",
+    "max_current": "1.0 A absolute maximum collector current (IC).",
+    "logic_level": "Base-emitter turn-on voltage is roughly 0.6-0.7V, compatible with a 5V logic HIGH from an Arduino digital pin through a base resistor.",
+    "interface": "digital"
+  },
+  "key_specs": {
+    "package": "TO-92, 3 leads",
+    "dc_current_gain_hFE": "Ranges from 35 to 300 depending on collector current and test conditions (e.g. hFE is at least 100 at IC=150mA, VCE=10V)",
+    "max_power_dissipation": "625 mW at 25C ambient, derated 5.0 mW per additional degree C",
+    "gain_bandwidth_product": "300 MHz minimum",
+    "collector_emitter_saturation_voltage": "0.3V typical at IC=150mA, IB=15mA (rises to 1.0V at IC=500mA, IB=50mA)",
+    "storage_and_junction_temperature_range": "-55C to +150C"
+  },
+  "visual_identification": {
+    "shape_and_size": "Small black plastic part shaped like a half-cylinder, roughly 5mm wide and 5mm tall (TO-92 package), with a flat face on one side and a rounded back, and three thin wire legs coming straight down from the bottom in a single row spaced about 1.27mm apart.",
+    "color_and_markings": "Solid black (sometimes dark grey) plastic body. The part number is usually printed in small light-colored text on the flat face.",
+    "printed_text_to_look_for": "PN2222A (sometimes shortened to PN2222 or shown as an equivalent like 2N2222) printed on the flat side of the case.",
+    "easily_confused_with": ["Other TO-92 transistors such as the 2N3904 or 2N2222, which look visually identical; the printed part number is the only reliable way to tell them apart", "Small 3-terminal voltage regulators, which use the same black TO-92-style body"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "Base (pin 2)", "uno_pin": "A digital output pin (e.g. D9) through a series base resistor of about 1k Ohm" },
+      { "part_pin": "Emitter (pin 1)", "uno_pin": "UNO GND" },
+      { "part_pin": "Collector (pin 3)", "uno_pin": "Not connected directly to the UNO; wired to the negative/return side of the load being switched (for example, a relay coil or small motor), with the load's other side going to the external supply" }
+    ],
+    "required_extra_parts": ["A base resistor, about 1k Ohm, in series between the Arduino pin and the base", "A flyback diode (such as the kit's 1N4007) placed across any inductive load like a relay coil or motor to protect the transistor"],
+    "arduino_library": "none; controlled directly with digitalWrite() or analogWrite() on the pin driving the base resistor"
+  },
+  "safety": {
+    "hazards": ["Wiring the collector and emitter reversed, or connecting the base directly to 5V without a resistor, can overheat and permanently damage the transistor", "Switching an inductive load such as a motor or relay coil without a flyback diode across it can produce a voltage spike large enough to destroy the transistor"],
+    "handling_notes": ["Bend the leads gently and well away from the plastic body; bending right where the lead meets the body can crack the internal seal", "The three leads are close together, so check for solder bridges after soldering"],
+    "common_mistakes": ["Treating it like a simple on/off switch and skipping the base resistor", "Mixing up the base and collector legs since all three leads look identical", "Confusing an NPN part like this one with a PNP part, which is wired the opposite way"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "The load never turns on", "likely_cause": "Base resistor value too high, base wired to the wrong pin, or a bad connection", "check": "With the Arduino pin driven HIGH, measure the voltage at the base leg relative to the emitter; it should read about 0.6 to 0.7V" },
+      { "symptom": "The transistor gets hot or smells burnt", "likely_cause": "Missing base resistor, reversed collector/emitter wiring, or a missing flyback diode on an inductive load", "check": "Power off immediately, let it cool, and recheck the wiring against the E-B-C pinout before reapplying power" },
+      { "symptom": "The load stays on all the time even when the Arduino pin is LOW", "likely_cause": "Collector and emitter leads swapped, or a solder bridge shorting two legs together", "check": "Visually inspect solder joints and confirm each leg lands in the correct breadboard row" }
+    ],
+    "how_to_test_with_a_multimeter": "Set the multimeter to diode-test mode. Touch the red probe to the base and the black probe to the emitter, then to the collector; each should show a diode-like forward drop of about 0.5 to 0.7V. Reverse the probes and both readings should show open circuit (OL). This confirms two working NPN junctions from the base."
+  },
+  "market": {
+    "unit_price_usd": 0.2,
+    "price_source_url": "https://www.adafruit.com/product/756",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Adafruit", "DigiKey", "Mouser", "Amazon"]
+  },
+  "sources": [
+    { "title": "PN2222A - NPN General-Purpose Amplifier datasheet (Fairchild/onsemi)", "url": "https://www.onsemi.com/pdf/datasheet/pn2222a-d.pdf", "type": "datasheet", "used_for": "pinout and pin order (E-B-C), package (TO-92), absolute maximum voltages (VCEO, VCBO, VEBO), max collector current, power dissipation, hFE gain range, gain bandwidth product, saturation voltages" },
+    { "title": "NPN Bipolar Transistors (PN2222) - 10 pack, Adafruit", "url": "https://www.adafruit.com/product/756", "type": "retailer", "used_for": "unit price (10-pack price of $1.95 divided by 10), and cross-check of 40V/1A rating and EBC pinout" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": ["kit.sku", "identity.manufacturer (multiple manufacturers produce parts marked PN2222A; which one ELEGOO actually ships was not confirmed)", "whether ELEGOO ships the plain PN2222 or the tighter-spec PN2222A variant printed on the kit lid as just 'PN2222'", "market.unit_price_usd (derived by dividing a 10-pack price since single-unit retail listings were not accessible)"],
+    "notes": "ELEGOO's own product page and tutorial blog for this kit both returned HTTP 403 Forbidden when fetched in this session and could not be read, so the kit quantity (2) comes from the seed data supplied for this task rather than a freshly fetched ELEGOO source. The kit lid lists the part as 'PN2222' without an A suffix, but the commonly documented and stocked modern part is PN2222A; all electrical specs above are for PN2222A, the closest well-documented version, and should be treated as very likely but not confirmed identical to a plain, unsuffixed PN2222. DigiKey and Mouser product pages returned 403 Forbidden or a timeout and could not be fetched, so price is based on Adafruit's 10-pack listing divided by 10 ($1.95 / 10 = $0.195, rounded to $0.20)."
+  }
+}

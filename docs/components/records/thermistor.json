@@ -1,0 +1,98 @@
+{
+  "id": "elegoo-uno-r3-kit/thermistor",
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "Thermistor",
+    "canonical_name": "10K NTC thermistor",
+    "aliases": ["NTC thermistor", "10K thermistor", "temperature sensor resistor"],
+    "category": "sensor",
+    "manufacturer": "Unknown, generic unbranded component (no manufacturer markings printed on the part)",
+    "manufacturer_part_number": "none printed on the part, generic NTC 10K thermistor, not a specific branded MPN",
+    "generic_equivalents": ["Adafruit 372, 10K Precision Epoxy Thermistor 3950 NTC", "any generic 10K ohm, B25/50 = 3950K NTC bead thermistor"],
+    "serial_number": "not_applicable",
+    "package": "2-lead epoxy-coated bead, through-hole, no standard package name"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small two-wire part whose electrical resistance changes with temperature, so Arduino can measure temperature by measuring resistance.",
+    "what_it_is_used_for": "In this kit it is used for the temperature-sensing lesson, for example a simple thermometer readout or a temperature-triggered project such as a fan that turns on when it gets warm, read through one analog input pin on the Arduino.",
+    "how_it_works_briefly": "It is an NTC (negative temperature coefficient) resistor, meaning its resistance goes down as temperature goes up. Paired with a fixed resistor (commonly 10k ohm) to form a voltage divider, the voltage at the midpoint of the two resistors changes with temperature. Arduino reads that voltage on an analog pin with analogRead(), then a formula in the code (often called the Beta equation) converts the reading into a temperature."
+  },
+  "pins": {
+    "pin_count": 2,
+    "pinout": [
+      { "pin": 1, "name": "Lead A", "role": "resistive element terminal", "notes": "either lead, interchangeable, no polarity" },
+      { "pin": 2, "name": "Lead B", "role": "resistive element terminal", "notes": "either lead, interchangeable, no polarity" }
+    ],
+    "pin_1_identification": "There is no pin 1 or positive lead to find. Both wire leads are electrically identical and can be connected either way around.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "not applicable in the usual sense, it is a passive resistor, not a powered part. It works at whatever voltage is present in the divider circuit, typically Arduino's 5V analog rail",
+    "absolute_max_voltage": "not specified by any datasheet found, limited in practice by self-heating rather than a voltage rating",
+    "typical_current": "well under 1 mA in a typical 5V, 10k ohm voltage-divider circuit with Arduino",
+    "max_current": "not specified, keep current low (a few mA or less) to avoid self-heating, which makes the temperature reading run high",
+    "logic_level": "not applicable, this is an analog passive component, not a logic device",
+    "interface": "analog"
+  },
+  "key_specs": {
+    "resistance_at_25c_ohms": 10000,
+    "beta_b25_50_kelvin": 3950,
+    "tolerance_resistance": "approximately plus or minus 1 percent, per a similar retail 10K/3950 thermistor, ELEGOO's exact tolerance is not confirmed",
+    "operating_temperature_range_c": "-55 to 125, typical for generic 10K/3950 NTC thermistors, not confirmed for the exact ELEGOO-bundled part"
+  },
+  "visual_identification": {
+    "shape_and_size": "A small round or teardrop-shaped bead, roughly 3 to 5 mm across, with two thin wire leads coming out of the bottom, mounted through-hole like a tiny bead on two wires.",
+    "color_and_markings": "Usually a dark epoxy coating (black, dark blue, or gray) with bare tinned copper leads.",
+    "printed_text_to_look_for": "Usually none. Unlike a resistor it has no color bands, and unlike an IC it has no printed part number.",
+    "easily_confused_with": [
+      "a resistor, but a resistor is a small cylinder with colored bands, while this part is a round bead with no bands",
+      "a photoresistor (LDR), but a photoresistor has a flat top with a visible zig-zag light-sensing surface, while this part is a smooth solid blob with no visible sensing pattern",
+      "a small ceramic disc capacitor, which has a similar bead-like shape but a flatter disc profile and sometimes printed markings"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "Lead A", "uno_pin": "5V" },
+      { "part_pin": "Lead B", "uno_pin": "A0, and to one leg of a fixed 10k ohm resistor" },
+      { "part_pin": "fixed 10k ohm resistor, other leg", "uno_pin": "GND" }
+    ],
+    "required_extra_parts": ["one fixed resistor, commonly 10k ohm, to complete the voltage divider"],
+    "arduino_library": "none required, read with the built-in analogRead() function and convert to temperature using the Beta equation in the sketch's own code"
+  },
+  "safety": {
+    "hazards": ["No electric shock risk at Arduino's low 5V", "very high external heat can crack or melt the epoxy bead"],
+    "handling_notes": ["the two wire leads are thin and can fatigue or break if bent back and forth at the same spot", "no polarity, so it cannot be plugged in backwards", "avoid pushing more than a few mA through it, extra current causes self-heating that makes the reading inaccurate"],
+    "common_mistakes": ["wiring it alone without the companion fixed resistor, so the analog pin just reads a fixed rail voltage instead of a changing one", "using a B-value or resistor value in the code's formula that does not match the one actually wired in, which throws off the computed temperature", "mistaking it for a photoresistor since both are small unlabeled two-lead sensors"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "analog reading is stuck near the top (about 1023) or bottom (about 0)", "likely_cause": "missing the companion divider resistor, or a broken or loose connection", "check": "confirm a fixed resistor completes the voltage divider and both leads are firmly connected" },
+      { "symptom": "temperature reading is wildly wrong or does not change at all", "likely_cause": "wrong B-value or divider-resistor value used in the sketch's formula, or a bad connection", "check": "measure the resistance across the two leads directly with a multimeter and compare to the expected 10k ohm at room temperature" },
+      { "symptom": "reading slowly climbs while the circuit sits untouched", "likely_cause": "self-heating from too much current flowing through the thermistor", "check": "measure the divider current, and increase the fixed resistor value or reduce supply voltage if the current is too high" }
+    ],
+    "how_to_test_with_a_multimeter": "Disconnect the thermistor from the circuit, set the multimeter to resistance (ohms) mode, and measure across its two leads. At room temperature, about 25 C, expect roughly 10,000 ohms. Warm the bead slightly, for example by holding it between two fingers, and the reading should drop. Let it cool and the reading should rise again, confirming normal NTC behavior."
+  },
+  "market": {
+    "unit_price_usd": 4.0,
+    "price_source_url": "https://www.adafruit.com/product/372",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Adafruit", "Amazon, bundled inside the ELEGOO kit", "generic electronics component distributors"]
+  },
+  "sources": [
+    { "title": "10K Precision Epoxy Thermistor, 3950 NTC, product 372", "url": "https://www.adafruit.com/product/372", "type": "retailer", "used_for": "unit price, resistance at 25C, B25/50 beta value, tolerance, operating temperature range, lead type, and confirming no polarity" },
+    { "title": "Generic 10K/3950 NTC thermistor resistance lookup table (Resistance at 25C = 10K ohm, B25/50 = 3950K)", "url": "https://cdn-shop.adafruit.com/datasheets/103_3950_lookuptable.pdf", "type": "datasheet", "used_for": "cross-checking resistance_at_25c_ohms and beta_b25_50_kelvin key specs against a standard generic NTC datasheet" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer",
+      "identity.manufacturer_part_number",
+      "key_specs.tolerance_resistance",
+      "key_specs.operating_temperature_range_c",
+      "market.unit_price_usd",
+      "wiring_to_uno.example_connections (exact analog pin ELEGOO's own tutorial uses is not confirmed)"
+    ],
+    "notes": "ELEGOO's own product page and tutorial blog were fetched but returned HTTP 403 (bot-blocked) on every attempt, as did a DigiKey listing tried for a cheaper bare-bead part, so none of those could be used as sources. All electrical specs here instead come from a generic 10K ohm, B25/50 = 3950K NTC thermistor datasheet and a similar Adafruit retail listing, which is the industry-standard value used across most Arduino starter kits including, very likely, ELEGOO's, but this specific match is inferred, not confirmed against ELEGOO's own documentation. The Adafruit part used for pricing, product 372, is a long-lead (about 18 inch), waterproof, precision epoxy thermistor at $4.00, a pricier and physically different variant (longer leads, more precise tolerance) than the small bare bead thermistor ELEGOO typically bundles, which usually costs well under $1 in bulk, closer to the seed guess of $0.30. Treat the listed price as an upper-bound proxy for a same-spec thermistor, not a confirmed match to the physical kit part. No manufacturer name or part number is printed on the physical component itself."
+  }
+}
