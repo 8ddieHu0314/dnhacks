@@ -120,6 +120,12 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(calls), 2)
         self.assertEqual(debug_output.analysis.mode, "debug")
         self.assertEqual(debug_output.analysis.debug_guidance.steps[0].instruction, "Disconnect power.")
+        exit_frame = follow_up.__class__(follow_up.session_id,
+            follow_up.metadata.model_copy(update={"frame_id": "exit", "user_request": "Exit debug mode"}),
+            follow_up.image_bytes, follow_up.received_at)
+        exit_output = await engine.analyze(exit_frame)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(exit_output.analysis.mode, "identification")
 
     async def test_treats_non_json_catalog_responses_as_unclear(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
