@@ -226,7 +226,7 @@ def context_for_question(max_chars: int = 3500) -> str:
 def system_prompt() -> str:
     base = ("You identify electronic components seen through a technician's smart glasses, matching against a catalog. "
             "Read any printed markings first; markings beat shape. Never invent specifications.\n"
-            "Answer in exactly three lines and nothing else:\n"
+            "Answer in exactly two lines and nothing else:\n"
             "line 1: <catalog id, or none> <confidence 0-1>\n"
             "line 2: <at most 12 words of evidence: markings, shape, color, pins>")
     if catalog_index:
