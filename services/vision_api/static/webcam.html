@@ -38,8 +38,8 @@ async function tick(){
     const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.8));
     if(sentUrl)URL.revokeObjectURL(sentUrl); sentUrl=URL.createObjectURL(blob); sent.src=sentUrl;
     const metadata={frame_id:crypto.randomUUID(),captured_at:new Date().toISOString(),width,height,encoding:"jpeg",user_request:$("question").value||null};
-    const sent=await fetch(`/v1/sessions/${sessionId}/frames`,{method:"POST",headers:{"x-frame-metadata":JSON.stringify(metadata)},body:blob});
-    if(!sent.ok) throw new Error(await sent.text());
+    const frameResponse=await fetch(`/v1/sessions/${sessionId}/frames`,{method:"POST",headers:{"x-frame-metadata":JSON.stringify(metadata)},body:blob});
+    if(!frameResponse.ok) throw new Error(await frameResponse.text());
     const latest=await latestResult(); result.textContent=JSON.stringify(latest.analysis,null,2);
   }catch(error){status.textContent=`Camera test error: ${error.message}`;running=false;return;}
   setTimeout(tick,1000);
