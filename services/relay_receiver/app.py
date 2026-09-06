@@ -193,7 +193,7 @@ def _stats():
             "catalog_parts": len(identify.catalog), "identify_model": identify.MODEL,
             "reactive_mode": identify.state["mode"],
             "triggers": identify.state["triggers"], "agreement": identify.state["agreement"],
-            "preannounce": identify.state["preannounce"],
+            "preannounce": identify.state["preannounce"], "det_trigger": identify.state["det_trigger"],
             "detector": {"available": detect.state["available"], "model": detect.state["model"], "reason": detect.state["reason"],
                          "ms": detect.state["ms"], "boxes": len(detect.state["latest"]), "frames": detect.state["frames"]},
             "tts": {"provider": _voice_active(), "available": tts.enabled(), "chars": speech["chars"],
@@ -569,7 +569,7 @@ def _reactive_public():
             "last_result": st["last_result"], "calls": st["calls"], "catalog": identify.catalog_source,
             "parts": len(identify.catalog), "min_confidence": st["min_confidence"],
             "detector": detect.state["available"], "det_min_conf": st["det_min_conf"], "stable_frames": st["stable_frames"],
-            "triggers": st["triggers"], "agreement": st["agreement"], "preannounce": st["preannounce"],
+            "triggers": st["triggers"], "agreement": st["agreement"], "preannounce": st["preannounce"], "det_trigger": st["det_trigger"],
             "last_detected": st["last_detected"]}
 
 
@@ -629,7 +629,7 @@ def set_reactive(enabled: bool, **kw):
 @app.post("/reactive")
 async def reactive(request: Request):
     body = await request.json()
-    set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds", "short_spoken", "mode", "interrupt_confidence", "det_min_conf", "stable_frames", "preannounce")})
+    set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds", "short_spoken", "mode", "interrupt_confidence", "det_min_conf", "stable_frames", "preannounce", "det_trigger")})
     await _send_all(phones, {"type": "reactive", **_reactive_public()})
     return _reactive_public()
 
@@ -653,7 +653,7 @@ async def identify_once():
     """One-shot identification of the latest frame (no speech)."""
     if not state["latest"]:
         return JSONResponse({"error": "no frame yet"}, status_code=409)
-    top = detect.primary([d for d in detect.state["latest"] if identify.usable_box(d)])
+    top = detect.primary([d for d in detect.state["latest"] if identify.usable_box(d)]) if identify.state["det_trigger"] else None
     try:
         obj = await identify.identify_frame(state["latest"], top)
     except Exception as e:
@@ -746,6 +746,7 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
   <select id=voice onchange="setVoice()" style="background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:4px">
     <option value="apple">Apple (on phone)</option><option value="elevenlabs">ElevenLabs</option></select>
   <label style="font-size:13px;color:#ccc" title="Speak the detector's catalog name into the glasses the moment a part is spotted, before Claude answers"><input type=checkbox id=pre checked onchange="reactive()"> pre-announce</label>
+  <label style="font-size:13px;color:#ccc" title="Let a detector box trigger Claude early. Off: boxes are a visual only and the settle rule does the identifying."><input type=checkbox id=dtrig onchange="reactive()"> box trigger</label>
   <span id=rstat style="font:12px ui-monospace,monospace;color:#9f9"></span>
 </div>
 <div id=card style="display:none;margin-top:10px;padding:10px;background:#1c1c1c;border:1px solid #333;border-radius:8px;font-size:13px"></div>
@@ -790,7 +791,7 @@ function drawBoxes(s){
 }
 function renderDetbar(){const el=document.getElementById('detbar');const d=stats.detector||{};
   if(!d.available){el.innerHTML=`detector: <b>off</b> ${d.reason||''}`;return}
-  const t=stats.triggers||{};el.innerHTML=`detector <b>${d.model}</b> · ${detMs||d.ms} ms · ${dets.length} box${dets.length===1?'':'es'}${dets.length?' · '+dets.map(x=>(x.display||x.name)+' '+Math.round(x.conf*100)+'%').join(', '):''} · claude via detector ${t.detector||0} / settle ${t.settle||0}${!dets.length&&almost?` · <span style="color:#888">almost: ${almost.display||almost.label} ${Math.round(almost.conf*100)}%</span>`:''}${stats.agreement?` · agree ${stats.agreement.agree} / disagree ${stats.agreement.disagree}`:''}`}
+  const t=stats.triggers||{};el.innerHTML=`detector <b>${d.model}</b> · ${detMs||d.ms} ms · ${dets.length} box${dets.length===1?'':'es'}${dets.length?' · '+dets.map(x=>(x.display||x.name)+' '+Math.round(x.conf*100)+'%').join(', '):''} · ${stats.det_trigger?'trigger on':'visual only'} · claude via detector ${t.detector||0} / settle ${t.settle||0}${!dets.length&&almost?` · <span style="color:#888">almost: ${almost.display||almost.label} ${Math.round(almost.conf*100)}%</span>`:''}${stats.agreement?` · agree ${stats.agreement.agree} / disagree ${stats.agreement.disagree}`:''}`}
 function connect(){
   const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/view');
   ws.binaryType='blob';
@@ -807,7 +808,7 @@ function connect(){
       stats=m;renderHud();renderDetbar();
       if(document.activeElement.id!=='mode')document.getElementById('mode').value=m.reactive?(m.reactive_mode||'parts'):'off';
       if(document.activeElement.id!=='voice')document.getElementById('voice').value=(m.tts&&m.tts.provider)||'apple';
-      if(m.preannounce!==undefined)document.getElementById('pre').checked=!!m.preannounce;document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
+      if(m.preannounce!==undefined)document.getElementById('pre').checked=!!m.preannounce;if(m.det_trigger!==undefined)document.getElementById('dtrig').checked=!!m.det_trigger;document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
     try{const b=await createImageBitmap(e.data);if(bmp)bmp.close();bmp=b;draw();
       shown++;const now=performance.now();if(now-lastShown>1000){dispFps=shown*1000/(now-lastShown);shown=0;lastShown=now;}}catch(err){}
   };
@@ -820,7 +821,7 @@ window.addEventListener('resize',draw);
 async function inspect(){const out=document.getElementById('out');out.textContent='thinking…';
  const r=await fetch('/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:document.getElementById('q').value||undefined})});
  const j=await r.json();if(j.error)out.textContent=j.error;loadReport();}
-async function reactive(){const v=document.getElementById('mode').value;await fetch('/reactive',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:v!=='off',mode:v==='off'?undefined:v,preannounce:document.getElementById('pre').checked})});}
+async function reactive(){const v=document.getElementById('mode').value;await fetch('/reactive',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:v!=='off',mode:v==='off'?undefined:v,preannounce:document.getElementById('pre').checked,det_trigger:document.getElementById('dtrig').checked})});}
 async function setVoice(){await fetch('/voice',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:document.getElementById('voice').value})});}
 let bannerTimer=null;
 function banner(cls,html,ms){const b=document.getElementById('banner');b.className=cls;b.innerHTML=html;clearTimeout(bannerTimer);if(ms)bannerTimer=setTimeout(()=>{b.className='';b.innerHTML='';},ms);}

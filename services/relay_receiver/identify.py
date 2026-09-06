@@ -49,6 +49,9 @@ state = {
     "pending": None,             # (pid, rec, conf) waiting for the audio to end
     # detector path (detect.py): a local YOLO box can trigger identification before the wearer holds still
     "last_det_label": None,      # detector label of the box that triggered the last identification
+    "det_trigger": False,        # False = boxes are a visual only; Claude is triggered by the settle path alone.
+                                 # The Universe model fires on furniture and misses real parts through a webcam,
+                                 # so this stays off until the detector is fine-tuned on our own footage.
     "stable_frames": 3,          # consecutive frames a box must persist before Claude is called
     "det_min_conf": 0.6,         # ignore boxes below this (the Universe model scores furniture and shirts up to 0.8)
     "det_min_area": 0.02,        # and boxes smaller than 2% of the frame
@@ -463,7 +466,7 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, n
 
         # ---- detector path (parts mode): a stable box triggers before the wearer holds still
         det = None
-        if get_dets is not None and state["mode"] == "parts":
+        if get_dets is not None and state["mode"] == "parts" and state["det_trigger"]:
             import detect
             dets, dts, det_frame = get_dets()
             if dts != last_dts and det_frame is not None and now - dts < 1.0:
@@ -488,7 +491,7 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, n
                 if motion <= state["motion_threshold"]:
                     state["status"] = "settled"
                 continue
-            if stable_det is not None and state["mode"] == "parts":
+            if stable_det is not None and state["mode"] == "parts" and state["det_trigger"]:
                 continue   # a box is in view but already identified; wait for a new part
             # New scene on the whole-frame path: the wearer must hold still (settled) AND the frame must
             # be sharp. Sharp alone is not enough; a person walking past is sharp and different every frame.
@@ -584,6 +587,8 @@ def set_enabled(enabled: bool, **kw):
         state["stable_frames"] = max(1, int(kw["stable_frames"]))
     if kw.get("preannounce") is not None:
         state["preannounce"] = bool(kw["preannounce"])
+    if kw.get("det_trigger") is not None:
+        state["det_trigger"] = bool(kw["det_trigger"])
     state["enabled"] = bool(enabled)
     if enabled:
         state["last_id"] = None
