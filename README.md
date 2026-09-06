@@ -151,6 +151,46 @@ To support another provider or an on-device runtime, implement the
 `VisionEngine.analyze(frame) -> VisionOutput` contract and register it in
 `build_vision_engine`.
 
+## Component knowledge grounding
+
+`docs/components/components.json` contains the researched ELEGOO kit records.
+The `component_knowledge` backend turns a glasses frame into a grounded response:
+
+```text
+frame + optional user question → VLM scene description → component retrieval
+→ selected records + frame → identification, checks, and clarifying questions
+```
+
+It intentionally sends only the best three records to the model, not the full
+knowledge base. The server attaches the retrieved record IDs and their
+high/medium/low data confidence to every result, and discards any model
+identification that names an ID outside that candidate set.
+
+Enable it with an OpenAI-compatible vision endpoint:
+
+```bash
+VISION_BACKEND=component_knowledge
+VLM_BASE_URL=https://your-model-host/v1
+VLM_API_KEY=your-secret
+VLM_MODEL=your-vision-model
+COMPONENT_KNOWLEDGE_TOP_K=3
+```
+
+The frame metadata can include an optional `user_request`, for example “Which
+pin is ground?” or “Does this look wired correctly?” The result’s
+`analysis.component_guidance` returns visible evidence, retrieved candidates,
+identifications, apparent wiring discrepancies, and questions needed to reduce
+uncertainty. A camera image cannot prove electrical continuity, correct wiring,
+or safety; the backend is intentionally limited to observations and
+human-confirmed checks.
+
+The companion app can also query the records directly:
+
+```bash
+curl 'http://localhost:8000/v1/components/search?q=ultrasonic+sensor'
+curl http://localhost:8000/v1/components/hc-sr04
+```
+
 ## Arduino context node
 
 [`firmware/context_node/context_node.ino`](firmware/context_node/context_node.ino)
