@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     vlm_api_key: str | None = None
     vlm_model: str = ""
     vlm_timeout_seconds: float = 15.0
+    component_knowledge_path: str | None = None
+    component_knowledge_top_k: int = 3
     workflow_definitions_dir: str | None = None
 
 
