@@ -8,6 +8,7 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
+from .component_knowledge import ComponentKnowledgeBase
 from .config import settings
 from .models import (
     AdvisoryFieldSignal,
@@ -29,6 +30,10 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+component_knowledge_path = Path(settings.component_knowledge_path) if settings.component_knowledge_path else (
+    Path(__file__).resolve().parents[2] / "docs/components/components.json"
+)
+component_knowledge = ComponentKnowledgeBase.from_path(component_knowledge_path)
 pipeline = VisionPipeline(
     build_vision_engine(
         backend=settings.vision_backend,
@@ -36,6 +41,8 @@ pipeline = VisionPipeline(
         api_key=settings.vlm_api_key,
         model=settings.vlm_model,
         timeout_seconds=settings.vlm_timeout_seconds,
+        component_knowledge=component_knowledge,
+        component_knowledge_top_k=settings.component_knowledge_top_k,
     ),
     queue_capacity=settings.vision_frame_queue_capacity,
     result_history=settings.vision_result_history,
