@@ -228,8 +228,12 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
                 response = await client.post(f"{self._base_url}/v1/messages", headers=headers,
                                              json=self._body(system=system, text=text, frame=frame))
                 response.raise_for_status()
-            content = "".join(block.get("text", "") for block in response.json()["content"]
+            response_body = response.json()
+            blocks = response_body["content"]
+            content = "".join(block.get("text", "") for block in blocks
                               if block.get("type") == "text")
+            if not content:
+                raise TypeError(f"completion contained no text blocks: {[block.get('type') for block in blocks]}")
             payload = json.loads(content)
             if not isinstance(payload, dict):
                 raise TypeError("completion JSON was not an object")
