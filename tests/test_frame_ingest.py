@@ -34,7 +34,8 @@ class FrameIngestTests(unittest.TestCase):
         page = self.client.get("/webcam")
         self.assertEqual(page.status_code, 200)
         self.assertIn("Component knowledge webcam test", page.text)
-        self.assertIn("response.status===200", page.text)
+        self.assertIn("latestResult", page.text)
+        self.assertIn("Exact JPEG submitted", page.text)
 
     def test_returns_only_the_latest_result_for_polling_clients(self) -> None:
         self.assertEqual(self.client.get(f"/v1/sessions/{self.session_id}/results/latest").status_code, 204)
