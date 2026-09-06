@@ -633,6 +633,19 @@ final class FrameRelay {
       sendCommand(["type": "voice", "provider": voiceProvider])
     }
   }
+  /// Claude model per hands-free mode: "sonnet" (fast) or "opus" (strongest). Applied on the Mac.
+  var partsModel: String {
+    didSet { UserDefaults.standard.set(partsModel, forKey: "partsModel"); sendCommand(modelsCommand()) }
+  }
+  var sceneModel: String {
+    didSet { UserDefaults.standard.set(sceneModel, forKey: "sceneModel"); sendCommand(modelsCommand()) }
+  }
+  private(set) var activeModels: [String: String] = [:]
+
+  private func modelsCommand() -> [String: Any] {
+    ["type": "models", "identify": partsModel, "scene": sceneModel]
+  }
+
   /// Speak the local detector's guess the instant a part is spotted, before Claude confirms.
   var preannounce: Bool {
     didSet {
@@ -657,6 +670,8 @@ final class FrameRelay {
     jpegQuality = d.object(forKey: Self.qualityKey) as? Double ?? 0.6
     speakEnabled = d.object(forKey: "relaySpeak") as? Bool ?? true
     preannounce = d.object(forKey: "preannounce") as? Bool ?? true
+    partsModel = d.string(forKey: "partsModel") ?? "sonnet"
+    sceneModel = d.string(forKey: "sceneModel") ?? "sonnet"
     handsFreeMode = d.string(forKey: "handsFreeMode") ?? "off"
     voiceProvider = d.string(forKey: "voiceProvider") ?? "elevenlabs"
     browser.onUpdate = { [weak self] in self?.applyTarget() }
@@ -768,6 +783,7 @@ final class FrameRelay {
 
   private func announcePrefs() {
     sendCommand(["type": "voice", "provider": voiceProvider])
+    sendCommand(modelsCommand())
     sendCommand(reactiveCommand())
   }
 
@@ -820,6 +836,7 @@ final class FrameRelay {
       reactiveStatus = obj["status"] as? String ?? "idle"
       reactiveLastID = obj["last_id"] as? String
       activeVoice = obj["voice"] as? String ?? activeVoice
+      if let m = obj["models"] as? [String: String] { activeModels = m }
     case "narration":
       narrationEnabled = obj["enabled"] as? Bool ?? false
       narrationInterval = obj["interval"] as? Double ?? narrationInterval

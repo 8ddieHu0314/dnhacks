@@ -44,6 +44,7 @@ state = {
     "miss_backoff": 0.0,         # grows after each "no catalog part" on the whole-frame path, reset by a detector box or a hit
     "short_spoken": True,        # announce name + one spec; full line stays on Describe
     "mode": "parts",             # parts = catalog lookup; scene = free-text narration on change
+    "model": MODEL,              # identification model; switchable at runtime (sonnet/opus)
     "interrupt_confidence": 0.85,  # a different id must be this sure to cut an announcement in progress
     "announce_until": 0.0,       # when the current announcement's audio ends
     "pending": None,             # (pid, rec, conf) waiting for the audio to end
@@ -348,7 +349,7 @@ async def identify_frame(data: bytes, on_early=None, det: dict | None = None) ->
         obj = {"id": pid, "confidence": 0.9, "evidence": "fake mode" + (" via detector" if det else "")}
         usage = None
     else:
-        text, final = await _stream_model(MODEL, data, first_line, det=det)
+        text, final = await _stream_model(state["model"], data, first_line, det=det)
         obj = _parse(text) if final.stop_reason != "refusal" else {"id": None, "confidence": 0, "evidence": "declined"}
         usage = {"cache_read": getattr(final.usage, "cache_read_input_tokens", 0), "out": final.usage.output_tokens}
     pid, rec = resolve(obj.get("id"))
@@ -582,6 +583,8 @@ def set_enabled(enabled: bool, **kw):
         state["short_spoken"] = bool(kw["short_spoken"])
     if kw.get("mode") in ("parts", "scene"):
         state["mode"] = kw["mode"]
+    if kw.get("model"):
+        state["model"] = str(kw["model"])
     if kw.get("interrupt_confidence") is not None:
         state["interrupt_confidence"] = float(kw["interrupt_confidence"])
     for k in ("det_min_conf", "det_min_area", "det_edge_margin"):
@@ -601,13 +604,16 @@ def set_enabled(enabled: bool, **kw):
         _identified_thumb = None
 
 
-async def warm_cache():
-    """One tiny call so the first real identification finds the catalog prompt cached."""
+async def warm_cache(models=("claude-sonnet-5", "claude-opus-5")):
+    """One tiny call per model so the first real identification finds the catalog prompt cached."""
     if FAKE or not os.environ.get("ANTHROPIC_API_KEY") or not catalog_index:
         return "skipped"
     img = Image.new("RGB", (64, 64), (0, 0, 0)); out = io.BytesIO(); img.save(out, "JPEG")
-    try:
-        resp = await _call_model(MODEL, out.getvalue(), max_tokens=8)
-        return f"cache_write={getattr(resp.usage, 'cache_creation_input_tokens', 0)} cache_read={getattr(resp.usage, 'cache_read_input_tokens', 0)}"
-    except Exception as e:
-        return f"failed: {e}"
+    parts = []
+    for m in models:
+        try:
+            resp = await _call_model(m, out.getvalue(), max_tokens=8)
+            parts.append(f"{m}: write={getattr(resp.usage, 'cache_creation_input_tokens', 0)} read={getattr(resp.usage, 'cache_read_input_tokens', 0)}")
+        except Exception as e:
+            parts.append(f"{m}: failed {e}")
+    return "; ".join(parts)

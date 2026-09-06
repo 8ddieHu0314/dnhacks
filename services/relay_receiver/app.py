@@ -22,7 +22,23 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 import tts_elevenlabs as tts
 
-MODEL = os.environ.get("INSPECT_MODEL", "claude-opus-5")
+MODEL = os.environ.get("INSPECT_MODEL", "claude-opus-5")          # Describe button: one-shot, quality first
+NARRATE_MODEL = os.environ.get("NARRATE_MODEL", "claude-sonnet-5")  # Scene mode: reactive, latency first
+MODEL_CHOICES = {"sonnet": "claude-sonnet-5", "opus": "claude-opus-5"}
+models = {"scene": NARRATE_MODEL, "describe": MODEL}                # runtime-switchable (identify lives in identify.state)
+
+
+def set_models(**kw):
+    """Accepts 'sonnet'/'opus' or full model ids for identify / scene / describe."""
+    for key in ("identify", "scene", "describe"):
+        v = kw.get(key)
+        if not v:
+            continue
+        mid = MODEL_CHOICES.get(str(v).lower(), str(v))
+        if key == "identify":
+            identify.set_enabled(identify.state["enabled"], model=mid)
+        else:
+            models[key] = mid
 SPEAK = os.environ.get("SPEAK", "0") == "1"           # also say results on the Mac speaker
 FAKE = os.environ.get("INSPECT_FAKE", "0") == "1"      # stream canned text (no API key needed) to test the audio path
 REPORT_PATH = Path(__file__).with_name("report.jsonl")
@@ -191,6 +207,7 @@ def _stats():
             "inspections": len(state["report"]), "narration": narration["enabled"], "interval": narration["interval"],
             "reactive": identify.state["enabled"], "reactive_status": identify.state["status"], "last_id": identify.state["last_id"],
             "catalog_parts": len(identify.catalog), "identify_model": identify.MODEL,
+            "models": {"identify": "fake" if FAKE else identify.state["model"], "scene": "fake" if FAKE else models["scene"], "describe": "fake" if FAKE else models["describe"]},
             "reactive_mode": identify.state["mode"],
             "triggers": identify.state["triggers"], "agreement": identify.state["agreement"],
             "preannounce": identify.state["preannounce"], "det_trigger": identify.state["det_trigger"],
@@ -316,12 +333,14 @@ async def _fake_stream(question: str):
             await asyncio.sleep(0.08)
 
 
-async def _claude_stream(question: str, system: str, b64: str):
+async def _claude_stream(question: str, system: str, b64: str, model: str = MODEL):
     import anthropic
     aclient = anthropic.AsyncAnthropic()
+    kwargs = {}
+    if model.startswith(("claude-opus-5", "claude-fable")):
+        kwargs = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
     async with aclient.beta.messages.stream(
-        model=MODEL, max_tokens=400, system=system,
-        betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+        model=model, max_tokens=400, system=system, **kwargs,
         messages=[{"role": "user", "content": [
             {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
             {"type": "text", "text": question}]}],
@@ -350,7 +369,7 @@ async def analyze(question: str, *, narrate: bool = False, speak: bool = True) -
         q = f"Previous narration: {narration['last']}\n\n{question}"
     await _caption("", final=False)
     full, pending = "", ""
-    gen = _fake_stream(q) if FAKE else _claude_stream(q, system, b64)
+    gen = _fake_stream(q) if FAKE else _claude_stream(q, system, b64, models["scene"] if narrate else models["describe"])
     async for piece in gen:
         full += piece
         pending += piece
@@ -375,7 +394,7 @@ async def analyze(question: str, *, narrate: bool = False, speak: bool = True) -
         if text.lower() == "no change":
             return None
     entry = {"ts": ts, "question": question, "result": text, "frame": frame_path.name,
-             "model": "fake" if FAKE else MODEL, "narration": narrate}
+             "model": "fake" if FAKE else (models["scene"] if narrate else models["describe"]), "narration": narrate}
     state["report"].append(entry)
     with REPORT_PATH.open("a") as f:
         f.write(json.dumps(entry) + "\n")
@@ -446,6 +465,9 @@ async def handle_phone_command(msg: dict):
         await _send_all(phones, {"type": "narration", "enabled": narration["enabled"], "interval": narration["interval"]})
     elif kind == "reactive":
         set_reactive(msg.get("enabled", False), mode=msg.get("mode"), preannounce=msg.get("preannounce"))
+        await _send_all(phones, {"type": "reactive", **_reactive_public()})
+    elif kind == "models":
+        set_models(**{k: msg.get(k) for k in ("identify", "scene", "describe")})
         await _send_all(phones, {"type": "reactive", **_reactive_public()})
     elif kind == "voice":
         if msg.get("provider") in ("apple", "elevenlabs"):
@@ -566,6 +588,7 @@ async def narrate(request: Request):
 def _reactive_public():
     st = identify.state
     return {"enabled": st["enabled"], "mode": st["mode"], "voice": _voice_active(), "status": st["status"], "last_id": st["last_id"],
+            "models": {"identify": st["model"], "scene": models["scene"], "describe": models["describe"]},
             "last_result": st["last_result"], "calls": st["calls"], "catalog": identify.catalog_source,
             "parts": len(identify.catalog), "min_confidence": st["min_confidence"],
             "detector": detect.state["available"], "det_min_conf": st["det_min_conf"], "stable_frames": st["stable_frames"],
@@ -632,6 +655,14 @@ async def reactive(request: Request):
     set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds", "short_spoken", "mode", "interrupt_confidence", "det_min_conf", "stable_frames", "preannounce", "det_trigger")})
     await _send_all(phones, {"type": "reactive", **_reactive_public()})
     return _reactive_public()
+
+
+@app.post("/models")
+async def post_models(request: Request):
+    body = await request.json()
+    set_models(**{k: body.get(k) for k in ("identify", "scene", "describe")})
+    await _send_all(phones, {"type": "reactive", **_reactive_public()})
+    return _reactive_public()["models"]
 
 
 @app.post("/voice")
@@ -742,6 +773,12 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
   <b style="font-size:14px">Hands-free</b>
   <select id=mode onchange="reactive()" style="background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:4px">
     <option value="off">Off</option><option value="parts">Parts (catalog)</option><option value="scene">Scene (narration)</option></select>
+  <b style="font-size:14px;margin-left:8px">Parts model</b>
+  <select id=m_identify onchange="setModels()" style="background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:4px">
+    <option value="claude-sonnet-5">Sonnet 5</option><option value="claude-opus-5">Opus 5</option></select>
+  <b style="font-size:14px;margin-left:8px">Scene model</b>
+  <select id=m_scene onchange="setModels()" style="background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:4px">
+    <option value="claude-sonnet-5">Sonnet 5</option><option value="claude-opus-5">Opus 5</option></select>
   <b style="font-size:14px;margin-left:8px">Voice</b>
   <select id=voice onchange="setVoice()" style="background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:4px">
     <option value="apple">Apple (on phone)</option><option value="elevenlabs">ElevenLabs</option></select>
@@ -808,6 +845,7 @@ function connect(){
       stats=m;renderHud();renderDetbar();
       if(document.activeElement.id!=='mode')document.getElementById('mode').value=m.reactive?(m.reactive_mode||'parts'):'off';
       if(document.activeElement.id!=='voice')document.getElementById('voice').value=(m.tts&&m.tts.provider)||'apple';
+      if(m.models){if(document.activeElement.id!=='m_identify')document.getElementById('m_identify').value=m.models.identify;if(document.activeElement.id!=='m_scene')document.getElementById('m_scene').value=m.models.scene;}
       if(m.preannounce!==undefined)document.getElementById('pre').checked=!!m.preannounce;if(m.det_trigger!==undefined)document.getElementById('dtrig').checked=!!m.det_trigger;document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
     try{const b=await createImageBitmap(e.data);if(bmp)bmp.close();bmp=b;draw();
       shown++;const now=performance.now();if(now-lastShown>1000){dispFps=shown*1000/(now-lastShown);shown=0;lastShown=now;}}catch(err){}
@@ -815,13 +853,14 @@ function connect(){
   ws.onclose=()=>{hud.textContent='disconnected, retrying…';setTimeout(connect,1000)};
 }
 function renderHud(){
-  hud.textContent=`${bmp?bmp.width+'×'+bmp.height:'no frame'} · relay ${stats.fps??'-'} fps · shown ${dispFps.toFixed(1)} fps\\nphone→mac ${stats.phone_to_mac_ms??'-'} ms · ${stats.frame_kb??'-'} KB/frame · frames ${stats.frames??0} · phones ${stats.phones??0} · ${stats.model??''}`;
+  hud.textContent=`${bmp?bmp.width+'×'+bmp.height:'no frame'} · relay ${stats.fps??'-'} fps · shown ${dispFps.toFixed(1)} fps\\nphone→mac ${stats.phone_to_mac_ms??'-'} ms · ${stats.frame_kb??'-'} KB/frame · frames ${stats.frames??0} · phones ${stats.phones??0}\\nid ${stats.models?stats.models.identify:'?'} · scene ${stats.models?stats.models.scene:'?'} · describe ${stats.models?stats.models.describe:'?'} · voice ${stats.tts?stats.tts.provider:'?'}`;
 }
 window.addEventListener('resize',draw);
 async function inspect(){const out=document.getElementById('out');out.textContent='thinking…';
  const r=await fetch('/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:document.getElementById('q').value||undefined})});
  const j=await r.json();if(j.error)out.textContent=j.error;loadReport();}
 async function reactive(){const v=document.getElementById('mode').value;await fetch('/reactive',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:v!=='off',mode:v==='off'?undefined:v,preannounce:document.getElementById('pre').checked,det_trigger:document.getElementById('dtrig').checked})});}
+async function setModels(){await fetch('/models',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identify:document.getElementById('m_identify').value,scene:document.getElementById('m_scene').value})});}
 async function setVoice(){await fetch('/voice',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:document.getElementById('voice').value})});}
 let bannerTimer=null;
 function banner(cls,html,ms){const b=document.getElementById('banner');b.className=cls;b.innerHTML=html;clearTimeout(bannerTimer);if(ms)bannerTimer=setTimeout(()=>{b.className='';b.innerHTML='';},ms);}
