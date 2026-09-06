@@ -257,6 +257,21 @@ legible label and then with the label obscured. Confirm that the result either
 names a retrieved candidate with visual evidence or explicitly asks for a
 clarifying view—never a confident unsupported identification.
 
+Claude can use the native Messages API instead of an OpenAI-compatible proxy:
+
+```bash
+VISION_BACKEND=anthropic_component_knowledge
+VLM_API_KEY=your-anthropic-key
+VLM_MODEL=claude-sonnet-4-6
+# optional; defaults to https://api.anthropic.com
+VLM_BASE_URL=
+```
+
+This backend submits each test frame to Anthropic in base64 form for two calls:
+scene retrieval, then grounded component guidance. Keep keys out of `.env`
+files that might be committed; export them only in the terminal session running
+the server.
+
 ## Arduino context node
 
 [`firmware/context_node/context_node.ino`](firmware/context_node/context_node.ino)
