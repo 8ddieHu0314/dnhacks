@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from .component_knowledge import ComponentKnowledgeBase
 from .config import settings
@@ -101,6 +101,11 @@ def validate_frame_bytes(image_bytes: bytes, encoding: str) -> None:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok", "segmentation_backend": pipeline.backend_name}
+
+
+@app.get("/webcam", include_in_schema=False)
+async def webcam_test_page() -> FileResponse:
+    return FileResponse(Path(__file__).with_name("static") / "webcam.html")
 
 
 @app.get("/v1/workflows", response_model=list[WorkflowDefinition])
