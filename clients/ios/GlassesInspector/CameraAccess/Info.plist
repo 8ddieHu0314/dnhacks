@@ -33,6 +33,10 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>fb-viewapp</string>
+	</array>
 	<!-- Begin required section for Device Access Toolkit Apps -->
 	<!-- Meta Wearables Device Access Toolkit Setup -->
 	<key>MWDAT</key>
