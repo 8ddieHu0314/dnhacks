@@ -232,6 +232,31 @@ curl 'http://localhost:8000/v1/components/search?q=ultrasonic+sensor'
 curl http://localhost:8000/v1/components/hc-sr04
 ```
 
+## Webcam test before glasses integration
+
+The service ships a same-origin camera harness at `/webcam`. It posts a JPEG
+every second through the exact HTTP frame-ingest endpoint the mobile bridge will
+use, then renders the newest structured result. Start it without a model key:
+
+```bash
+cp .env.example .env
+# Set VISION_BACKEND=component_knowledge_mock in .env
+PYTHONPATH=services .venv/bin/uvicorn vision_api.main:app --reload
+```
+
+Open [http://localhost:8000/webcam](http://localhost:8000/webcam), allow camera
+access, enter a visible label such as `HC-SR04`, and click **Start test**. The
+mock mode validates browser capture, JPEG upload, sessions, latest-frame
+processing, result polling, and component retrieval. It does **not** claim to
+recognize image pixels; its typed cue is intentional so the no-key test cannot
+be mistaken for visual identification.
+
+For an actual vision test, change the backend to `component_knowledge` and set
+the VLM endpoint values above. Hold up one component at a time, first with a
+legible label and then with the label obscured. Confirm that the result either
+names a retrieved candidate with visual evidence or explicitly asks for a
+clarifying view—never a confident unsupported identification.
+
 ## Arduino context node
 
 [`firmware/context_node/context_node.ino`](firmware/context_node/context_node.ino)
