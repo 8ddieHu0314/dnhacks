@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Component webcam test</title>
+<style>body{max-width:860px;margin:2rem auto;font:16px system-ui;background:#10151c;color:#edf2f7}video,canvas{max-width:100%;border-radius:10px;background:#000}input,button{font:inherit;padding:.6rem;margin:.3rem}pre{white-space:pre-wrap;background:#17202b;padding:1rem;border-radius:8px}</style>
+<main>
+<h1>Component knowledge webcam test</h1>
+<p>This same-origin harness posts one JPEG frame per second. In local mock mode, the typed cue drives retrieval; it does not identify pixels.</p>
+<input id="question" size="48" placeholder="Visible marking or question, e.g. HC-SR04">
+<button id="camera">Enable camera</button><button id="start">Start test</button><button id="stop">Stop</button>
+<p id="status">Camera disabled.</p><video id="video" autoplay playsinline muted></video><canvas id="canvas" hidden></canvas><pre id="result">No result yet.</pre>
+</main>
+<script>
+const $=id=>document.getElementById(id), video=$("video"), canvas=$("canvas"), status=$("status"), result=$("result");
+let stream, sessionId, running=false;
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function enableCamera(){
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+  video.srcObject=stream; await video.play(); status.textContent="Camera ready.";
+}
+async function start(){
+  if(!stream) await enableCamera();
+  const created=await fetch("/v1/sessions",{method:"POST"}).then(response=>response.json());
+  sessionId=created.session_id; running=true; status.textContent=`Streaming to session ${sessionId}.`; tick();
+}
+async function tick(){
+  if(!running) return;
+  try{
+    const width=video.videoWidth||640, height=Math.round(width/(video.videoWidth/video.videoHeight||4/3));
+    canvas.width=width; canvas.height=height; canvas.getContext("2d").drawImage(video,0,0,width,height);
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.8));
+    const metadata={frame_id:crypto.randomUUID(),captured_at:new Date().toISOString(),width,height,encoding:"jpeg",user_request:$("question").value||null};
+    const sent=await fetch(`/v1/sessions/${sessionId}/frames`,{method:"POST",headers:{"x-frame-metadata":JSON.stringify(metadata)},body:blob});
+    if(!sent.ok) throw new Error(await sent.text());
+    await pause(150); const results=await fetch(`/v1/sessions/${sessionId}/results`).then(response=>response.json());
+    const latest=results.at(-1); if(latest) result.textContent=JSON.stringify(latest.analysis,null,2);
+  }catch(error){status.textContent=`Camera test error: ${error.message}`;running=false;return;}
+  setTimeout(tick,1000);
+}
+$("camera").onclick=()=>enableCamera().catch(error=>status.textContent=`Camera error: ${error.message}`);
+$("start").onclick=()=>start().catch(error=>status.textContent=`Start error: ${error.message}`);
+$("stop").onclick=()=>{running=false;stream?.getTracks().forEach(track=>track.stop());status.textContent="Stopped.";};
+</script>
