@@ -1,0 +1,86 @@
+{
+  "id": "button",
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 5 },
+  "identity": {
+    "name_on_kit": "Button",
+    "canonical_name": "6x6 mm 4-pin tactile push button switch",
+    "aliases": ["tactile switch", "tact switch", "momentary pushbutton", "6mm push button"],
+    "category": "input",
+    "manufacturer": "generic/unbranded (no manufacturer marking on the part; commonly cross-referenced to Omron B3F-10xx or C&K PTS645 style parts)",
+    "manufacturer_part_number": "none confirmed; generic part, no MPN printed on it or given by ELEGOO",
+    "generic_equivalents": ["Omron B3F-1000", "C&K PTS645 series", "many unbranded OEM equivalents"],
+    "serial_number": "not_applicable",
+    "package": "6x6 mm through-hole tactile switch, 4-pin"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small square button that connects a circuit only while you are pressing it down, then springs back open when you let go.",
+    "what_it_is_used_for": "Used as a simple on/off input to the Arduino UNO, for example to trigger an action, count button presses, or start and stop something in a program.",
+    "how_it_works_briefly": "Inside the plastic body, a spring-loaded metal dome sits above two pairs of legs. The two legs on the same side of the switch are always connected to each other, whether pressed or not. Pressing the cap pushes the dome down so it bridges both sides at once, briefly connecting all four legs together. Releasing lifts the dome and breaks that bridge again."
+  },
+  "pins": {
+    "pin_count": 4,
+    "pinout": [
+      { "pin": 1, "name": "Leg A1", "role": "one side of the switch", "notes": "Always electrically joined to Leg A2 (the other leg on the same side), pressed or not" },
+      { "pin": 2, "name": "Leg A2", "role": "one side of the switch", "notes": "Same side as pin 1; always connected to it" },
+      { "pin": 3, "name": "Leg B1", "role": "other side of the switch", "notes": "Only connects to the A-side legs while the button is being pressed" },
+      { "pin": 4, "name": "Leg B2", "role": "other side of the switch", "notes": "Same side as pin 3; always connected to it" }
+    ],
+    "pin_1_identification": "The part has no printed numbers or markings. Hold it so two legs exit from one edge of the base and two exit from the opposite edge. The two legs sharing an edge are one 'side' and are always connected to each other. Only the two sides become connected to each other when the cap is pressed.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "works fine at Arduino logic levels (3.3V or 5V); it is a simple dry mechanical contact with no voltage requirement of its own",
+    "absolute_max_voltage": "not confirmed for this specific generic part",
+    "typical_current": "negligible; current is set by whatever pull-up/pull-down resistor and Arduino pin it is wired to, not by the switch",
+    "max_current": "not confirmed for this specific generic part",
+    "logic_level": "TTL/CMOS compatible (passive mechanical contact, works at either 3.3V or 5V)",
+    "interface": "digital"
+  },
+  "key_specs": {
+    "body_size_mm": "6 x 6 x 5",
+    "switch_type": "momentary, normally open (SPST)",
+    "mount_type": "through-hole, breadboard-friendly, 0.1 inch grid legs"
+  },
+  "visual_identification": {
+    "shape_and_size": "Small square black plastic base about 6 mm x 6 mm and roughly 5 mm tall, with four thin metal legs pointing straight down, one from each corner-ish edge pair. A smaller round or square cap sits on top, often in a bright color (red, yellow, blue, black), which is the part you press.",
+    "color_and_markings": "Base is usually black or dark gray plastic. No printed text, logo, or part number appears on the switch itself.",
+    "printed_text_to_look_for": "None. Identify it by shape (small square base, raised press-cap) and by four bare legs, not by any label.",
+    "easily_confused_with": ["small SMD tactile switches with no through-hole legs", "DIP switch blocks (several switches side by side in one long housing)", "a plastic standoff or spacer at a quick glance"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "one leg on side A", "uno_pin": "5V (or a digital I/O pin if using INPUT_PULLUP)" },
+      { "part_pin": "the corresponding leg on side B", "uno_pin": "a digital I/O pin, usually through a pull-down resistor to GND, or directly to GND when using INPUT_PULLUP" }
+    ],
+    "required_extra_parts": ["10k ohm resistor for an external pull-down (or use the UNO's built-in pull-up resistor via pinMode(pin, INPUT_PULLUP) and skip the extra resistor)"],
+    "arduino_library": "none needed; read the state with the built-in digitalRead() function"
+  },
+  "safety": {
+    "hazards": ["none inherent; low voltage, low current part"],
+    "handling_notes": ["straddle the breadboard's center gap when inserting it, so the two sides land in separate rows", "legs are thin and can bend if forced into the wrong holes"],
+    "common_mistakes": ["plugging it in rotated 90 degrees so both legs of one side land in the same connected breadboard row, which makes the input always read as 'pressed'", "leaving the input pin floating with no pull-up or pull-down resistor, causing random flickering reads when the button is not pressed"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "input reads the same value whether pressed or not", "likely_cause": "button oriented wrong on the breadboard, or wiring uses two legs from the same side", "check": "rotate the button 90 degrees, or use a multimeter continuity test to find which pair of legs is joined without pressing" },
+      { "symptom": "input flickers or reads randomly when not pressed", "likely_cause": "no pull-up or pull-down resistor, so the pin is floating", "check": "confirm a resistor to 5V or GND is wired in, or set pinMode to INPUT_PULLUP in the sketch" }
+    ],
+    "how_to_test_with_a_multimeter": "Set the multimeter to continuity/beep mode. Touch probes to two legs on the same side; it should always beep, pressed or not. Touch one leg from each side; it should only beep while the button is held down."
+  },
+  "market": {
+    "unit_price_usd": 0.13,
+    "price_source_url": "https://www.adafruit.com/product/367",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Adafruit", "SparkFun", "Amazon", "generic electronics resellers"]
+  },
+  "sources": [
+    { "title": "Tactile Button switch (6mm) x 20 pack - Adafruit", "url": "https://www.adafruit.com/product/367", "type": "retailer", "used_for": "unit price (pack price divided by 20), body dimensions, normally-open switch behavior" },
+    { "title": "6mm Tactile Push Button, Pack of 2 - ThinkRobotics", "url": "https://thinkrobotics.com/products/6mm-tactile-push-button-pack-of-20", "type": "retailer", "used_for": "cross-check of body dimensions and normally-open behavior" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": ["electrical.absolute_max_voltage", "electrical.max_current", "key_specs.actuation_force", "key_specs.travel_distance", "key_specs.pin_pitch", "identity.manufacturer_part_number"],
+    "notes": "This is an unbranded generic 6x6mm 4-pin tactile switch, the type universally bundled in Arduino starter kits. ELEGOO does not sell it standalone or publish a datasheet for it, and attempts to fetch manufacturer switch datasheets (C&K PTS645, Schurter, Littelfuse mirror) all failed with HTTP 403 or timeout, so electrical ratings are left unconfirmed rather than guessed. Unit price computed by dividing Adafruit's $2.50-per-pack-of-20 price by 20 ($0.125, rounded to $0.13)."
+  }
+}
