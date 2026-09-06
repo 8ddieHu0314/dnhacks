@@ -631,17 +631,10 @@ final class FrameRelay {
   /// Live text of the current/last analysis (for the on-screen caption).
   private(set) var caption: String = ""
   private(set) var captionFinal: Bool = true
-  /// Server-side continuous narration state, as reported by the receiver.
-  private(set) var narrationEnabled: Bool = false
-  private(set) var narrationInterval: Double = 8
-  /// Server-side hands-free mode: "off", "parts" (catalog lookup) or "scene" (narration).
-  /// Persisted, and re-sent to the Mac on every reconnect so it survives restarts.
-  var handsFreeMode: String {
-    didSet {
-      UserDefaults.standard.set(handsFreeMode, forKey: "handsFreeMode")
-      sendCommand(reactiveCommand())
-    }
-  }
+  /// What the Mac reports about itself (its "status" message: on connect and after every change).
+  private(set) var macBusy: Bool = false
+  private(set) var macModel: String = "?"
+  private(set) var catalogParts: Int = 0
   /// Voice the Mac should use for speech: "apple" (on the phone) or "elevenlabs" (streamed from the Mac).
   var voiceProvider: String {
     didSet {
@@ -649,19 +642,6 @@ final class FrameRelay {
       sendCommand(["type": "voice", "provider": voiceProvider])
     }
   }
-  /// Claude model per hands-free mode: "sonnet" (fast) or "opus" (strongest). Applied on the Mac.
-  var partsModel: String {
-    didSet { UserDefaults.standard.set(partsModel, forKey: "partsModel"); sendCommand(modelsCommand()) }
-  }
-  var sceneModel: String {
-    didSet { UserDefaults.standard.set(sceneModel, forKey: "sceneModel"); sendCommand(modelsCommand()) }
-  }
-  private(set) var activeModels: [String: String] = [:]
-
-  private func modelsCommand() -> [String: Any] {
-    ["type": "models", "identify": partsModel, "scene": sceneModel]
-  }
-
   /// Judges' session report page on the Mac (/report.html). Default off.
   var reportPageEnabled: Bool {
     didSet {
@@ -671,43 +651,37 @@ final class FrameRelay {
   }
   private(set) var reportPageActive: Bool = false
 
-  /// Speak the local detector's guess the instant a part is spotted, before Claude confirms.
-  var preannounce: Bool {
-    didSet {
-      UserDefaults.standard.set(preannounce, forKey: "preannounce")
-      sendCommand(reactiveCommand())
-    }
-  }
-  /// Local YOLO detector on the Mac: boxes on the dashboard and the early trigger. Off = settle rule only.
+  /// Local YOLO detector on the Mac: boxes on the dashboard only. Off by default; it never triggers Claude.
   var detectorEnabled: Bool {
     didSet {
-      UserDefaults.standard.set(detectorEnabled, forKey: "detectorEnabled")
+      UserDefaults.standard.set(detectorEnabled, forKey: "detectorEnabledV2")
       sendCommand(["type": "detector", "enabled": detectorEnabled])
     }
   }
   private(set) var detectorActive: Bool?
-  private(set) var reactiveEnabled: Bool = false
-  private(set) var reactiveMode: String = "parts"
-  private(set) var reactiveStatus: String = "idle"
-  private(set) var reactiveLastID: String?
   private(set) var activeVoice: String = "apple"
   private(set) var lastCommandError: String?
 
   private init() {
     let d = UserDefaults.standard
+    // Reactive edition defaults, applied once over whatever an older build saved: High resolution
+    // at a low relay rate. Frames now feed questions, not a live analysis, so sharpness beats fps.
+    if d.integer(forKey: "relayDefaultsVersion") < 2 {
+      d.set("high", forKey: "streamResolution")
+      d.set(15, forKey: "streamFPS")
+      d.set(5.0, forKey: Self.fpsKey)
+      d.set(0.8, forKey: Self.qualityKey)
+      d.set(2, forKey: "relayDefaultsVersion")
+    }
     serviceName = d.string(forKey: Self.serviceKey) ?? ""
     manualURL = d.string(forKey: Self.manualURLKey) ?? d.string(forKey: "relayURL") ?? "http://Eddies-MacBook-Pro.local:8787"
     useManualURL = d.bool(forKey: Self.useManualKey)
     preferCable = d.object(forKey: Self.preferCableKey) as? Bool ?? true
-    targetFPS = d.object(forKey: Self.fpsKey) as? Double ?? 15
-    jpegQuality = d.object(forKey: Self.qualityKey) as? Double ?? 0.6
+    targetFPS = d.object(forKey: Self.fpsKey) as? Double ?? 5
+    jpegQuality = d.object(forKey: Self.qualityKey) as? Double ?? 0.8
     speakEnabled = d.object(forKey: "relaySpeak") as? Bool ?? true
-    preannounce = d.object(forKey: "preannounce") as? Bool ?? false
-    detectorEnabled = d.object(forKey: "detectorEnabled") as? Bool ?? true
+    detectorEnabled = d.object(forKey: "detectorEnabledV2") as? Bool ?? false
     reportPageEnabled = d.object(forKey: "reportPage") as? Bool ?? false
-    partsModel = d.string(forKey: "partsModel") ?? "sonnet"
-    sceneModel = d.string(forKey: "sceneModel") ?? "sonnet"
-    handsFreeMode = d.string(forKey: "handsFreeMode") ?? "off"
     voiceProvider = d.string(forKey: "voiceProvider") ?? "apple"
     browser.onUpdate = { [weak self] in self?.applyTarget() }
     browser.start()
@@ -812,10 +786,6 @@ final class FrameRelay {
     sendCommand(msg)
   }
 
-  func setNarration(enabled: Bool, interval: Double) {
-    sendCommand(["type": "narrate", "enabled": enabled, "interval": interval])
-  }
-
   // MARK: Voice input -> Mac
 
   /// A finished sentence from the wearer. Stop words are handled here without a round trip;
@@ -827,14 +797,17 @@ final class FrameRelay {
       hush()
       return
     }
-    ask(text)
+    ask(text, heardAt: voice.lastUtteranceStart)
   }
 
-  /// Send a question about the current view; the answer comes back as speech.
-  func ask(_ text: String) {
+  /// Send a question about the current view; the answer comes back as speech. `heardAt` is when
+  /// the wearer started the sentence, so the Mac answers from the frames of that moment.
+  func ask(_ text: String, heardAt: Date? = nil) {
     caption = "You: \(text)"
     captionFinal = false
-    sendCommand(["type": "ask", "text": text])
+    var msg: [String: Any] = ["type": "ask", "text": text]
+    if let heardAt { msg["heard_at"] = Int(heardAt.timeIntervalSince1970 * 1000) }
+    sendCommand(msg)
   }
 
   /// Silence the glasses now and drop whatever the Mac still has queued.
@@ -847,17 +820,11 @@ final class FrameRelay {
 
   /// Re-assert the phone's preferences after a (re)connect; the Mac's hello triggers this.
   private var announcedPrefs = false
-  private func reactiveCommand() -> [String: Any] {
-    ["type": "reactive", "enabled": handsFreeMode != "off",
-     "mode": handsFreeMode == "off" ? "parts" : handsFreeMode, "preannounce": preannounce]
-  }
 
   private func announcePrefs() {
     sendCommand(["type": "voice", "provider": voiceProvider])
-    sendCommand(modelsCommand())
     sendCommand(["type": "report_page", "enabled": reportPageEnabled])
     sendCommand(["type": "detector", "enabled": detectorEnabled])
-    sendCommand(reactiveCommand())
   }
 
   private func sendCommand(_ msg: [String: Any]) {
@@ -900,23 +867,18 @@ final class FrameRelay {
       speaker.stop()
       // Keep the wearer's own question on screen; the Mac hushes before answering it.
       if !caption.hasPrefix("You: ") { caption = "" }
-    case "reactive":
-      // First "reactive" after a connect is the Mac's hello: push our saved preferences.
+    case "status":
+      // The first "status" after a connect is the Mac's hello: push our saved preferences.
       if !announcedPrefs {
         announcedPrefs = true
         announcePrefs()
       }
-      reactiveEnabled = obj["enabled"] as? Bool ?? false
-      reactiveMode = obj["mode"] as? String ?? "parts"
-      reactiveStatus = obj["status"] as? String ?? "idle"
-      reactiveLastID = obj["last_id"] as? String
       activeVoice = obj["voice"] as? String ?? activeVoice
-      if let m = obj["models"] as? [String: String] { activeModels = m }
       if let r = obj["report_page"] as? Bool { reportPageActive = r }
       if let de = obj["detector_enabled"] as? Bool { detectorActive = de }
-    case "narration":
-      narrationEnabled = obj["enabled"] as? Bool ?? false
-      narrationInterval = obj["interval"] as? Double ?? narrationInterval
+      if let b = obj["busy"] as? Bool { macBusy = b }
+      if let m = obj["model"] as? String { macModel = m }
+      if let n = obj["catalog_parts"] as? Int { catalogParts = n }
     default:
       break
     }

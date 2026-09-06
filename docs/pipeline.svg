@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="glasses-pipeline-title glasses-pipeline-desc">
       <title id="glasses-pipeline-title">Glasses Inspector pipeline</title>
-      <desc id="glasses-pipeline-desc">Architecture diagram showing camera frames and spoken questions flowing from Ray-Ban Meta glasses through the iPhone app to a Mac relay, where a local detector and a part catalog feed Claude, and ElevenLabs speech returns through the phone to the wearer.</desc>
+      <desc id="glasses-pipeline-desc">Architecture diagram showing spoken questions and camera frames flowing from Ray-Ban Meta glasses through the iPhone app to a Mac relay, which sends the frames of that moment, a detector close-up and the whole part catalog to Claude, and returns the spoken answer through the phone to the wearer.</desc>
       <defs>
         <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
         <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
@@ -62,11 +62,11 @@
       <rect x="416" y="194" width="52" height="12" rx="2" fill="#f5f5f5"/>
       <text x="442" y="203" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">47 PARTS</text>
 
-      <rect x="564" y="196" width="60" height="12" rx="2" fill="#f5f5f5"/>
-      <text x="594" y="205" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">EACH FRAME</text>
+      <rect x="580" y="196" width="44" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="602" y="205" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">ON ASK</text>
 
-      <rect x="688" y="196" width="36" height="12" rx="2" fill="#f5f5f5"/>
-      <text x="706" y="205" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">BOXES</text>
+      <rect x="688" y="196" width="56" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="716" y="205" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">CLOSE-UP</text>
 
       <rect x="634" y="282" width="52" height="12" rx="2" fill="#f5f5f5"/>
       <text x="660" y="291" fill="#2e5aa8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">IDENTIFY</text>
@@ -120,7 +120,7 @@
       <rect x="592" y="112" width="32" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
       <text x="608" y="121" fill="#2d3142" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">ONNX</text>
       <text x="656" y="140" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Local detector</text>
-      <text x="656" y="156" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">YOLOv8n · 30 ms</text>
+      <text x="656" y="156" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">YOLOv8n · crop</text>
 
       <!-- Node: Claude (cloud API) -->
       <rect x="776" y="232" width="128" height="64" rx="6" fill="#f5f5f5"/>

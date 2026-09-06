@@ -74,6 +74,9 @@ final class VoiceInput {
   /// Live transcript of the sentence being spoken, for the on-screen caption.
   private(set) var partial = ""
   private(set) var lastUtterance = ""
+  /// When the sentence being transcribed began (first partial result). The Mac uses it to pick
+  /// the camera frames from the moment the wearer was speaking.
+  private(set) var lastUtteranceStart: Date?
   /// Input port in use, for the settings sheet ("Ray-Ban Meta (BluetoothHFP)").
   private(set) var route = ""
   private(set) var utterances = 0
@@ -308,6 +311,7 @@ final class VoiceInput {
   private func handle(text: String?, isFinal: Bool, failed: Bool, gen: Int) {
     guard gen == generation, isListening else { return }
     if let text, !text.isEmpty, text != lastText {
+      if lastText.isEmpty { lastUtteranceStart = Date() }
       lastText = text
       partial = text
       scheduleSilence(gen: gen)

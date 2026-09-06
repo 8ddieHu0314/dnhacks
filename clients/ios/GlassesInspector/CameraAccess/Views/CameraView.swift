@@ -300,7 +300,7 @@ struct CameraView: View {
           Text("Mac: \(err)").font(.system(size: 11)).foregroundStyle(.yellow)
         }
         HStack(spacing: 10) {
-          CustomButton(title: viewModel.frameRelay.reactiveEnabled ? "\(viewModel.frameRelay.reactiveMode == "scene" ? "Scene" : "Parts"): \(viewModel.frameRelay.reactiveStatus)" : "Describe", style: .primary, isDisabled: !viewModel.isStreaming) {
+          CustomButton(title: viewModel.frameRelay.macBusy ? "Answering…" : "What's here?", style: .primary, isDisabled: !viewModel.isStreaming || viewModel.frameRelay.macBusy) {
             viewModel.frameRelay.requestInspect()
           }
           if viewModel.frameRelay.speaker.isSpeaking {
@@ -632,8 +632,8 @@ struct UpdateRequiredMessage: View {
 struct RelaySettingsView: View {
   @Bindable var relay: FrameRelay
   @Bindable var wearablesVM: WearablesViewModel
-  @AppStorage("streamResolution") private var streamResolution: String = "low"
-  @AppStorage("streamFPS") private var streamFPS: Int = 24
+  @AppStorage("streamResolution") private var streamResolution: String = "high"
+  @AppStorage("streamFPS") private var streamFPS: Int = 15
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
@@ -687,7 +687,7 @@ struct RelaySettingsView: View {
             Text("30").tag(30)
           }
           .pickerStyle(.segmented)
-          Text("Resolution and glasses frame rate apply on the next Preview").font(.caption).foregroundStyle(.secondary)
+          Text("Resolution and glasses frame rate apply on the next Preview. Questions are answered from the sharpest recent frames, so High at a low relay cap is the sweet spot; raise the cap only if the dashboard preview needs to be smoother.").font(.caption).foregroundStyle(.secondary)
           HStack {
             Text("Relay cap \(Int(relay.targetFPS)) fps").frame(width: 130, alignment: .leading)
             Slider(value: $relay.targetFPS, in: 2...30, step: 1)
@@ -697,34 +697,11 @@ struct RelaySettingsView: View {
             Slider(value: $relay.jpegQuality, in: 0.3...0.95, step: 0.05)
           }
         }
-        Section("Hands-free") {
-          Picker("Mode", selection: $relay.handsFreeMode) {
-            Text("Off").tag("off")
-            Text("Parts").tag("parts")
-            Text("Scene").tag("scene")
-          }
-          .pickerStyle(.segmented)
-          Text("Parts: names the catalog part when a new one settles in view. Scene: narrates what changed in view. Both fire on change only; the Mac remembers the mode across reconnects.")
+        Section("Inspector") {
+          Text("Nothing runs on its own. Say \"hey inspector\" and ask, or press What's here?. The Mac answers from the sharpest frames of the moment you spoke, grounded in the part catalog. Mac: \(relay.macModel), \(relay.catalogParts) catalog parts\(relay.macBusy ? ", answering now" : "").")
             .font(.caption).foregroundStyle(.secondary)
-          Toggle("Pre-announce detector guess", isOn: $relay.preannounce)
-          Text("On: the glasses say the kit name the instant the local detector spots a part, then Claude's line follows. Off: only Claude's confirmed line is spoken.")
-            .font(.caption).foregroundStyle(.secondary)
-          Toggle("Local part detector (YOLO)", isOn: $relay.detectorEnabled)
-          Text("Off: no bounding boxes on the dashboard, no early trigger, no pre-announce; parts are identified by the settle rule only. Mac: \(relay.detectorActive.map { $0 ? "on" : "off" } ?? "?").")
-            .font(.caption).foregroundStyle(.secondary)
-          Text("Mac: \(relay.reactiveEnabled ? "\(relay.reactiveMode) · \(relay.reactiveStatus)" : "off")")
-            .font(.caption.monospaced()).foregroundStyle(.secondary)
-        }
-        Section("Models") {
-          Picker("Parts", selection: $relay.partsModel) {
-            Text("Sonnet 5 (fast)").tag("sonnet")
-            Text("Opus 5").tag("opus")
-          }
-          Picker("Scene", selection: $relay.sceneModel) {
-            Text("Sonnet 5 (fast)").tag("sonnet")
-            Text("Opus 5").tag("opus")
-          }
-          Text("Sonnet answers in about 1.8 s, Opus in about 3.5 s; both read markings well. Describe always uses Opus. Active on Mac: parts \(relay.activeModels["identify"] ?? "?"), scene \(relay.activeModels["scene"] ?? "?").")
+          Toggle("Detector boxes on the dashboard", isOn: $relay.detectorEnabled)
+          Text("A local YOLO model draws boxes on the Mac's video for the audience. It never triggers Claude and costs the Mac about a tenth of a second per frame. Mac: \(relay.detectorActive.map { $0 ? "on" : "off" } ?? "?").")
             .font(.caption).foregroundStyle(.secondary)
         }
         Section("Voice") {

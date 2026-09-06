@@ -1,9 +1,12 @@
 # Glasses Inspector
 
-Hands-free part identification for Ray-Ban Meta glasses, built at DNHacks 2026 (Energy &
-Industrialization track). The wearer looks at an electronic component; the glasses say its
-name within about two seconds and answer spoken questions about it ("inspector, which wire is
-the signal?"), and a dashboard on the Mac shows what the system saw and heard.
+A voice-first trainer for Ray-Ban Meta glasses, built at DNHacks 2026 (Energy &
+Industrialization track). An apprentice on a workshop bench says "hey inspector, how many pins
+does the part on my left have?"; the Mac answers within a few seconds from the frames of that
+moment and the workshop's part catalog, and the answer is spoken in the glasses. Nothing runs on
+its own: the wearer asks, the inspector answers, grounded in a catalog the workshop controls.
+(This branch is the reactive edition; `main` keeps the earlier proactive loop that announced
+parts as they came into view.)
 
 ![Glasses Inspector pipeline: glasses to iPhone app to Mac relay to Claude and ElevenLabs and back to the glasses](docs/pipeline.svg)
 
@@ -12,9 +15,10 @@ the signal?"), and a dashboard on the Mac shows what the system saw and heard.
 - `clients/ios/GlassesInspector`: iPhone app (fork of Meta's DAT `CameraAccess` sample). It
   streams the glasses camera to the Mac over a WebSocket, transcribes the wearer's questions
   from the glasses mic on the phone, and plays the Mac's speech into the glasses.
-- `services/relay_receiver`: the Mac relay. A local YOLOv8 detector on every frame, Claude
-  identification against the part catalog, ElevenLabs voice, and a live dashboard on `:8787`.
-  Setup, endpoints, and tuning live in
+- `services/relay_receiver`: the Mac relay. A ring buffer of recent frames, one Claude call
+  per question with the sharpest frames of the moment the wearer spoke, a detector close-up of
+  the part, the whole part catalog as Claude's cached ground truth, ElevenLabs or Apple voice,
+  and a live dashboard on `:8787`. Setup, endpoints, and tuning live in
   [`services/relay_receiver/README.md`](services/relay_receiver/README.md).
 - `docs/components`: the researched part catalog (`components.json`, 47 parts) the relay loads
   at startup, plus query and merge scripts and a small retrieval eval.

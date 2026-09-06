@@ -301,3 +301,36 @@ Glasses camera -> (Meta AI app / DAT, BT+WiFi) -> iOS app GlassesInspector -> HT
   session back to .playback; do not combine with the sample's video recording. (5) Two
   AVAudioEngines (PCM player + mic tap) share one session; fine in theory, verify on device.
 
+## 2026-09-06 (morning) Reactive edition: the wearer asks, the inspector answers (feat/reactive-voice)
+
+- Direction change: no proactive loop. Frame differencing, the settle rule, detector-triggered
+  identification, pre-announce and scene narration are removed on this branch (they stay on
+  main). Every interaction is a spoken question; "hey inspector" is the wake phrase. The story
+  is apprentice training on a bench with a catalog the workshop controls.
+- Relay: a ring buffer of recent frames; a question takes the 3 sharpest frames (Laplacian
+  variance, one per time slice) from the window between when the wearer started speaking
+  (`heard_at` from the phone) and now, plus a close-up crop of the part from the detector
+  (threshold 0.25, sharpest frame first, falls through the frames), plus the previous exchange
+  as text (2 min) so "it" resolves, and sends them to Sonnet 5 with the WHOLE catalog in a
+  cached system prompt (quick index + full records, 57,863 tokens; the cache is re-warmed every
+  4 min). Measured: first word 1.0 to 1.5 s, whole answer 2.5 to 3.5 s, about 1.8k uncached
+  tokens per question.
+- Sonnet 5 thinks by default. With max_tokens 300 the thinking block ate the whole budget and
+  two answers came back empty (stop_reason max_tokens, output_tokens all thinking). Thinking is
+  now disabled for the voice path (THINKING=off); adaptive at low effort measured the same
+  first-word time and no better grounding, so it stays a switch.
+- Grounding: on 504x896 frames with a 28BYJ-48 held at arm's length (about 100 px), the same
+  three questions came back correct 3/3, 2/3 and 1/3 across runs; Sonnet 5 accepts no
+  temperature, so the variance is inherent to the input. The record's visual text was part of
+  it: it described a white gearbox cap and a white plug while this kit's motor has a brass shaft
+  fitting and a BLUE connector housing, and the model cited exactly that mismatch when it
+  refused. Fixed in records/stepper-28byj48.json (7/9 after). Lesson for the demo: the
+  `visual_identification` text must describe the variant actually in the kit.
+- Phone: stream defaults migrate once to High 720p, 15 fps from the glasses, 5 fps relay cap,
+  JPEG 0.8 (`relayDefaultsVersion`); frames feed questions, not a live analysis, so sharpness
+  beats rate. Gear menu: Hands-free and Models sections gone; Inspector section with the
+  detector-boxes toggle (visual only, off). The big button is "What's here?" (a question with a
+  default text). VoiceInput reports when the sentence started.
+- Untested on the hardware in this edition: 720p over Bluetooth with HFP active, and whether the
+  close-up crop lands on the right part on real 720p frames.
+

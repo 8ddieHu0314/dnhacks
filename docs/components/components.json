@@ -23,7 +23,7 @@
       "verified",
       "verified_with_gaps"
     ],
-    "last_merge": "2026-09-05"
+    "last_merge": "2026-09-06"
   },
   "components": [
     {
@@ -1702,12 +1702,12 @@
           "shaft_diameter": "5 mm"
         },
         "visual_identification": {
-          "shape_and_size": "small round metal-cased can motor about 28 mm in diameter and roughly 19 mm deep, with a white plastic gearbox cap and a thin output shaft",
-          "color_and_markings": "blue-grey or silver metal body; a white 5-wire pigtail (orange, pink, yellow, blue, red) exits one side ending in a small white 5-pin connector; '28BYJ-48' is often printed or stamped on a label on the can",
+          "shape_and_size": "small round metal-cased can motor about 28 mm in diameter and roughly 19 mm deep, with a light plastic gearbox cap and a thin output shaft with a small brass fitting at its base",
+          "color_and_markings": "blue-grey or silver metal body; in this kit the five-wire pigtail (orange, pink, yellow, blue, red) enters a BLUE plastic connector housing molded onto the side of the can, which from a distance looks like a small blue block with a couple of wires, and ends in a small white 5-pin plug; '28BYJ-48' is often printed or stamped on a label on the can",
           "printed_text_to_look_for": "'28BYJ-48' on a label or stamped on the metal can; sometimes a voltage rating like '5V DC' printed nearby",
           "easily_confused_with": [
             "similar-looking 24BYJ or 35BYJ can motors used in HVAC dampers (different pinout/voltage)",
-            "a plain 2-wire DC gear motor (this part always has 5 wires, not 2)"
+            "a plain 2-wire DC gear motor: at arm's length the blue side housing can pass for a two-wire terminal block, but this part always has five wires, not two, and it is the only geared can motor in the kit"
           ]
         },
         "wiring_to_uno": {

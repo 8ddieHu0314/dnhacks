@@ -10,9 +10,11 @@ The three layers meet at fixed interfaces, so they can be worked in parallel:
 
 - Phone -> Mac: `WS /ws/ingest`, binary = 8-byte big-endian capture ms + JPEG; text = JSON
   commands `{"type":"inspect"}`, `{"type":"narrate","enabled":bool,"interval":s}`,
-  `{"type":"reactive",...}`, `{"type":"models",...}`, `{"type":"voice",...}`, and since Sept 6
-  `{"type":"ask","text":...}` (a sentence the wearer said, recognized on the phone) and
-  `{"type":"hush"}` (stop talking, drop queued sentences). The full list is in CLAUDE.md.
+  `{"type":"voice",...}`, `{"type":"detector",...}`, `{"type":"report_page",...}`, and since Sept 6
+  `{"type":"ask","text":...,"heard_at":ms}` (a sentence the wearer said, recognized on the phone)
+  and `{"type":"hush"}` (stop talking, drop queued sentences). On the reactive branch the Mac's
+  hello and status message is `{"type":"status",...}`; `reactive`, `narrate` and `models` are
+  gone. The full list is in CLAUDE.md.
 - Mac -> phone (same socket): `{"type":"speak","text":...}` per sentence, then
   `{"type":"speak_end"}`; `{"type":"narration","enabled":..,"interval":..}`; `{"type":"reactive",...}`
   status; ElevenLabs PCM as `audio` / `audio_end`; `speak_stop` after a hush.
