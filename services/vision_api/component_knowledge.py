@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import math
 import re
@@ -199,3 +200,41 @@ wiring feedback, questions, and caveats in analysis.component_guidance.\n\nWorkf
             system=self._guidance_prompt(frame, records), text="Give grounded component guidance.", frame=frame,
         ))
         return self._ground(output, matches)
+
+
+class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
+    """Native Messages API variant of the grounded component workflow."""
+
+    name = "anthropic-component-knowledge-vlm"
+
+    def __init__(self, *, base_url: str | None, **kwargs: Any) -> None:
+        super().__init__(base_url=base_url or "https://api.anthropic.com", **kwargs)
+
+    def _body(self, *, system: str, text: str, frame: Frame) -> dict[str, Any]:
+        image = base64.b64encode(frame.image_bytes).decode("ascii")
+        return {"model": self._model, "max_tokens": 1_024, "temperature": 0, "system": system,
+                "messages": [{"role": "user", "content": [
+                    {"type": "text", "text": text},
+                    {"type": "image", "source": {"type": "base64",
+                     "media_type": f"image/{frame.metadata.encoding}", "data": image}},
+                ]}]}
+
+    async def _complete(self, *, system: str, text: str, frame: Frame) -> dict[str, Any]:
+        headers = {"content-type": "application/json", "anthropic-version": "2023-06-01"}
+        if self._api_key:
+            headers["x-api-key"] = self._api_key
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
+                response = await client.post(f"{self._base_url}/v1/messages", headers=headers,
+                                             json=self._body(system=system, text=text, frame=frame))
+                response.raise_for_status()
+            content = "".join(block.get("text", "") for block in response.json()["content"]
+                              if block.get("type") == "text")
+            payload = json.loads(content)
+            if not isinstance(payload, dict):
+                raise TypeError("completion JSON was not an object")
+            return payload
+        except httpx.HTTPError as exc:
+            raise VisionModelError(f"Anthropic request failed: {exc}") from exc
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise VisionModelError("Anthropic response did not contain a valid JSON object") from exc
