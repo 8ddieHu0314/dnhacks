@@ -4,7 +4,7 @@ import hashlib
 from typing import Protocol
 
 from .component_knowledge import ComponentKnowledgeBase, ComponentKnowledgeVLM
-from .models import BoundingBox, Frame, SegmentationRegion, VisionOutput
+from .models import BoundingBox, ComponentGuidance, Frame, SegmentationRegion, VisionAnalysis, VisionOutput
 from .vlm import OpenAICompatibleVLM
 
 
@@ -46,6 +46,34 @@ class MockSegmentationEngine:
         return VisionOutput(regions=await self.segment(frame))
 
 
+class MockComponentKnowledgeEngine:
+    """No-key integration harness; it retrieves typed cues but does not inspect pixels."""
+
+    name = "component-knowledge-mock"
+
+    def __init__(self, knowledge_base: ComponentKnowledgeBase, top_k: int) -> None:
+        self._knowledge_base, self._top_k = knowledge_base, top_k
+
+    async def analyze(self, frame: Frame) -> VisionOutput:
+        request = frame.metadata.user_request or ""
+        matches = self._knowledge_base.search(request, limit=self._top_k)
+        candidates = self._knowledge_base.summaries(matches)
+        if not candidates:
+            return VisionOutput(analysis=VisionAnalysis(
+                summary="Local component mode cannot identify image pixels without a VLM.",
+                component_guidance=ComponentGuidance(clarifying_questions=[
+                    "Type a visible marking or component name to exercise retrieval."
+                ]),
+            ))
+        caveats = [f"{item.canonical_name} has {item.data_confidence}-confidence kit data."
+                   for item in candidates if item.data_confidence != "high"]
+        return VisionOutput(analysis=VisionAnalysis(
+            summary=f"Local retrieval found {candidates[0].canonical_name}; visual identification is not simulated.",
+            observations=["This no-key mode retrieves from the typed request only."],
+            component_guidance=ComponentGuidance(retrieved_components=candidates, data_caveats=caveats),
+        ))
+
+
 def build_vision_engine(
     *, base_url: str | None, api_key: str | None, backend: str, model: str, timeout_seconds: float,
     component_knowledge: ComponentKnowledgeBase | None = None, component_knowledge_top_k: int = 3,
@@ -59,6 +87,10 @@ def build_vision_engine(
             model=model,
             timeout_seconds=timeout_seconds,
         )
+    if backend == "component_knowledge_mock":
+        if component_knowledge is None:
+            raise ValueError("A component knowledge base is required for component_knowledge_mock")
+        return MockComponentKnowledgeEngine(component_knowledge, component_knowledge_top_k)
     if backend == "component_knowledge":
         if component_knowledge is None:
             raise ValueError("A component knowledge base is required for component_knowledge")
