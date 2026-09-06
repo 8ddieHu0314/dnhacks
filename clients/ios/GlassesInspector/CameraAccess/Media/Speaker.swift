@@ -54,6 +54,12 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
 
   // MARK: Streamed PCM from the Mac
 
+  /// The Mac announced that utterance `id` will arrive as PCM. Lets a stop() that lands before
+  /// the first chunk still drop that utterance.
+  func expectPCM(id: Int) {
+    pcm.expect(id: id)
+  }
+
   /// Queue a chunk of 16-bit mono PCM for the utterance `id`. Chunks arrive in order.
   func playPCM(id: Int, data: Data, sampleRate: Double) {
     configureSession()
@@ -69,6 +75,12 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
     synth.stopSpeaking(at: .immediate)
     synthSpeaking = false
     pcm.stop()
+  }
+
+  /// The Mac restarted or the socket reconnected: utterance ids start over at 1, so forget the
+  /// stopped-id watermark or every new sentence would be dropped as "already stopped".
+  func resetStreamIDs() {
+    pcm.resetIDs()
   }
 
   private func configureSession() {
@@ -102,6 +114,8 @@ final class PCMStreamPlayer {
   private var format: AVAudioFormat?
   private var outstanding = 0          // buffers scheduled but not yet played
   private var openIDs = Set<Int>()     // utterances still receiving chunks
+  private var maxSeenID = 0            // highest utterance id announced or heard so far
+  private var stoppedThrough = 0       // ids at or below this were stopped; their late chunks are dropped
   private(set) var isPlaying = false
 
   init() {
@@ -113,8 +127,19 @@ final class PCMStreamPlayer {
     }
   }
 
+  func expect(id: Int) {
+    maxSeenID = max(maxSeenID, id)
+  }
+
+  func resetIDs() {
+    maxSeenID = 0
+    stoppedThrough = 0
+  }
+
   func enqueue(id: Int, data: Data, sampleRate: Double) {
-    guard data.count >= 2 else { return }
+    maxSeenID = max(maxSeenID, id)
+    // Chunks of an utterance that was stopped keep arriving for a moment; do not resurrect it.
+    guard id > stoppedThrough, data.count >= 2 else { return }
     if format == nil || format!.sampleRate != sampleRate {
       format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)
       engine.disconnectNodeOutput(node)
@@ -145,6 +170,7 @@ final class PCMStreamPlayer {
     outstanding = 0
     openIDs.removeAll()
     isPlaying = false
+    stoppedThrough = maxSeenID
   }
 
   private func bufferDone() {

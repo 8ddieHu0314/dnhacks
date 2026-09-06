@@ -32,6 +32,7 @@
 		D7A0000000000000000000B2 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A0000000000000000000B1 /* CameraView.swift */; };
 		E1A0000000000000000000F2 /* FrameRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0000000000000000000F1 /* FrameRelay.swift */; };
 		E1A0000000000000000000F4 /* Speaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0000000000000000000F3 /* Speaker.swift */; };
+		E1A0000000000000000000F6 /* VoiceInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0000000000000000000F5 /* VoiceInput.swift */; };
 		E66CC01B2F3E1A9300B07379 /* plant.png in Resources */ = {isa = PBXBuildFile; fileRef = E66CC0192F3E1A9300B07379 /* plant.png */; };
 		E66CC01C2F3E1A9300B07379 /* plant.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = E66CC0182F3E1A9300B07379 /* plant.mp4 */; };
 		E66CC01D2F3E1A9300B07380 /* MWDATMockDeviceTestClient in Frameworks */ = {isa = PBXBuildFile; productRef = E66CC01E2F3E1A9300B07380 /* MWDATMockDeviceTestClient */; };
@@ -98,6 +99,7 @@
 		D7A0000000000000000000B1 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		E1A0000000000000000000F1 /* FrameRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameRelay.swift; sourceTree = "<group>"; };
 		E1A0000000000000000000F3 /* Speaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Speaker.swift; sourceTree = "<group>"; };
+		E1A0000000000000000000F5 /* VoiceInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInput.swift; sourceTree = "<group>"; };
 		E66CC00D2F3E05D900B07379 /* CameraAccessUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CameraAccessUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E66CC0182F3E1A9300B07379 /* plant.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = plant.mp4; sourceTree = "<group>"; };
 		E66CC0192F3E1A9300B07379 /* plant.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = plant.png; sourceTree = "<group>"; };
@@ -232,6 +234,7 @@
 				D7A0000000000000000000A7 /* VideoFrameDecoder.swift */,
 				E1A0000000000000000000F1 /* FrameRelay.swift */,
 				E1A0000000000000000000F3 /* Speaker.swift */,
+				E1A0000000000000000000F5 /* VoiceInput.swift */,
 				D7A0000000000000000000A3 /* VideoRecorder.swift */,
 			);
 			path = Media;
@@ -422,6 +425,7 @@
 				D7A0000000000000000000A8 /* VideoFrameDecoder.swift in Sources */,
 				E1A0000000000000000000F2 /* FrameRelay.swift in Sources */,
 				E1A0000000000000000000F4 /* Speaker.swift in Sources */,
+				E1A0000000000000000000F6 /* VoiceInput.swift in Sources */,
 				D7A0000000000000000000AA /* AudioInputHandler.swift in Sources */,
 				D7A0000000000000000000AC /* AudioCaptureHandler.swift in Sources */,
 				D7A0000000000000000000B2 /* CameraView.swift in Sources */,

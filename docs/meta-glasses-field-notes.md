@@ -246,3 +246,31 @@ Glasses camera -> (Meta AI app / DAT, BT+WiFi) -> iOS app GlassesInspector -> HT
   scene switch and announced the old part twice; the detector now hands over `latest_frame` and
   the loop identifies that frame. Gabe: keep the detector component-only, no PPE model in the
   relay (it fires on hands and faces); the Inspect endpoint does not need detector context.
+
+## 2026-09-06 Voice input: questions from the wearer
+
+- DAT 0.9.0 ships Camera, Core, Display and MockDevice frameworks and no audio API. The glasses
+  are the phone's Bluetooth headset, so the only path to their microphone is the phone's audio
+  session with Bluetooth HFP, which is exactly how Meta's sample records sound-in-video
+  (AudioInputHandler: .playAndRecord + .allowBluetoothHFP). Voice input is therefore phone-side:
+  VoiceInput.swift opens that session, feeds an SFSpeechRecognizer (on-device when available,
+  partial results, punctuation), ends an utterance after 0.9 s without new words, and FrameRelay
+  sends the text to the Mac as {"type":"ask","text":...}. Only text crosses the phone->Mac link.
+- Wake word "inspector" by default (settable in the gear menu), or Always mode. "stop", "hush",
+  "quiet" are handled on the phone (speaker.stop + {"type":"hush"} so the Mac drops its queue).
+- Mac: handle_ask() routes stop words -> hush, "what is this" -> fresh identification spoken in
+  full, "describe" -> Describe path, anything else -> ASK_PROMPT on Sonnet with the frame (768 px)
+  and identify.context_for_question(), the catalog record of the last identified part (about
+  3.4 KB for the servo). A question drops queued speech and holds the reactive loop off
+  (announce_until) until the answer has played. POST /ask and the dashboard's "Ask (as voice)"
+  button take the same path. Verified end to end in fake mode over the phone protocol (ask,
+  stop, what is this, describe, hush) with a second instance on :8790 (ADVERTISE=0).
+- Trade-offs, not yet measured on the hardware: (1) with the glasses mic the session is HFP in
+  both directions, so ElevenLabs output is 16 kHz mono while listening; the Phone mic setting
+  keeps A2DP output. (2) HFP (SCO) shares the Bluetooth Classic link with the DAT video stream;
+  Meta's sample records HFP audio while streaming, so it should work, but check fps. (3) Echo:
+  utterances that finish while the glasses are talking are dropped unless they are stop words,
+  and the recognizer context resets when playback ends. (4) Turning voice input off puts the
+  session back to .playback; do not combine with the sample's video recording. (5) Two
+  AVAudioEngines (PCM player + mic tap) share one session; fine in theory, verify on device.
+

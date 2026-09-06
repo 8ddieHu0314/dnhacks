@@ -608,6 +608,8 @@ final class FrameRelay {
 
   // MARK: Claude analysis -> speech
   let speaker = Speaker()
+  /// Wearer -> Mac: speech recognized on the phone, sent as {"type":"ask"} (VoiceInput.swift).
+  let voice = VoiceInput()
   /// Speak analysis sentences from the Mac through the glasses.
   var speakEnabled: Bool {
     didSet { UserDefaults.standard.set(speakEnabled, forKey: "relaySpeak") }
@@ -662,6 +664,14 @@ final class FrameRelay {
       sendCommand(reactiveCommand())
     }
   }
+  /// Local YOLO detector on the Mac: boxes on the dashboard and the early trigger. Off = settle rule only.
+  var detectorEnabled: Bool {
+    didSet {
+      UserDefaults.standard.set(detectorEnabled, forKey: "detectorEnabled")
+      sendCommand(["type": "detector", "enabled": detectorEnabled])
+    }
+  }
+  private(set) var detectorActive: Bool?
   private(set) var reactiveEnabled: Bool = false
   private(set) var reactiveMode: String = "parts"
   private(set) var reactiveStatus: String = "idle"
@@ -679,6 +689,7 @@ final class FrameRelay {
     jpegQuality = d.object(forKey: Self.qualityKey) as? Double ?? 0.6
     speakEnabled = d.object(forKey: "relaySpeak") as? Bool ?? true
     preannounce = d.object(forKey: "preannounce") as? Bool ?? false
+    detectorEnabled = d.object(forKey: "detectorEnabled") as? Bool ?? true
     reportPageEnabled = d.object(forKey: "reportPage") as? Bool ?? false
     partsModel = d.string(forKey: "partsModel") ?? "sonnet"
     sceneModel = d.string(forKey: "sceneModel") ?? "sonnet"
@@ -689,12 +700,19 @@ final class FrameRelay {
     meter.start()
     applyTarget()
     pushSettings()
+    voice.isOutputPlaying = { [weak self] in self?.speaker.isSpeaking ?? false }
+    voice.onWake = { [weak self] in self?.hush() }   // stop here and on the Mac, so nothing queued resumes
+    voice.onUtterance = { [weak self] text in self?.heard(text) }
+    voice.startIfEnabled()
     Task { [engine] in
       await engine.socket.setTextHandler { [weak self] text in
         Task { @MainActor [weak self] in self?.handleServerText(text) }
       }
       await engine.socket.setCloseHandler { [weak self] in
-        Task { @MainActor [weak self] in self?.announcedPrefs = false }
+        Task { @MainActor [weak self] in
+          self?.announcedPrefs = false
+          self?.speaker.resetStreamIDs()   // ids restart with the next relay process
+        }
       }
     }
     statsTask = Task { [weak self] in
@@ -784,6 +802,35 @@ final class FrameRelay {
     sendCommand(["type": "narrate", "enabled": enabled, "interval": interval])
   }
 
+  // MARK: Voice input -> Mac
+
+  /// A finished sentence from the wearer. Stop words are handled here without a round trip;
+  /// everything else goes to the Mac, which answers about the part in view.
+  func heard(_ text: String) {
+    let lower = text.lowercased()
+    let short = lower.split(separator: " ").count <= 3
+    if short, VoiceInput.stopWords.contains(where: { lower.contains($0) }) {
+      hush()
+      return
+    }
+    ask(text)
+  }
+
+  /// Send a question about the current view; the answer comes back as speech.
+  func ask(_ text: String) {
+    caption = "You: \(text)"
+    captionFinal = false
+    sendCommand(["type": "ask", "text": text])
+  }
+
+  /// Silence the glasses now and drop whatever the Mac still has queued.
+  func hush() {
+    speaker.stop()
+    caption = ""
+    captionFinal = true
+    sendCommand(["type": "hush"])
+  }
+
   /// Re-assert the phone's preferences after a (re)connect; the Mac's hello triggers this.
   private var announcedPrefs = false
   private func reactiveCommand() -> [String: Any] {
@@ -795,6 +842,7 @@ final class FrameRelay {
     sendCommand(["type": "voice", "provider": voiceProvider])
     sendCommand(modelsCommand())
     sendCommand(["type": "report_page", "enabled": reportPageEnabled])
+    sendCommand(["type": "detector", "enabled": detectorEnabled])
     sendCommand(reactiveCommand())
   }
 
@@ -818,6 +866,7 @@ final class FrameRelay {
         // "audio": true means the Mac is streaming an ElevenLabs rendering of this sentence;
         // PCM chunks follow as "audio" messages. Otherwise read it with the on-device voice.
         let macAudio = obj["audio"] as? Bool ?? false
+        if macAudio, let id = obj["id"] as? Int { speaker.expectPCM(id: id) }
         if speakEnabled && !macAudio { speaker.speak(t) }
       }
     case "audio":
@@ -835,7 +884,8 @@ final class FrameRelay {
       captionFinal = true
     case "speak_stop":
       speaker.stop()
-      caption = ""
+      // Keep the wearer's own question on screen; the Mac hushes before answering it.
+      if !caption.hasPrefix("You: ") { caption = "" }
     case "reactive":
       // First "reactive" after a connect is the Mac's hello: push our saved preferences.
       if !announcedPrefs {
@@ -849,6 +899,7 @@ final class FrameRelay {
       activeVoice = obj["voice"] as? String ?? activeVoice
       if let m = obj["models"] as? [String: String] { activeModels = m }
       if let r = obj["report_page"] as? Bool { reportPageActive = r }
+      if let de = obj["detector_enabled"] as? Bool { detectorActive = de }
     case "narration":
       narrationEnabled = obj["enabled"] as? Bool ?? false
       narrationInterval = obj["interval"] as? Double ?? narrationInterval

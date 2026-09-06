@@ -24,13 +24,15 @@ import tts_elevenlabs as tts
 
 MODEL = os.environ.get("INSPECT_MODEL", "claude-opus-5")          # Describe button: one-shot, quality first
 NARRATE_MODEL = os.environ.get("NARRATE_MODEL", "claude-sonnet-5")  # Scene mode: reactive, latency first
+ASK_MODEL = os.environ.get("ASK_MODEL", "claude-sonnet-5")          # Voice questions: latency first
 MODEL_CHOICES = {"sonnet": "claude-sonnet-5", "opus": "claude-opus-5"}
-models = {"scene": NARRATE_MODEL, "describe": MODEL}                # runtime-switchable (identify lives in identify.state)
+models = {"scene": NARRATE_MODEL, "describe": MODEL, "ask": ASK_MODEL}   # runtime-switchable (identify lives in identify.state)
+ADVERTISE = os.environ.get("ADVERTISE", "1") == "1"   # ADVERTISE=0: no Bonjour, for a second test instance on another port
 
 
 def set_models(**kw):
-    """Accepts 'sonnet'/'opus' or full model ids for identify / scene / describe."""
-    for key in ("identify", "scene", "describe"):
+    """Accepts 'sonnet'/'opus' or full model ids for identify / scene / describe / ask."""
+    for key in ("identify", "scene", "describe", "ask"):
         v = kw.get(key)
         if not v:
             continue
@@ -57,6 +59,13 @@ NARRATION_PROMPT = """You are a live narrator speaking into a technician's smart
 You receive one camera frame every few seconds. Speak as if to the wearer, in one or two short sentences, in plain language that sounds natural read aloud.
 Name what is in view, read any labels, gauges, or warnings, and call out hazards first. Mention only what is new or changed compared with your previous narration.
 If nothing meaningful changed, reply with exactly: no change"""
+
+ASK_PROMPT = """You are a voice assistant speaking into a technician's smart glasses. They just asked a question out loud about what they are holding or looking at.
+You get the current camera frame and, when one has been identified, the catalog record of the part in view.
+Answer in at most two short sentences, under 40 words in total, that sound natural read aloud: plain language, no lists, no markdown, no preamble, no dashes.
+The wearer already heard the part's name; do not restate what it is unless they ask.
+Prefer the catalog record for pins, voltages, wiring and safety; use the image for what is actually visible. If the record does not cover the question, say so in a few words and give the most useful thing you can.
+Never invent pin numbers, voltages or wiring. If unsure, name the one thing to check on the part or its datasheet."""
 
 app = FastAPI()
 print("Catalog:", identify.load_catalog())
@@ -100,6 +109,9 @@ async def _advertise():
     _warm_task = asyncio.create_task(_warm())
     """Advertise this receiver over Bonjour so the phone app can find it without typing an IP."""
     global _zc
+    if not ADVERTISE:
+        print("Bonjour: disabled (ADVERTISE=0)", flush=True)
+        return
     try:
         import socket
         from zeroconf import ServiceInfo, Zeroconf
@@ -167,9 +179,12 @@ viewer_sockets: set[WebSocket] = set()   # for text (stats/caption) pushes
 phones: set[WebSocket] = set()           # ingest sockets: frames in, speech text out
 caption = {"text": "", "final": True}
 narration = {"enabled": False, "interval": 8.0, "busy": False, "last": "", "task": None}
-detector = {"task": None, "last_ts": 0.0}     # local YOLO boxes on every frame, see detect.py
+detector = {"task": None, "last_ts": 0.0, "enabled": True}   # local YOLO boxes on every frame, see detect.py; "enabled" is the runtime switch
 # ElevenLabs sentences queue up here and a single worker streams them to the phone in order.
-speech = {"queue": None, "task": None, "next_id": 0, "chars": 0, "errors": 0, "last_error": ""}
+speech = {"queue": None, "task": None, "next_id": 0, "chars": 0, "errors": 0, "last_error": "",
+          "stop_gen": 0}   # bumped by hush(): cuts the analysis being streamed and the sentence being rendered
+# Sentences the wearer said (voice input on the phone -> {"type":"ask"}), see handle_ask().
+voice_in = {"asks": 0, "last": None, "intents": {"hush": 0, "identify": 0, "describe": 0, "answer": 0}}
 
 if REPORT_PATH.exists():
     state["report"] = [json.loads(l) for l in REPORT_PATH.read_text().splitlines() if l.strip()]
@@ -207,11 +222,13 @@ def _stats():
             "inspections": len(state["report"]), "narration": narration["enabled"], "interval": narration["interval"],
             "reactive": identify.state["enabled"], "reactive_status": identify.state["status"], "last_id": identify.state["last_id"],
             "catalog_parts": len(identify.catalog), "identify_model": identify.MODEL,
-            "models": {"identify": "fake" if FAKE else identify.state["model"], "scene": "fake" if FAKE else models["scene"], "describe": "fake" if FAKE else models["describe"]},
+            "models": {"identify": "fake" if FAKE else identify.state["model"], "scene": "fake" if FAKE else models["scene"],
+                       "describe": "fake" if FAKE else models["describe"], "ask": "fake" if FAKE else models["ask"]},
+            "voice_in": voice_in,
             "reactive_mode": identify.state["mode"], "report_page": report_page["enabled"],
             "triggers": identify.state["triggers"], "agreement": identify.state["agreement"],
             "preannounce": identify.state["preannounce"],
-            "detector": {"available": detect.state["available"], "model": detect.state["model"], "reason": detect.state["reason"],
+            "detector": {"available": detect.state["available"], "enabled": detector["enabled"], "model": detect.state["model"], "reason": detect.state["reason"],
                          "ms": detect.state["ms"], "boxes": len(detect.state["latest"]), "frames": detect.state["frames"]},
             "tts": {"provider": _voice_active(), "available": tts.enabled(), "chars": speech["chars"],
                     "errors": speech["errors"], "last_error": speech["last_error"],
@@ -265,7 +282,7 @@ async def _say(text: str) -> float:
     await _send_all(phones, {"type": "speak", "text": text, "id": uid, "audio": True})
     if speech["queue"] is None:
         speech["queue"] = asyncio.Queue()
-    speech["queue"].put_nowait((uid, text))
+    speech["queue"].put_nowait((uid, text, speech["stop_gen"]))
     t = speech.get("task")
     if t is None or t.done():
         speech["task"] = asyncio.create_task(_tts_worker())
@@ -286,10 +303,14 @@ def _drop_pending_speech():
 
 
 async def _tts_worker():
-    """Drain the sentence queue one at a time so audio reaches the phone in order."""
+    """Drain the sentence queue one at a time so audio reaches the phone in order. A hush bumps
+    speech["stop_gen"]: sentences queued before it are skipped and the one being streamed is cut."""
     q = speech["queue"]
     while not q.empty():
-        uid, text = await q.get()
+        uid, text, gen = await q.get()
+        if gen != speech["stop_gen"]:
+            q.task_done()
+            continue
         sent = 0
         t0 = time.time()
         try:
@@ -297,6 +318,8 @@ async def _tts_worker():
             if pre is not None:
                 # pre-rendered (catalog line or previously spoken): push it all, no API round trip
                 for chunk in tts.chunks(pre):
+                    if gen != speech["stop_gen"]:
+                        break
                     await _send_all(phones, {"type": "audio", "id": uid, "rate": tts.SAMPLE_RATE,
                                              "pcm": base64.b64encode(chunk).decode()})
                     sent += 1
@@ -305,14 +328,19 @@ async def _tts_worker():
                 q.task_done()
                 continue
             buf = b""
+            complete = True
             async for chunk in tts.stream_pcm(text):
+                if gen != speech["stop_gen"]:
+                    complete = False
+                    break
                 if sent == 0:
                     speech["chars"] += len(text)
                 buf += chunk
                 await _send_all(phones, {"type": "audio", "id": uid, "rate": tts.SAMPLE_RATE,
                                          "pcm": base64.b64encode(chunk).decode()})
                 sent += 1
-            tts.store(text, buf)
+            if complete:
+                tts.store(text, buf)
             await _send_all(phones, {"type": "audio_end", "id": uid, "ms": int((time.time() - t0) * 1000)})
         except Exception as e:
             speech["errors"] += 1
@@ -352,8 +380,13 @@ async def _claude_stream(question: str, system: str, b64: str, model: str = MODE
             yield " The model declined to analyze this frame."
 
 
-async def analyze(question: str, *, narrate: bool = False, speak: bool = True) -> dict | None:
-    """Run Claude on the latest frame, streaming sentences to the phone (spoken) and viewers (caption)."""
+async def analyze(question: str, *, narrate: bool = False, speak: bool = True, system: str | None = None,
+                  model: str | None = None, kind: str | None = None, context: str | None = None,
+                  max_side: int | None = None) -> dict | None:
+    """Run Claude on the latest frame, streaming sentences to the phone (spoken) and viewers (caption).
+    Defaults are the Describe path (SYSTEM_PROMPT, describe model) or, with narrate=True, the Scene
+    path. `system`, `model`, `context` (text placed before the question) and `max_side` (downscale
+    the frame first) let voice questions reuse the same streaming and speech pipeline."""
     data = state["latest"]
     if not data:
         return None
@@ -362,15 +395,24 @@ async def analyze(question: str, *, narrate: bool = False, speak: bool = True) -
     ts = time.time()
     frame_path = FRAMES_DIR / f"{int(ts)}.jpg"
     frame_path.write_bytes(data)
-    b64 = base64.standard_b64encode(data).decode()
-    system = NARRATION_PROMPT if narrate else SYSTEM_PROMPT
+    b64 = base64.standard_b64encode(identify._downscale(data, max_side) if max_side else data).decode()
+    system = system or (NARRATION_PROMPT if narrate else SYSTEM_PROMPT)
+    model = model or (models["scene"] if narrate else models["describe"])
+    kind = kind or ("scene" if narrate else "describe")
     q = question
     if narrate and narration["last"]:
         q = f"Previous narration: {narration['last']}\n\n{question}"
-    await _caption("", final=False)
-    full, pending = "", ""
-    gen = _fake_stream(q) if FAKE else _claude_stream(q, system, b64, models["scene"] if narrate else models["describe"])
-    async for piece in gen:
+    if context:
+        q = f"{context}\n\nQuestion from the wearer: {question}"
+    await _caption(f"You: {question}" if kind == "ask" else "", final=False)
+    full, pending, secs = "", "", 0.0
+    stop_gen = speech["stop_gen"]      # a hush() while streaming ends this analysis early
+    stopped = False
+    stream = _fake_stream(q) if FAKE else _claude_stream(q, system, b64, model)
+    async for piece in stream:
+        if speech["stop_gen"] != stop_gen:
+            stopped = True
+            break
         full += piece
         pending += piece
         await _caption(full, final=False)
@@ -380,21 +422,23 @@ async def analyze(question: str, *, narrate: bool = False, speak: bool = True) -
             for sentence in parts[:-1]:
                 sentence = sentence.strip()
                 if sentence and speak and sentence.lower() != "no change":
-                    await _say(sentence)
+                    secs += await _say(sentence)
             pending = parts[-1]
     tail = pending.strip()
-    if tail and speak and tail.lower() != "no change":
-        await _say(tail)
+    if tail and speak and not stopped and tail.lower() != "no change":
+        secs += await _say(tail)
     await _send_all(phones, {"type": "speak_end"})
     text = full.strip()
-    await _caption(text, final=True)
+    await _caption(text + (" [stopped]" if stopped else ""), final=True)
     if narrate:
         if text.lower() != "no change":
             narration["last"] = text
         if text.lower() == "no change":
             return None
     entry = {"ts": ts, "question": question, "result": text, "frame": frame_path.name,
-             "model": "fake" if FAKE else (models["scene"] if narrate else models["describe"]), "narration": narrate}
+             "model": "fake" if FAKE else model, "narration": narrate, "kind": kind, "speech_s": round(secs, 1)}
+    if stopped:
+        entry["stopped"] = True
     state["report"].append(entry)
     with REPORT_PATH.open("a") as f:
         f.write(json.dumps(entry) + "\n")
@@ -403,10 +447,25 @@ async def analyze(question: str, *, narrate: bool = False, speak: bool = True) -
     return entry
 
 
+def set_detector(enabled: bool):
+    """Runtime switch for the local YOLO detector (phone gear menu, dashboard, POST /detector). Off:
+    no boxes on the dashboard, no early trigger, no pre-announce; the settle rule identifies alone."""
+    detector["enabled"] = bool(enabled) and detect.state["available"]
+    if not detector["enabled"]:
+        detect.state["latest"] = []
+        detect.state["latest_frame"] = None
+        identify.state["last_detected"] = None
+
+
 async def _detect_loop():
     """Run the local detector on every new frame (latest wins) and push boxes to the dashboards."""
     while True:
         await asyncio.sleep(0.02)
+        if not detector["enabled"]:
+            if detect.state["latest"] or detect.state["latest_frame"] is not None:
+                detect.state.update(latest=[], latest_frame=None)
+                await _send_all(viewer_sockets, {"type": "detections", "ts": time.time(), "ms": 0, "boxes": [], "off": True})
+            continue
         ts = state["latest_ts"]
         data = state["latest"]
         if not data or ts == detector["last_ts"]:
@@ -447,9 +506,118 @@ def set_narration(enabled: bool, interval: float | None = None):
         narration["task"] = asyncio.create_task(_narration_loop())
 
 
+async def hush(quiet: bool = False):
+    """Stop what is being said: cut the analysis being streamed and the sentence being rendered,
+    drop queued sentences, stop playback on the phone, and let the reactive loop announce again."""
+    speech["stop_gen"] += 1
+    _drop_pending_speech()
+    await _send_all(phones, {"type": "speak_stop"})
+    identify.state["announce_until"] = 0.0
+    identify.state["pending"] = None
+    if not quiet:
+        await _caption("", final=True)
+
+
+_STOP_WORDS = ("stop", "hush", "quiet", "shut up", "enough", "silence", "cancel")
+_IDENTIFY_RE = re.compile(r"\b(what is this|what's this|whats this|what part|which part|identify|what am i holding|name this|what component)\b", re.I)
+_DESCRIBE_RE = re.compile(r"\b(describe|what do you see|what am i looking at|look around|inspect|any hazard|hazards)\b", re.I)
+
+
+async def _identify_and_speak(question: str) -> dict:
+    """'What is this?': a fresh identification of the latest frame, spoken in full even if the
+    reactive loop already announced the same part."""
+    top = detect.primary([d for d in detect.state["latest"] if d["conf"] >= identify.state["det_min_conf"]]) if detect.state["available"] else None
+    obj = await identify.identify_frame(state["latest"], det=top)
+    if obj.get("id") and obj.get("record"):
+        line = obj.get("spoken") or obj.get("spoken_short") or f"{obj['name']}."
+    elif obj.get("id"):
+        line = f"It looks like {obj['name']}."
+    else:
+        ev = (obj.get("evidence") or "").strip().rstrip(".")
+        line = "I do not recognize this as a catalog part." + (f" {ev[0].upper()}{ev[1:]}." if ev else "")
+    await _caption(f"You: {question}", final=False)
+    secs = await _say(line.strip())
+    await _send_all(phones, {"type": "speak_end"})
+    await _caption(line.strip(), final=True)
+    identify.state["last_id"] = obj.get("id") or identify.state["last_id"]
+    identify.state["last_result"] = obj
+    identify.state["announce_until"] = time.time() + secs
+    frame_name = f"ask-{int(obj['ts'])}.jpg"
+    (FRAMES_DIR / frame_name).write_bytes(state["latest"])
+    await _send_all(viewer_sockets, {"type": "identified", **{k: v for k, v in obj.items() if k != "record"},
+                                     "record": obj.get("record"), "frame": frame_name})
+    entry = {"ts": obj["ts"], "question": question, "result": line.strip(), "id": obj.get("id"),
+             "confidence": obj.get("confidence"), "evidence": obj.get("evidence"), "frame": frame_name,
+             "model": "fake" if FAKE else identify.state["model"], "narration": False, "kind": "ask",
+             "trigger": "voice", "speech_s": round(secs, 1)}
+    state["report"].append(entry)
+    with REPORT_PATH.open("a") as f:
+        f.write(json.dumps(entry) + "\n")
+    return entry
+
+
+async def handle_ask(text: str, source: str = "phone") -> dict | None:
+    """A sentence the wearer said (recognized on the phone). Routes: stop words -> hush; 'what is
+    this' -> a fresh identification spoken in full; 'describe' -> the Describe path; anything else ->
+    a short spoken answer grounded in the frame plus the catalog record of the part in view.
+    A question outranks narration: queued speech is dropped and the reactive loop is held off
+    until the answer has played."""
+    text = (text or "").strip()
+    if not text:
+        return None
+    voice_in["asks"] += 1
+    voice_in["last"] = {"text": text, "ts": time.time(), "source": source}
+    await _send_all(viewer_sockets, {"type": "heard", "text": text, "ts": time.time()})
+    low = re.sub(r"[^a-z0-9' ]+", " ", text.lower()).strip()
+    if len(low.split()) <= 3 and any(w in low for w in _STOP_WORDS):
+        voice_in["intents"]["hush"] += 1
+        await hush()
+        return {"intent": "hush", "text": text}
+    if not state["latest"]:
+        await _say("I have no camera frame yet.")
+        await _send_all(phones, {"type": "speak_end"})
+        return {"intent": "no_frame", "text": text}
+    await hush(quiet=True)
+    for _ in range(40):            # let a running analysis finish (bounded) rather than talking over it
+        if not narration["busy"]:
+            break
+        await asyncio.sleep(0.1)
+    if narration["busy"]:
+        return {"intent": "busy", "text": text}
+    narration["busy"] = True
+    try:
+        if _IDENTIFY_RE.search(low):
+            voice_in["intents"]["identify"] += 1
+            entry = await _identify_and_speak(text)
+            intent = "identify"
+        elif _DESCRIBE_RE.search(low):
+            voice_in["intents"]["describe"] += 1
+            entry = await analyze(text, kind="ask", max_side=768)
+            intent = "describe"
+        else:
+            voice_in["intents"]["answer"] += 1
+            entry = await analyze(text, system=ASK_PROMPT, model=models["ask"], kind="ask",
+                                  context=identify.context_for_question(), max_side=768)
+            intent = "answer"
+        if entry and entry.get("speech_s"):
+            identify.state["announce_until"] = max(identify.state["announce_until"], time.time() + entry["speech_s"])
+    except Exception as e:
+        await _say(f"Sorry, that failed: {e}")
+        await _send_all(phones, {"type": "speak_end"})
+        return {"intent": "error", "text": text, "error": str(e)}
+    finally:
+        narration["busy"] = False
+    return {"intent": intent, **(entry or {})}
+
+
 async def handle_phone_command(msg: dict):
     kind = msg.get("type")
-    if kind == "inspect":
+    if kind == "ask":
+        await handle_ask(str(msg.get("text") or ""), source="phone")
+    elif kind == "hush":
+        voice_in["intents"]["hush"] += 1
+        await hush()
+    elif kind == "inspect":
         if not narration["busy"]:
             narration["busy"] = True
             try:
@@ -466,8 +634,12 @@ async def handle_phone_command(msg: dict):
         set_reactive(msg.get("enabled", False), mode=msg.get("mode"), preannounce=msg.get("preannounce"))
         await _send_all(phones, {"type": "reactive", **_reactive_public()})
     elif kind == "models":
-        set_models(**{k: msg.get(k) for k in ("identify", "scene", "describe")})
+        set_models(**{k: msg.get(k) for k in ("identify", "scene", "describe", "ask")})
         await _send_all(phones, {"type": "reactive", **_reactive_public()})
+    elif kind == "detector":
+        set_detector(msg.get("enabled", True))
+        await _send_all(phones, {"type": "reactive", **_reactive_public()})
+        await _send_all(viewer_sockets, {"type": "detections", "ts": time.time(), "ms": 0, "boxes": [], "off": not detector["enabled"]})
     elif kind == "report_page":
         report_page["enabled"] = bool(msg.get("enabled", False))
         await _send_all(phones, {"type": "reactive", **_reactive_public()})
@@ -591,11 +763,12 @@ async def narrate(request: Request):
 def _reactive_public():
     st = identify.state
     return {"enabled": st["enabled"], "mode": st["mode"], "voice": _voice_active(), "status": st["status"], "last_id": st["last_id"],
-            "models": {"identify": st["model"], "scene": models["scene"], "describe": models["describe"]},
+            "models": {"identify": st["model"], "scene": models["scene"], "describe": models["describe"], "ask": models["ask"]},
             "report_page": report_page["enabled"],
             "last_result": st["last_result"], "calls": st["calls"], "catalog": identify.catalog_source,
             "parts": len(identify.catalog), "min_confidence": st["min_confidence"],
-            "detector": detect.state["available"], "det_min_conf": st["det_min_conf"], "stable_frames": st["stable_frames"],
+            "detector": detect.state["available"], "detector_enabled": detector["enabled"],
+            "det_min_conf": st["det_min_conf"], "stable_frames": st["stable_frames"],
             "triggers": st["triggers"], "agreement": st["agreement"], "preannounce": st["preannounce"],
             "last_detected": st["last_detected"]}
 
@@ -661,10 +834,40 @@ async def reactive(request: Request):
     return _reactive_public()
 
 
+@app.post("/detector")
+async def post_detector(request: Request):
+    """Runtime on/off for the local detector; the phone's gear menu and the dashboard use this."""
+    body = await request.json()
+    set_detector(body.get("enabled", True))
+    await _send_all(phones, {"type": "reactive", **_reactive_public()})
+    await _send_all(viewer_sockets, {"type": "detections", "ts": time.time(), "ms": 0, "boxes": [], "off": not detector["enabled"]})
+    return {"enabled": detector["enabled"], "available": detect.state["available"]}
+
+
+@app.post("/ask")
+async def ask(request: Request):
+    """What the phone sends when the wearer speaks; also handy from curl or the dashboard."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    text = str((body or {}).get("text") or "").strip()
+    if not text:
+        return JSONResponse({"error": "text required"}, status_code=400)
+    if not state["latest"]:
+        return JSONResponse({"error": "no frame yet"}, status_code=409)
+    result = await handle_ask(text, source="http")
+    if result and result.get("intent") == "busy":
+        return JSONResponse({"error": "analysis already running"}, status_code=429)
+    if result and result.get("intent") == "error":
+        return JSONResponse(result, status_code=503)
+    return result or {}
+
+
 @app.post("/models")
 async def post_models(request: Request):
     body = await request.json()
-    set_models(**{k: body.get(k) for k in ("identify", "scene", "describe")})
+    set_models(**{k: body.get(k) for k in ("identify", "scene", "describe", "ask")})
     await _send_all(phones, {"type": "reactive", **_reactive_public()})
     return _reactive_public()["models"]
 
@@ -714,7 +917,7 @@ def debug_tasks():
 def detections():
     """Latest local detector boxes (normalized x1,y1,x2,y2) plus detector status."""
     return {"ts": detect.state["latest_ts"], "ms": detect.state["ms"], "boxes": detect.state["latest"],
-            "available": detect.state["available"], "reason": detect.state["reason"], "model": detect.state["model"],
+            "available": detect.state["available"], "enabled": detector["enabled"], "reason": detect.state["reason"], "model": detect.state["model"],
             "classes": detect.state["classes"], "allow": detect.state["allow"], "hints": detect.state["hints"]}
 
 
@@ -820,11 +1023,12 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 #out{margin-top:10px;white-space:pre-wrap;font-size:14px}
 </style></head><body>
 <div id=stage><canvas id=cv></canvas><div id=hud>connecting…</div>
-<div id=tools><button onclick="rot=(rot+90)%360;draw()">Rotate</button><button onclick="fit=!fit;draw()">Fit/Fill</button><button id=boxbtn onclick="showBoxes=!showBoxes;this.style.opacity=showBoxes?1:.5;draw()">Boxes</button></div>
+<div id=tools><button onclick="rot=(rot+90)%360;draw()">Rotate</button><button onclick="fit=!fit;draw()">Fit/Fill</button><button id=boxbtn onclick="showBoxes=!showBoxes;this.style.opacity=showBoxes?1:.5;draw()">Boxes</button><button id=banbtn title="The detection banner at the top: YOLO's guess, then Claude's verdict" onclick="toggleBanner()">Banner</button></div>
 <div id=detbar>detector: loading…</div><div id=banner></div></div>
 <aside>
 <input id=q placeholder="Question (optional)">
-<button class=primary onclick="inspect()">Inspect this frame</button>
+<div style="display:flex;gap:8px"><button class=primary onclick="inspect()" style="flex:1">Inspect this frame</button>
+<button onclick="ask()" title="Same path as a spoken question from the glasses: answers about the part in view" style="flex:1">Ask (as voice)</button></div>
 <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
   <b style="font-size:14px">Hands-free</b>
   <select id=mode onchange="reactive()" style="background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:4px">
@@ -839,6 +1043,7 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
   <select id=voice onchange="setVoice()" style="background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:4px">
     <option value="apple">Apple (on phone)</option><option value="elevenlabs">ElevenLabs</option></select>
   <label style="font-size:13px;color:#ccc" title="Speak the detector's catalog name into the glasses the moment a part is spotted, before Claude answers"><input type=checkbox id=pre onchange="reactive()"> pre-announce</label>
+  <label style="font-size:13px;color:#ccc" title="Local YOLO detector: boxes on the video and the early trigger. Off = settle rule only"><input type=checkbox id=det checked onchange="setDetector()"> detector</label>
   <span id=rstat style="font:12px ui-monospace,monospace;color:#9f9"></span>
 </div>
 <div id=card style="display:none;margin-top:10px;padding:10px;background:#1c1c1c;border:1px solid #333;border-radius:8px;font-size:13px"></div>
@@ -882,6 +1087,7 @@ function drawBoxes(s){
 }
 function renderDetbar(){const el=document.getElementById('detbar');const d=stats.detector||{};
   if(!d.available){el.innerHTML=`detector: <b>off</b> ${d.reason||''}`;return}
+  if(d.enabled===false){el.innerHTML=`detector: <b>off</b> (switched off in the phone's gear menu or here)`;return}
   const t=stats.triggers||{};el.innerHTML=`detector <b>${d.model}</b> · ${detMs||d.ms} ms · ${dets.length} box${dets.length===1?'':'es'}${dets.length?' · '+dets.map(x=>(x.display||x.name)+' '+Math.round(x.conf*100)+'%').join(', '):''} · claude via detector ${t.detector||0} / settle ${t.settle||0}${stats.agreement?` · agree ${stats.agreement.agree} / disagree ${stats.agreement.disagree}`:''}`}
 function connect(){
   const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/view');
@@ -896,13 +1102,14 @@ function connect(){
         c.innerHTML=`<b>${m.name||'?'}</b> <span style="color:#888">id=${m.id} · ${Math.round((m.confidence||0)*100)}% · id in ${m.timing?m.timing.id_at_ms:'?'} ms, done ${m.timing?m.timing.total_ms:'?'} ms</span> <span style="color:#6cf;font-size:12px">${m.trigger==='detector'?'⚡ via detector: '+m.det.display+' '+Math.round(m.det.conf*100)+'%'+(m.agrees===true?' ✓ agrees':m.agrees===false?' ✗ disagrees':''):'via settle'}</span><div>${m.spoken||''}</div><div style="color:#888;font-size:12px">${m.evidence||''}</div>`+
         (m.record?`<pre style="white-space:pre-wrap;font-size:11px;color:#bbb;margin:6px 0 0">${JSON.stringify(m.record,null,1).slice(0,1200)}</pre>`:'');return;}
       if(m.type==='report_page'){document.getElementById('replink').style.display=m.enabled?'inline':'none';return;}
+      if(m.type==='heard'){document.getElementById('out').textContent='🎤 '+m.text;return;}
       if(m.type==='caption'){const out=document.getElementById('out');out.textContent=m.text||(m.final?'':'thinking…');out.style.opacity=m.final?1:0.7;if(m.final&&m.text)loadReport();return;}
       stats=m;renderHud();renderDetbar();
       if(document.activeElement.id!=='mode')document.getElementById('mode').value=m.reactive?(m.reactive_mode||'parts'):'off';
       if(document.activeElement.id!=='voice')document.getElementById('voice').value=(m.tts&&m.tts.provider)||'apple';
       if(m.report_page!==undefined)document.getElementById('replink').style.display=m.report_page?'inline':'none';
       if(m.models){if(document.activeElement.id!=='m_identify')document.getElementById('m_identify').value=m.models.identify;if(document.activeElement.id!=='m_scene')document.getElementById('m_scene').value=m.models.scene;}
-      if(m.preannounce!==undefined)document.getElementById('pre').checked=!!m.preannounce;document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
+      if(m.preannounce!==undefined)document.getElementById('pre').checked=!!m.preannounce;if(m.detector&&m.detector.enabled!==undefined&&document.activeElement.id!=='det')document.getElementById('det').checked=!!m.detector.enabled;document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
     try{const b=await createImageBitmap(e.data);if(bmp)bmp.close();bmp=b;draw();
       shown++;const now=performance.now();if(now-lastShown>1000){dispFps=shown*1000/(now-lastShown);shown=0;lastShown=now;}}catch(err){}
   };
@@ -915,12 +1122,19 @@ window.addEventListener('resize',draw);
 async function inspect(){const out=document.getElementById('out');out.textContent='thinking…';
  const r=await fetch('/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:document.getElementById('q').value||undefined})});
  const j=await r.json();if(j.error)out.textContent=j.error;loadReport();}
+async function ask(){const out=document.getElementById('out');const t=document.getElementById('q').value.trim();if(!t){out.textContent='type a question first';return;}out.textContent='listening…';
+ const r=await fetch('/ask',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({text:t})});
+ const j=await r.json();if(j.error)out.textContent=j.error;loadReport();}
 async function reactive(){const v=document.getElementById('mode').value;await fetch('/reactive',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:v!=='off',mode:v==='off'?undefined:v,preannounce:document.getElementById('pre').checked})});}
 async function setModels(){await fetch('/models',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({identify:document.getElementById('m_identify').value,scene:document.getElementById('m_scene').value})});}
+async function setDetector(){await fetch('/detector',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:document.getElementById('det').checked})});}
 async function setVoice(){await fetch('/voice',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:document.getElementById('voice').value})});}
-let bannerTimer=null;
-function banner(cls,html,ms){const b=document.getElementById('banner');b.className=cls;b.innerHTML=html;clearTimeout(bannerTimer);if(ms)bannerTimer=setTimeout(()=>{b.className='';b.innerHTML='';},ms);}
+let bannerTimer=null,showBanner=true;
+try{showBanner=localStorage.getItem('banner')!=='off';}catch(e){}
+document.getElementById('banbtn').style.opacity=showBanner?1:.5;
+function toggleBanner(){showBanner=!showBanner;document.getElementById('banbtn').style.opacity=showBanner?1:.5;try{localStorage.setItem('banner',showBanner?'on':'off');}catch(e){}if(!showBanner){const b=document.getElementById('banner');b.className='';b.innerHTML='';}}
+function banner(cls,html,ms){if(!showBanner)return;const b=document.getElementById('banner');b.className=cls;b.innerHTML=html;clearTimeout(bannerTimer);if(ms)bannerTimer=setTimeout(()=>{b.className='';b.innerHTML='';},ms);}
 async function loadReport(){const rep=await (await fetch('/report')).json();
- document.getElementById('rep').innerHTML=rep.map(e=>`<div class=e><small>${new Date(e.ts*1000).toLocaleTimeString()} · ${e.model}${e.trigger==='detector'?` · ⚡ ${e.det?e.det.display:''} ${e.agrees===true?'✓':e.agrees===false?'✗':''}`:''}</small><div>${e.result}</div><img src="/frames/${e.frame}"></div>`).join('');}
+ document.getElementById('rep').innerHTML=rep.map(e=>`<div class=e><small>${new Date(e.ts*1000).toLocaleTimeString()} · ${e.model}${e.kind==='ask'?` · 🎤 “${e.question}”`:''}${e.trigger==='detector'?` · ⚡ ${e.det?e.det.display:''} ${e.agrees===true?'✓':e.agrees===false?'✗':''}`:''}</small><div>${e.result}</div><img src="/frames/${e.frame}"></div>`).join('');}
 loadReport();connect();
 </script></body></html>"""

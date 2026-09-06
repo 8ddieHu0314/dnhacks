@@ -2,15 +2,16 @@
 
 Hands-free part identification for Ray-Ban Meta glasses, built at DNHacks 2026 (Energy &
 Industrialization track). The wearer looks at an electronic component; the glasses say its
-name within about two seconds, and a dashboard on the Mac shows what the system saw.
+name within about two seconds and answer spoken questions about it ("inspector, which wire is
+the signal?"), and a dashboard on the Mac shows what the system saw and heard.
 
 ![Glasses Inspector pipeline: glasses to iPhone app to Mac relay to Claude and ElevenLabs and back to the glasses](docs/pipeline.svg)
 
 ## What runs today
 
 - `clients/ios/GlassesInspector`: iPhone app (fork of Meta's DAT `CameraAccess` sample). It
-  streams the glasses camera to the Mac over a WebSocket and plays the Mac's speech into the
-  glasses.
+  streams the glasses camera to the Mac over a WebSocket, transcribes the wearer's questions
+  from the glasses mic on the phone, and plays the Mac's speech into the glasses.
 - `services/relay_receiver`: the Mac relay. A local YOLOv8 detector on every frame, Claude
   identification against the part catalog, ElevenLabs voice, and a live dashboard on `:8787`.
   Setup, endpoints, and tuning live in

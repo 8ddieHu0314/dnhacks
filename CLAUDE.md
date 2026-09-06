@@ -10,8 +10,8 @@ whom:
 
 | Path | What | Talks to |
 |---|---|---|
-| `clients/ios/GlassesInspector` | iPhone app (fork of Meta's DAT `CameraAccess` sample). Pulls the glasses camera stream, relays JPEGs to the Mac, plays the Mac's speech into the glasses. | `services/relay_receiver` |
-| `services/relay_receiver` | FastAPI receiver on the Mac (`:8787`): `app.py` (sockets, dashboard, Describe/Scene narration, speech queue), `identify.py` (catalog-bound part identification, reactive loop), `detect.py` (local YOLOv8 ONNX in front of Claude), `tts_elevenlabs.py` (voice rendered on the Mac). | the iOS app, browsers, `docs/components/components.json`, `weights/` |
+| `clients/ios/GlassesInspector` | iPhone app (fork of Meta's DAT `CameraAccess` sample). Pulls the glasses camera stream, relays JPEGs to the Mac, hears the wearer's questions through the glasses mic and sends them as text, plays the Mac's speech into the glasses. | `services/relay_receiver` |
+| `services/relay_receiver` | FastAPI receiver on the Mac (`:8787`): `app.py` (sockets, dashboard, Describe/Scene narration, voice questions, speech queue), `identify.py` (catalog-bound part identification, reactive loop, Q&A context), `detect.py` (local YOLOv8 ONNX in front of Claude), `tts_elevenlabs.py` (voice rendered on the Mac). | the iOS app, browsers, `docs/components/components.json`, `weights/` |
 | `docs/components` | The part catalog: 47 researched records (`records/*.json`) merged into `components.json`, plus query/merge scripts and a small RAG eval. The relay loads `components.json` at startup. | `services/relay_receiver` |
 | `services/vision_api` | Earlier, tested FastAPI scaffold: sessions, versioned workflow packages, bounded latest-frame queue, pluggable `VisionEngine`. Not wired to the phone app. | nothing yet |
 | `docs/datacenter` | Curated vendor-doc links for data center hardware (future vector DB). Not wired to anything. | nothing yet |
@@ -54,12 +54,17 @@ services/relay_receiver/run.sh            # creates .venv, installs requirements
 INSPECT_FAKE=1 services/relay_receiver/run.sh   # canned Claude output for every path, no API key
 SPEAK=1 services/relay_receiver/run.sh          # also `say` Describe results on the Mac
 DETECT=0 services/relay_receiver/run.sh         # skip the local detector (settle-rule triggers only)
+cd services/relay_receiver && INSPECT_FAKE=1 ADVERTISE=0 .venv/bin/uvicorn app:app --port 8790 --ws websockets   # second instance for tests, no Bonjour
 ```
+
+A second instance still appends to the shared `report.jsonl` and `frames/`; scrub its entries
+afterwards or the judges' report page shows them.
 
 Secrets and knobs go in `services/relay_receiver/.env` (gitignored): `ANTHROPIC_API_KEY`,
 `ELEVENLABS_API_KEY` (+ `ELEVENLABS_VOICE_ID`, `_MODEL`, `_GAIN`, `_SPEED`, `_STABILITY`, `_STYLE`),
 `INSPECT_MODEL` (Describe, default `claude-opus-5`), `NARRATE_MODEL` (Scene, default
-`claude-sonnet-5`), `IDENTIFY_MODEL` (Parts, default `claude-sonnet-5`), `IDENTIFY_MAX_SIDE` (512),
+`claude-sonnet-5`), `IDENTIFY_MODEL` (Parts, default `claude-sonnet-5`), `ASK_MODEL` (voice
+questions, default `claude-sonnet-5`), `IDENTIFY_MAX_SIDE` (512),
 `DETECT_CONF` (0.45), `DETECT_IOU` (0.5), `DETECT_ONNX`, `DETECT_CLASSES`. Keep the
 `--ws websockets --ws-ping-timeout 90` flags in `run.sh`; the phone socket stalls without them.
 Ask before restarting it on the demo Mac; it holds the phone's socket.
@@ -74,6 +79,7 @@ curl -X POST localhost:8787/reactive -H 'content-type: application/json' -d '{"e
 curl -X POST localhost:8787/models   -H 'content-type: application/json' -d '{"identify":"opus","scene":"sonnet"}'
 curl -X POST localhost:8787/voice    -H 'content-type: application/json' -d '{"provider":"apple"}'
 curl -X POST localhost:8787/identify                           # one-shot identification of the latest frame, no speech
+curl -X POST localhost:8787/ask -H 'content-type: application/json' -d '{"text":"how many pins does this have"}'   # same path as a spoken question
 curl -X POST localhost:8787/catalog/reload                     # after editing docs/components/components.json
 curl -X POST localhost:8787/frame --data-binary @photo.jpg     # laptop/webcam demo mode: any JPEG is a frame
 ```
@@ -159,8 +165,10 @@ Changing either side means changing both. Everything rides one WebSocket from th
 - Phone -> Mac text (JSON) commands, each handled in its own task so ingest never blocks:
   `{"type":"inspect","question"?}`, `{"type":"narrate","enabled","interval"}`,
   `{"type":"reactive","enabled","mode":"parts"|"scene","preannounce"}`,
-  `{"type":"models","identify","scene"}` (values `sonnet`/`opus` or full model ids),
-  `{"type":"voice","provider":"apple"|"elevenlabs"}`.
+  `{"type":"models","identify","scene","ask"?}` (values `sonnet`/`opus` or full model ids),
+  `{"type":"voice","provider":"apple"|"elevenlabs"}`, `{"type":"ask","text"}` (a sentence the
+  wearer said, recognized on the phone), `{"type":"hush"}` (stop talking, drop queued sentences),
+  `{"type":"detector","enabled"}` (runtime switch for the local YOLO detector).
 - Mac -> Phone speech: `{"type":"speak","text"}` per finished sentence, then `{"type":"speak_end"}`.
   With ElevenLabs active the `speak` carries `"id"` and `"audio":true` (caption only, no local
   synthesis) and is followed by `{"type":"audio","id","rate":24000,"pcm":<base64 s16 mono>}` chunks
@@ -178,9 +186,10 @@ Changing either side means changing both. Everything rides one WebSocket from th
   `{"type":"stats",...}` (the `/health` dict) every 0.5 s, `{"type":"caption","text","final"}` while
   Claude streams, `{"type":"detections","ts","ms","boxes"}` per detected frame (normalized
   x1,y1,x2,y2), `{"type":"detected",...}` the instant a box qualifies as a trigger, and
-  `{"type":"identified",...}` with Claude's parsed answer and the catalog record.
-- Mac HTTP: `POST /inspect {question?}`, `POST`/`GET /narrate`, `POST`/`GET /reactive`,
-  `POST /models`, `POST /voice`, `POST /identify`, `GET /detections`, `POST /catalog/reload`,
+  `{"type":"identified",...}` with Claude's parsed answer and the catalog record, and
+  `{"type":"heard","text"}` when a voice question arrives.
+- Mac HTTP: `POST /inspect {question?}`, `POST /ask {text}`, `POST`/`GET /narrate`, `POST`/`GET /reactive`,
+  `POST /models`, `POST /voice`, `POST /detector {enabled}`, `POST /identify`, `GET /detections`, `POST /catalog/reload`,
   `GET /report`, `GET /health`, `GET /debug/tasks`, `GET /latest.jpg`, `GET /frames/{name}`,
   dashboard on `/`. `POST /frame` (raw JPEG body, optional `x-capture-ts` ms header) is the ingest
   fallback and the laptop-webcam demo mode.
@@ -207,6 +216,16 @@ in two files plus small hooks:
   off/parts/scene, `voiceProvider`, `partsModel`, `sceneModel`, `preannounce`); each setter
   sends the matching command, and `announcePrefs()` replays them on the Mac's hello. Server
   text messages are parsed in `handleServerText`.
+- `CameraAccess/Media/VoiceInput.swift`: the wearer's voice. The DAT SDK has no audio API, so
+  the glasses mic is reached through the phone's audio session (`.playAndRecord` +
+  `.allowBluetoothHFP`, the same route Meta's sample records sound-in-video through) or the
+  phone's own mic (`.allowBluetoothA2DP`, keeps high-quality output). An `SFSpeechRecognizer`
+  (on-device when available) streams partials; an utterance ends after 0.9 s without new words
+  and a fresh request starts. Modes: off, wake word (default "inspector", alone arms the next
+  sentence), always. Stop words are handled on the phone (`FrameRelay.hush()`), everything else
+  goes out as `ask`. Utterances that end while the glasses are talking are dropped unless they
+  are stop words, and the recognizer context resets when playback ends (echo guard). Settings
+  persist under `voiceInputMode`, `voiceMic`, `wakeWord`. Turning it off restores `.playback`.
 - `CameraAccess/Media/Speaker.swift`: `AVSpeechSynthesizer` for `speak`/`speak_fallback` and
   `PCMStreamPlayer` (`AVAudioEngine` + `AVAudioPlayerNode`) for ElevenLabs PCM, both on a
   `.playback/.spokenAudio` session so audio routes to the glasses over A2DP. It deliberately
@@ -238,6 +257,15 @@ Three Claude call sites, three independently switchable models, one prompt each:
 | Describe | phone `inspect`, `POST /inspect` | `models["describe"]` (Opus) | `SYSTEM_PROMPT`, `analyze()` in `app.py` |
 | Scene | hands-free `scene` mode, or legacy `narrate` loop | `models["scene"]` (Sonnet) | `NARRATION_PROMPT`, `analyze(narrate=True)`; previous narration passed as context, literal `no change` suppressed |
 | Parts | hands-free `parts` mode, `POST /identify` | `identify.state["model"]` (Sonnet) | `identify.system_prompt()`: catalog index in a `cache_control` system block |
+| Ask | phone `ask` (voice), `POST /ask`, dashboard "Ask (as voice)" | `models["ask"]` (Sonnet) | `ASK_PROMPT`; `handle_ask()` routes stop words -> `hush()`, "what is this" -> `_identify_and_speak()`, "describe" -> Describe path, else `analyze()` with `identify.context_for_question()` (the catalog record of the last identified part) and a 768 px frame |
+
+`hush()` bumps `speech["stop_gen"]`; `analyze()` and `_tts_worker` compare against it and stop
+mid-stream, so a "stop" cuts the answer within a sentence instead of draining only the queue. The
+phone side drops late PCM chunks for stopped utterance ids (`PCMStreamPlayer.stoppedThrough`).
+
+A voice question outranks narration: `handle_ask()` drops queued speech, waits (bounded) for a
+running analysis, and afterwards pushes `identify.state["announce_until"]` past the answer so the
+reactive loop does not talk over it. `voice_in` in `/health` counts asks by intent.
 
 `app.py` keeps module-level dicts: `state` (latest JPEG, fps/latency windows, `report` reloaded
 from `report.jsonl` at startup), `phones`, `viewers` + `viewer_sockets`, `narration`, `detector`,
@@ -287,6 +315,9 @@ faster), about 30 ms per frame in `_detect_loop` via `asyncio.to_thread`, latest
 loaded catalog at startup and takes the record's `name_on_kit` as the display name so boxes,
 banner, pre-announcement, and Claude use the same words. If weights are missing or inference
 throws, the detector marks itself unavailable and the relay falls back to the settle path.
+`set_detector()` is the runtime switch (`detector["enabled"]`, driven by the phone's gear menu,
+the dashboard checkbox, or `POST /detector`); off clears the boxes and the reactive loop's
+stale-box state so the settle rule takes over immediately.
 `/debug/tasks` shows whether the loop died.
 
 Every analysis appends to `report.jsonl` and saves the frame under `frames/` (both gitignored;
@@ -342,6 +373,10 @@ component-only. Keep that boundary when adding endpoints, workflow definitions, 
   in the phone's gear menu.
 - Deleting `tts_cache/` costs ElevenLabs characters on the next start (every catalog line is
   re-rendered).
+- Voice input with the glasses mic puts the whole session on Bluetooth HFP, so ElevenLabs output
+  is 16 kHz mono while listening and the SCO link shares Bluetooth Classic with the DAT video
+  stream. Meta's own sample records HFP audio while streaming, so it should hold, but fps under
+  load and the echo guard are not yet measured on the hardware (see the field notes).
 - The Mac's LAN and USB link-local addresses change during the day; always pick the receiver
   from the Bonjour list on the phone rather than typing an IP.
 - Do not let the Mac hold the glasses over Bluetooth (headset pairing) while testing the phone

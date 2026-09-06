@@ -223,6 +223,13 @@ struct CameraView: View {
           value: viewModel.frameRelay.statusText,
           active: viewModel.frameRelay.sentFrames > 0 && viewModel.frameRelay.lastError == nil,
           present: viewModel.isStreaming)
+        if viewModel.frameRelay.voice.mode != .off {
+          statusChip(
+            label: "Mic",
+            value: viewModel.frameRelay.voice.status,
+            active: viewModel.frameRelay.voice.isListening,
+            present: true)
+        }
       }
 
       Spacer()
@@ -268,6 +275,16 @@ struct CameraView: View {
       if isUpdateRequired {
         updateControls
       } else {
+        // Glasses Inspector: what the wearer is saying right now (voice input).
+        if !viewModel.frameRelay.voice.partial.isEmpty {
+          Text("You: \(viewModel.frameRelay.voice.partial)")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.white.opacity(0.9))
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.blue.opacity(0.35))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
         // Glasses Inspector: live caption of Claude's analysis + Describe trigger.
         if !viewModel.frameRelay.caption.isEmpty || !viewModel.frameRelay.captionFinal {
           Text(viewModel.frameRelay.caption.isEmpty ? "Analyzing…" : viewModel.frameRelay.caption)
@@ -288,7 +305,7 @@ struct CameraView: View {
           }
           if viewModel.frameRelay.speaker.isSpeaking {
             CustomButton(title: "Hush", style: .destructive, isDisabled: false) {
-              viewModel.frameRelay.speaker.stop()
+              viewModel.frameRelay.hush()
             }
             .frame(width: 90)
           }
@@ -692,6 +709,9 @@ struct RelaySettingsView: View {
           Toggle("Pre-announce detector guess", isOn: $relay.preannounce)
           Text("On: the glasses say the kit name the instant the local detector spots a part, then Claude's line follows. Off: only Claude's confirmed line is spoken.")
             .font(.caption).foregroundStyle(.secondary)
+          Toggle("Local part detector (YOLO)", isOn: $relay.detectorEnabled)
+          Text("Off: no bounding boxes on the dashboard, no early trigger, no pre-announce; parts are identified by the settle rule only. Mac: \(relay.detectorActive.map { $0 ? "on" : "off" } ?? "?").")
+            .font(.caption).foregroundStyle(.secondary)
           Text("Mac: \(relay.reactiveEnabled ? "\(relay.reactiveMode) · \(relay.reactiveStatus)" : "off")")
             .font(.caption.monospaced()).foregroundStyle(.secondary)
         }
@@ -721,6 +741,7 @@ struct RelaySettingsView: View {
           Text("Narration runs on the Mac; needs ANTHROPIC_API_KEY there, or INSPECT_FAKE=1 to test the audio path.")
             .font(.caption).foregroundStyle(.secondary)
         }
+        VoiceInputSection(relay: relay)
         Section("Report") {
           Toggle("Session report page", isOn: $relay.reportPageEnabled)
           Text("When on, the Mac serves a judges' view of everything identified or narrated this session at /report.html (frame, spoken line, confidence, model). Mac: \(relay.reportPageActive ? "on" : "off").")
@@ -747,6 +768,44 @@ struct RelaySettingsView: View {
       }
       .navigationTitle("Settings")
       .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+    }
+  }
+}
+
+/// Voice input settings. A separate view so `@Bindable` can bind to the relay's `VoiceInput`
+/// object (a `let` on FrameRelay, which `$relay.voice.x` cannot write through).
+private struct VoiceInputSection: View {
+  let relay: FrameRelay
+
+  var body: some View {
+    @Bindable var voice = relay.voice
+    Section("Voice input") {
+      Picker("Listen", selection: $voice.mode) {
+        Text("Off").tag(VoiceInput.Mode.off)
+        Text("Wake word").tag(VoiceInput.Mode.wake)
+        Text("Always").tag(VoiceInput.Mode.always)
+      }
+      .pickerStyle(.segmented)
+      HStack {
+        Text("Wake word")
+        TextField("inspector", text: $voice.wakeWord)
+          .multilineTextAlignment(.trailing)
+          .autocorrectionDisabled()
+          .textInputAutocapitalization(.never)
+      }
+      Picker("Microphone", selection: $voice.mic) {
+        Text("Glasses (HFP)").tag(VoiceInput.Mic.glasses)
+        Text("Phone").tag(VoiceInput.Mic.phone)
+      }
+      .pickerStyle(.segmented)
+      Text("Wake word: say \"\(voice.wakeWord), how many pins does this have?\", or the wake word alone and then the question. Always: every sentence goes to the Mac. Speech is recognized on the phone; \"stop\" or \"hush\" silences the glasses. Glasses mic uses Bluetooth HFP, so the voice sounds narrower while listening; Phone keeps the high-quality A2DP output.")
+        .font(.caption).foregroundStyle(.secondary)
+      Text("Status: \(voice.status) · input: \(voice.route.isEmpty ? "none" : voice.route) · heard \(voice.utterances)")
+        .font(.caption.monospaced()).foregroundStyle(.secondary)
+      if !voice.lastUtterance.isEmpty {
+        Text("Last: \(voice.lastUtterance)").font(.caption).foregroundStyle(.secondary)
+      }
+      Button("Send a test question") { relay.ask("How many pins does this part have?") }
     }
   }
 }

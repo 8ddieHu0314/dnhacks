@@ -175,12 +175,52 @@ def spoken_for(rec: dict, fallback: str) -> str:
         return fallback
 
 
+def _flat(v) -> str:
+    """Nested dicts/lists to one readable line."""
+    if isinstance(v, dict):
+        return "; ".join(f"{k}: {_flat(x)}" for k, x in v.items() if x not in (None, "", [], {}))
+    if isinstance(v, (list, tuple)):
+        return "; ".join(_flat(x) for x in v if x not in (None, "", [], {}))
+    return str(v)
+
+
+def context_for_question(max_chars: int = 3500) -> str:
+    """Compact text of the catalog record for the part most recently identified, for spoken Q&A.
+    Says so when nothing has been identified, so the model answers from the image alone."""
+    res = state.get("last_result") or {}
+    pid = res.get("id")
+    rec = catalog.get(str(pid)) if pid else None
+    if not rec:
+        return "No catalog part has been identified in the current view yet; answer from the image alone."
+    age = int(time.time() - float(res.get("ts") or 0))
+    d = rec.get("details") or {}
+    parts = [f"Part in view (identified {age} s ago, confidence {res.get('confidence')}): "
+             f"{rec.get('canonical_name') or rec.get('name')} (catalog id {pid}; on the kit lid: {rec.get('name_on_kit')}; "
+             f"part number {rec.get('mpn')})."]
+
+    def add(label, v, n=900):
+        t = re.sub(r"\s+", " ", _flat(v)).strip() if v else ""
+        if t:
+            parts.append(f"{label}: {t[:n]}")
+
+    fn = d.get("function") or {}
+    add("Function", fn.get("one_sentence_plain_english") or fn.get("what_it_is_used_for") or rec.get("function"), 300)
+    add("Pins", d.get("pins") or rec.get("pins"))
+    add("Electrical", d.get("electrical") or rec.get("voltage"))
+    add("Key specs", d.get("key_specs") or rec.get("key_specs"), 400)
+    add("Wiring to the Uno", d.get("wiring_to_uno"))
+    add("Safety", d.get("safety"), 500)
+    add("Troubleshooting", d.get("troubleshooting"), 500)
+    add("Looks like", d.get("visual_identification"), 300)
+    return "\n".join(parts)[:max_chars]
+
+
 # ---------------------------------------------------------------- prompts
 
 def system_prompt() -> str:
     base = ("You identify electronic components seen through a technician's smart glasses, matching against a catalog. "
             "Read any printed markings first; markings beat shape. Never invent specifications.\n"
-            "Answer in exactly two lines and nothing else:\n"
+            "Answer in exactly three lines and nothing else:\n"
             "line 1: <catalog id, or none> <confidence 0-1>\n"
             "line 2: <at most 12 words of evidence: markings, shape, color, pins>\n"
             "line 3: one spoken sentence for the wearer, under 16 words, natural and conversational, like a "
@@ -216,6 +256,7 @@ def _parse_line1(line: str):
 def _parse(text: str) -> dict:
     lines = [l for l in text.strip().splitlines() if l.strip()]
     first = _parse_line1(lines[0]) if lines else None
+    remark = " ".join(lines[2:]).strip() if len(lines) > 2 else ""
     if first is None:
         # tolerate the old JSON shape
         m = re.search(r"\{.*\}", text, re.S)
@@ -256,7 +297,6 @@ def _kwargs(model: str, data: bytes, max_tokens: int = 60, det: dict | None = No
             {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
             {"type": "text", "text": _hint_text(det)}]}],
     }
-    remark = " ".join(lines[2:]).strip() if len(lines) > 2 else ""
     if _supports_fallbacks(model):
         kwargs["betas"] = ["server-side-fallback-2026-07-01"]
         kwargs["fallbacks"] = "default"
@@ -287,7 +327,20 @@ async def _stream_model(model: str, data: bytes, on_first_line, max_tokens: int 
                 if parsed:
                     fired = True
                     await on_first_line(*parsed)
+            if on_sentence and text.count("\n") >= 2:
+                tail = text.split("\n", 2)[2]
+                parts = _SENT_END.split(tail)
+                while len(parts) - 1 > spoken_sent and spoken_sent < 2:
+                    sent = parts[spoken_sent].strip()
+                    spoken_sent += 1
+                    if sent:
+                        await on_sentence(sent)
         final = await stream.get_final_message()
+        if on_sentence and text.count("\n") >= 2:
+            tail = text.split("\n", 2)[2]
+            parts = [x.strip() for x in _SENT_END.split(tail) if x.strip()]
+            for sent in parts[spoken_sent:2]:
+                await on_sentence(sent)
     if not fired:
         parsed = _parse_line1(text.strip().split("\n", 1)[0]) if text.strip() else None
         if parsed:
@@ -327,20 +380,7 @@ def spoken_short(rec: dict) -> str:
 
 async def identify_frame(data: bytes, on_early=None, det: dict | None = None, on_sentence=None) -> dict:
     """One identification call on a frame. `on_early(pid, conf, rec)` fires as soon as the id
-            if on_sentence and text.count("\n") >= 2:
-                tail = text.split("\n", 2)[2]
-                parts = _SENT_END.split(tail)
-                while len(parts) - 1 > spoken_sent and spoken_sent < 2:
-                    sent = parts[spoken_sent].strip()
-                    spoken_sent += 1
-                    if sent:
-                        await on_sentence(sent)
     is known (before the evidence line finishes). With `det` Claude sees the box crop plus a
-        if on_sentence and text.count("\n") >= 2:
-            tail = text.split("\n", 2)[2]
-            parts = [x.strip() for x in _SENT_END.split(tail) if x.strip()]
-            for sent in parts[spoken_sent:2]:
-                await on_sentence(sent)
     hint (detector path). Returns the parsed result plus the record."""
     state["calls"] += 1
     t0 = time.time()
@@ -493,6 +533,8 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, n
                     if new_part and not _busy and now - state["last_spoken_at"] >= state["cooldown_seconds"]:
                         det = top
                         data, thumb = det_frame, det_thumb   # identify the frame the box belongs to
+            elif det_frame is None or now - dts >= 1.0:
+                stable_det, stable_n = None, 0   # detector off or stale: the settle rule takes over
         if det is None:
             if not changed or _busy or now - state["last_spoken_at"] < state["cooldown_seconds"]:
                 if motion <= state["motion_threshold"]:
@@ -525,7 +567,7 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, n
                     await set_caption("no change", True)
                 continue
 
-            decided = {"action": None}
+            decided = {"action": None, "spoken": []}
 
             async def on_early(pid, conf, rec):
                 # Hybrid announcement: the part's name the instant the id is known (instant, fixed),

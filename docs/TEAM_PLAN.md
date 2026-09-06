@@ -9,10 +9,14 @@ landed and needs confirming on the phone.
 The three layers meet at fixed interfaces, so they can be worked in parallel:
 
 - Phone -> Mac: `WS /ws/ingest`, binary = 8-byte big-endian capture ms + JPEG; text = JSON
-  commands `{"type":"inspect"}`, `{"type":"narrate","enabled":bool,"interval":s}`.
+  commands `{"type":"inspect"}`, `{"type":"narrate","enabled":bool,"interval":s}`,
+  `{"type":"reactive",...}`, `{"type":"models",...}`, `{"type":"voice",...}`, and since Sept 6
+  `{"type":"ask","text":...}` (a sentence the wearer said, recognized on the phone) and
+  `{"type":"hush"}` (stop talking, drop queued sentences). The full list is in CLAUDE.md.
 - Mac -> phone (same socket): `{"type":"speak","text":...}` per sentence, then
-  `{"type":"speak_end"}`; `{"type":"narration","enabled":..,"interval":..}`.
-- Mac HTTP: `POST /inspect {question}`, `POST/GET /narrate`, `GET /report`, `GET /health`,
+  `{"type":"speak_end"}`; `{"type":"narration","enabled":..,"interval":..}`; `{"type":"reactive",...}`
+  status; ElevenLabs PCM as `audio` / `audio_end`; `speak_stop` after a hush.
+- Mac HTTP: `POST /inspect {question}`, `POST /ask {text}`, `POST/GET /narrate`, `GET /report`, `GET /health`,
   dashboard on `/`. Report rows land in `services/relay_receiver/report.jsonl`.
 
 Change an interface only with the other side's owner in the loop, and update this file.

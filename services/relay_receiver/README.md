@@ -40,6 +40,7 @@ accepted too; env defaults are `IDENTIFY_MODEL`, `NARRATE_MODEL`, `INSPECT_MODEL
 | Parts (`identify`) | `claude-sonnet-5` | about 1.8 s to the id (Opus about 3.5 s); both read markings well |
 | Scene (`scene`) | `claude-sonnet-5` | latency first |
 | Describe button and `POST /inspect` (`describe`) | `claude-opus-5` | one shot, quality first |
+| Voice questions (`ask`) | `claude-sonnet-5` | short spoken answers, latency first |
 
 `POST /voice {"provider":"apple"}` or `"elevenlabs"` switches the voice. The phone re-sends its
 saved mode, models, and voice every time it connects, so a change made on the dashboard is
@@ -47,6 +48,24 @@ undone by the next phone reconnect unless it is also changed in the phone's gear
 `GET /reactive` and `GET /health` report the active settings, `POST /catalog/reload` re-reads
 the catalog after an edit, and `POST /identify` runs one identification of the latest frame
 without speaking.
+
+## Voice input: questions from the wearer
+
+The phone recognizes speech (glasses mic over Bluetooth HFP, or the phone mic) and sends each
+finished sentence as `{"type":"ask","text":...}`; `POST /ask {"text":...}` and the dashboard's
+"Ask (as voice)" button take the same path. `handle_ask()` routes:
+
+| Heard | Intent | What happens |
+|---|---|---|
+| "stop", "hush", "quiet" (3 words or fewer) | hush | the answer being streamed is cut, queued sentences dropped, phone told `speak_stop` |
+| "what is this", "which part", "identify" | identify | fresh identification of the latest frame, catalog line spoken in full even if it was just announced |
+| "describe", "what do you see", "hazards" | describe | the Describe path (Opus) on a 768 px frame |
+| anything else | answer | `ASK_PROMPT` on `ASK_MODEL` (Sonnet) with the frame and `identify.context_for_question()`, the catalog record of the last identified part (pins, electrical, wiring, safety, troubleshooting) |
+
+A question outranks narration: queued speech is dropped first, a running analysis is allowed to
+finish (bounded), and the reactive loop is held off until the answer has played. Every ask lands
+in the report with `kind: "ask"` and the question; `/health` reports `voice_in` (count, last
+sentence, intents). `{"type":"hush"}` from the phone does the hush part alone.
 
 ## Voice: ElevenLabs on the Mac, Apple voice as fallback
 
@@ -111,6 +130,10 @@ What it does:
 - Tuning via `POST /reactive`: `det_min_conf` (0.5), `stable_frames` (2). Env: `DETECT=0`
   disables the detector, `DETECT_CONF` (0.45) and `DETECT_IOU` (0.5) set the raw NMS thresholds,
   `DETECT_ONNX` points at another model.
+- Runtime on/off: the phone's gear menu (Hands-free > Local part detector), the dashboard's
+  "detector" checkbox, or `POST /detector {"enabled":false}`. Off clears the boxes, stops the
+  early trigger and pre-announce, and lets the settle rule identify alone; `/health` reports
+  `detector.enabled`. The phone re-sends its setting on every reconnect.
 
 The weights are committed (`weights/components_yolov8.onnx`, 12 MB, plus the class list), so
 a fresh clone runs the detector with no download. To re-export them from Roboflow (it
