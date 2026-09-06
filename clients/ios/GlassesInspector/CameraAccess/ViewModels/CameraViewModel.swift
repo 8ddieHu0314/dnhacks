@@ -79,7 +79,10 @@ final class CameraViewModel {
   /// Decoder health for the diagnostics section: fresh frames, failures, keyframe wait.
   private(set) var decoderStatus: String = ""
   /// Seconds of "streaming" with no decoded frame before the stream is restarted.
-  static let stallSeconds: TimeInterval = 6
+  static let stallSeconds: TimeInterval = 4
+  /// Seconds the decoder may wait for a keyframe before the stream is restarted: without one it
+  /// cannot recover, so waiting longer only lengthens the freeze.
+  static let keyframeWaitSeconds: TimeInterval = 2.5
   @ObservationIgnored nonisolated private let lastFrameAt = OSAllocatedUnfairLock<TimeInterval>(initialState: 0)
   @ObservationIgnored private var stallTask: Task<Void, Never>?
   @ObservationIgnored private var restartingStream = false
@@ -372,10 +375,13 @@ final class CameraViewModel {
           + (d.lastError != 0 ? " · last error \(d.lastError)" : "")
           + (d.awaitingSeconds > 0.5 ? String(format: " · waiting for a keyframe %.0f s", d.awaitingSeconds) : "")
           + " · restarts \(self.stallRestarts)"
-        if self.streamState == .streaming, !self.isRecording, !self.restartingStream, silent > Self.stallSeconds {
+        let stuckOnKeyframe = d.awaitingSeconds > Self.keyframeWaitSeconds
+        if self.streamState == .streaming, !self.isRecording, !self.restartingStream, silent > Self.stallSeconds || stuckOnKeyframe {
           self.restartingStream = true
           self.stallRestarts += 1
-          self.stallNote = "Stream stalled (\(Int(silent)) s without a decodable frame, \(d.failures) decode failures); restarting…"
+          self.stallNote = stuckOnKeyframe
+            ? "Stream stalled (no keyframe for \(Int(d.awaitingSeconds)) s after decode error \(d.lastError)); restarting…"
+            : "Stream stalled (\(Int(silent)) s without a decodable frame, \(d.failures) decode failures); restarting…"
           // Separate task: the stop below tears this watchdog down with the stream.
           Task { [weak self] in await self?.restartStalledStream() }
           return
