@@ -1,6 +1,7 @@
 import unittest
 
-from vision_api.speech import SpeechRouter
+from vision_api.models import VisionAnalysis
+from vision_api.speech import SpeechRouter, spoken_guidance
 
 
 class FakeWebSocket:
@@ -12,6 +13,28 @@ class FakeWebSocket:
 
 
 class SpeechRouterTests(unittest.IsolatedAsyncioTestCase):
+    def test_requests_visual_clarification_before_giving_a_step(self) -> None:
+        analysis = VisionAnalysis.model_validate({"mode": "debug", "summary": "Wiring is obscured.",
+            "safety_alerts": ["Disconnect USB power."], "debug_guidance": {
+                "status": "needs_context", "problem": "Rail connection is hidden.",
+                "steps": [{"instruction": "Move the wire.", "reason": "Inspect it.",
+                    "expected_evidence": "The socket is visible."}],
+                "visual_clarification": {"target": "upper power rail", "requested_view": "top-down close-up",
+                    "reason": "Your hand hides the jumper socket."}}})
+
+        spoken = spoken_guidance(analysis)
+        self.assertIn("Safety: Disconnect USB power.", spoken)
+        self.assertIn("top-down close-up of upper power rail", spoken)
+        self.assertNotIn("Move the wire", spoken)
+
+    def test_speaks_the_first_debug_step_when_the_view_is_sufficient(self) -> None:
+        analysis = VisionAnalysis.model_validate({"mode": "debug", "summary": "LED is dark.",
+            "debug_guidance": {"status": "in_progress", "problem": "LED polarity may be reversed.",
+                "steps": [{"instruction": "Disconnect power.", "reason": "Change wiring safely.",
+                    "expected_evidence": "The power LED turns off."}], "visual_clarification": None}})
+
+        self.assertEqual(spoken_guidance(analysis), "Next: Disconnect power. Expected: The power LED turns off.")
+
     async def test_mirrors_the_same_message_to_mac_and_glasses(self) -> None:
         launched = []
 

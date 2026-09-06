@@ -24,7 +24,7 @@ from .models import (
 from .pipeline import VisionPipeline
 from .segmentation import build_vision_engine
 from .signals import AdvisorySignalStore
-from .speech import SpeechRouter
+from .speech import SpeechRouter, spoken_guidance
 from .workflows import WorkflowRegistry
 
 
@@ -41,7 +41,7 @@ speech = SpeechRouter(settings.speech_mode)
 
 async def speak_result(result) -> None:
     if result.analysis is not None:
-        await speech.publish(result.session_id, result.frame_id, result.analysis.summary)
+        await speech.publish(result.session_id, result.frame_id, spoken_guidance(result.analysis))
 
 
 pipeline = VisionPipeline(

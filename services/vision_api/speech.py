@@ -7,6 +7,24 @@ from collections.abc import Callable
 
 from fastapi import WebSocket
 
+from .models import VisionAnalysis
+
+
+def spoken_guidance(analysis: VisionAnalysis) -> str:
+    """Condense a full result to the one thing the wearer should hear next."""
+
+    debug = analysis.debug_guidance
+    if analysis.mode != "debug" or debug is None:
+        return analysis.summary
+    prefix = f"Safety: {analysis.safety_alerts[0]} " if analysis.safety_alerts else ""
+    if debug.visual_clarification is not None:
+        view = debug.visual_clarification
+        return f"{prefix}Show me a {view.requested_view} of {view.target}. {view.reason}".strip()
+    if debug.steps:
+        step = debug.steps[0]
+        return f"{prefix}Next: {step.instruction} Expected: {step.expected_evidence}".strip()
+    return f"{prefix}{analysis.summary}".strip()
+
 
 class SpeechRouter:
     """Mirror speech locally or forward it to a connected glasses bridge."""
