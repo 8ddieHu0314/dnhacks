@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json, time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,6 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from .component_knowledge import ComponentKnowledgeBase
 from .config import settings
+from .glasses_bridge import decode_relay_frame
 from .models import (
     AdvisoryFieldSignal,
     AdvisoryFieldSignalAcknowledgement,
@@ -260,6 +262,54 @@ async def send_speech_to_glasses(websocket: WebSocket, session_id: str) -> None:
         while True:
             if (await websocket.receive())["type"] == "websocket.disconnect":
                 break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        speech.detach(session_id, websocket)
+
+
+@app.websocket("/ws/ingest")
+async def ingest_existing_ios_relay(websocket: WebSocket) -> None:
+    """Adapt GlassesInspector's timestamp-plus-JPEG protocol to VisionPipeline."""
+    created = await create_session()
+    session_id = created.session_id
+    workflow = workflow_for_session(session_id)
+    await websocket.accept()
+    speech.attach(session_id, websocket)
+    await websocket.send_json({"type": "relay_session", "session_id": session_id})
+    last_submitted = 0.0
+    question: str | None = None
+    evidence: list[dict] = []
+    try:
+        while True:
+            message = await websocket.receive()
+            if message["type"] == "websocket.disconnect":
+                break
+            if text := message.get("text"):
+                try:
+                    command = json.loads(text)
+                    if command.get("type") == "inspect":
+                        question = command.get("question") or "Inspect and debug this circuit."
+                    elif command.get("type") == "debug_evidence":
+                        evidence = command.get("reported_evidence") or []
+                except (AttributeError, json.JSONDecodeError):
+                    await websocket.send_json({"type": "error", "text": "Invalid command JSON"})
+                continue
+            if not (payload := message.get("bytes")):
+                continue
+            now = time.monotonic()
+            if now - last_submitted < settings.glasses_frame_interval_seconds:
+                continue
+            try:
+                frame = decode_relay_frame(payload)
+                metadata = FrameMetadata(frame_id=str(uuid4()), captured_at=frame.captured_at,
+                    width=frame.width, height=frame.height, user_request=question,
+                    reported_evidence=evidence)
+                validate_frame_bytes(frame.image_bytes, "jpeg")
+                await pipeline.submit(session_id, metadata, frame.image_bytes, workflow)
+                last_submitted, question, evidence = now, None, []
+            except (HTTPException, ValueError) as exc:
+                await websocket.send_json({"type": "error", "text": str(exc)})
     except WebSocketDisconnect:
         pass
     finally:
