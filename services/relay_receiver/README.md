@@ -29,6 +29,10 @@ Without the key, behaviour is unchanged: plain `speak` messages, Apple voice on 
     ELEVENLABS_API_KEY=sk_...
     ELEVENLABS_VOICE_ID=mqlDiDxS84MhnMijtd3t    # Christopher, Friendly American
     ELEVENLABS_MODEL=eleven_flash_v2_5          # optional
+    ELEVENLABS_GAIN=2.0                         # louder for the glasses; 1.0 = as rendered, clips above ~2.4
+    ELEVENLABS_SPEED=1.0                        # 0.7 to 1.2
+    ELEVENLABS_STABILITY=0.5                    # lower = more expressive
+    ELEVENLABS_STYLE=0.0                        # style exaggeration, adds latency above 0
 
 `GET /health` reports `tts.provider`, characters sent, and the last error. The starter plan
 caps at 30,000 characters a month, roughly 300 narration sentences.
