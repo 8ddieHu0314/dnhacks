@@ -65,8 +65,8 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
 
         def handler(request: httpx.Request) -> httpx.Response:
             calls.append(request)
-            content = {"id": "breadboard-830", "confidence": 0.9, "name": "Breadboard", "evidence": "white hole grid"}
-            return httpx.Response(200, json={"content": [{"type": "tool_use", "name": "submit_result", "input": content}]})
+            content = {"id": "hc-sr04", "confidence": 0.9, "name": "Ultrasonic sensor", "evidence": "two round transducers"}
+            return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps(content)}]})
 
         knowledge = ComponentKnowledgeBase.from_path(Path(__file__).parents[1] / "docs/components/components.json")
         engine = AnthropicCatalogIdentificationVLM(base_url="https://model.example", api_key="test-key",
@@ -82,7 +82,32 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("looks:", body["system"][0]["text"])
         self.assertNotIn("temperature", body)
         self.assertNotIn("tools", body)
-        self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "breadboard-830")
+        self.assertEqual(output.analysis.mode, "identification")
+        self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "hc-sr04")
+
+    async def test_switches_from_breadboard_identification_to_debugging(self) -> None:
+        calls = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(json.loads(request.content))
+            if len(calls) == 1:
+                content = {"id": "breadboard-830", "confidence": 0.9, "name": "Breadboard", "evidence": "power rails"}
+                return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps(content)}]})
+            content = {"analysis": {"summary": "Breadboard wiring needs review.",
+                "component_guidance": {"wiring_feedback": ["Check the split power rail."]}}}
+            return httpx.Response(200, json={"content": [{"type": "tool_use", "name": "submit_result", "input": content}]})
+
+        knowledge = ComponentKnowledgeBase.from_path(Path(__file__).parents[1] / "docs/components/components.json")
+        engine = AnthropicCatalogIdentificationVLM(base_url="https://model.example", api_key="test-key",
+            model="claude-test", timeout_seconds=1, knowledge_base=knowledge, transport=httpx.MockTransport(handler))
+        frame = Frame("session", FrameMetadata(frame_id="frame", width=2, height=2, user_request="What is wrong?"),
+                      b"image", datetime.now(timezone.utc))
+        output = await engine.analyze(frame)
+
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(output.analysis.mode, "debug")
+        self.assertEqual(output.analysis.component_guidance.wiring_feedback, ["Check the split power rail."])
+        self.assertIn("Breadboard jumper-wire circuit debugging", calls[1]["system"])
 
     async def test_treats_non_json_catalog_responses_as_unclear(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
