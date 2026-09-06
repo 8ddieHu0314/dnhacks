@@ -10,7 +10,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from .models import ComponentGuidance, Frame, VisionAnalysis, VisionOutput, RetrievedComponent
-from .vlm import VisionModelError, encoded_image_url
+from .vlm import VisionModelError, encoded_image_url, instruction_for
 
 _TOKEN = re.compile(r"[a-z0-9]+")
 
@@ -137,3 +137,22 @@ class ComponentKnowledgeVLM:
             raise VisionModelError(f"VLM request failed: {exc}") from exc
         except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise VisionModelError("VLM response did not contain a valid JSON object") from exc
+
+    @staticmethod
+    def _scene_prompt(user_request: str | None) -> str:
+        return """Describe only what is visible in this electronics-kit image. Return JSON with
+scene_description, visible_text, and likely_component_terms. Transcribe markings verbatim;
+do not identify a part with certainty or give wiring advice. User request: """ + (user_request or "none")
+
+    @staticmethod
+    def _guidance_prompt(frame: Frame, records: list[dict[str, Any]]) -> str:
+        ids = [record["id"] for record in records]
+        return f"""You are an educational electronics-kit copilot. Return only JSON matching
+VisionOutput. Use only the candidate records below; allowed component ids are {ids}. If the
+image cannot distinguish them, identify none and ask a short clarifying question. Never invent
+a specification, component id, or connection. Image evidence cannot prove a wire is electrically
+connected, correct, or safe: state uncertainty and propose a human-confirmed check. Do not direct
+mains/high-voltage work. Every proposed action requires_confirmation=true. Put component evidence,
+wiring feedback, questions, and caveats in analysis.component_guidance.\n\nWorkflow:\n{instruction_for(frame)}
+\n\nUser request: {frame.metadata.user_request or 'identify the part and give safe context.'}
+\n\nCandidate records:\n{json.dumps(records, ensure_ascii=True)}"""
