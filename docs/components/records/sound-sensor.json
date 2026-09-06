@@ -1,0 +1,98 @@
+{
+  "id": "sound-sensor",
+  "kit": { "name": "ELEGOO UNO R3 Most Complete Starter Kit", "sku": "EL-KIT-001", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "Sound Sensor Module",
+    "canonical_name": "Microphone sound sensor module (KY-038 style)",
+    "aliases": ["KY-038", "sound detection sensor module", "high-sensitivity voice sensor"],
+    "category": "sensor",
+    "manufacturer": "Generic; no brand name is printed on ELEGOO's board. This is the same widely cloned design sold by many Chinese module makers under the name KY-038.",
+    "manufacturer_part_number": "Not confirmed for ELEGOO's exact board; commonly sold industry-wide as KY-038",
+    "generic_equivalents": ["KY-038 sound sensor module", "any LM393-comparator-based sound sensor breakout"],
+    "serial_number": "not_applicable",
+    "package": "module: small PCB with an upright electret microphone (a tiny microphone capsule that needs no separate power to pick up sound), a blue trimmer potentiometer, and a 4-pin header"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small board with a tiny microphone that tells the Arduino how loud the sound around it is, and can also just say yes or no once it gets loud enough.",
+    "what_it_is_used_for": "Detecting sound or loudness, for example a clap-activated switch, a noise alarm, or any sound-triggered project.",
+    "how_it_works_briefly": "The microphone turns sound into a tiny voltage. An onboard amplifier boosts that signal, which comes out on the AO (analog output) pin as a continuously changing voltage. A comparator circuit (a chip that checks whether one voltage is bigger than another) compares the amplified signal to a threshold set by the blue trimmer potentiometer (a small adjustable resistor you turn with a screwdriver); when the sound crosses that threshold, the DO (digital output) pin flips between high and low."
+  },
+  "pins": {
+    "pin_count": 4,
+    "pinout": [
+      { "pin": 1, "name": "VCC", "role": "power in", "notes": "3.3V to 5V, per the robotpishop.com listing for this class of module; ELEGOO's own tutorial does not state a supply figure" },
+      { "pin": 2, "name": "GND", "role": "ground", "notes": "" },
+      { "pin": 3, "name": "DO", "role": "digital output", "notes": "Goes high or low once the sound crosses the threshold set by the onboard potentiometer (ELEGOO tutorial)" },
+      { "pin": 4, "name": "AO", "role": "analog output", "notes": "Continuous voltage signal following the microphone in real time (ELEGOO tutorial)" }
+    ],
+    "pin_1_identification": "Not confirmed from a source with a labeled photo of ELEGOO's exact board. The tutorial names the 4 signals (VCC, GND, DO, AO) and how to wire them, but does not show their left-to-right physical order on the header. Read the small printed letters next to each pin on the board itself rather than assuming an order.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "3.3V to 5V DC (robotpishop.com retailer listing for this module design)",
+    "absolute_max_voltage": "not confirmed from a source I fetched",
+    "typical_current": "not confirmed from a source I fetched",
+    "max_current": "not confirmed from a source I fetched",
+    "logic_level": "not explicitly confirmed; DO is a simple on/off digital signal that should be safe to read directly on an UNO's 5V-logic input pins",
+    "interface": "analog + digital"
+  },
+  "key_specs": {
+    "microphone_type": "electret condenser microphone (a small, cheap microphone that does not need its own separate power supply)",
+    "signal_path": "microphone, then an onboard amplifier, then a peak detector and buffer feeding the AO pin; a separate comparator stage drives DO (ELEGOO tutorial's own description)",
+    "sensitivity_adjustment": "adjustable via the onboard blue trimmer potentiometer; ELEGOO's tutorial notes it takes at least 10 full turns to see a response, since it is a fine-adjustment part",
+    "indicator_leds": "one LED shows the board has power, a second LED lights when the digital threshold is tripped (ELEGOO tutorial)"
+  },
+  "visual_identification": {
+    "shape_and_size": "Small rectangular green PCB, roughly 3 to 4 cm long, with a small round metal-cased microphone capsule standing upright on one end",
+    "color_and_markings": "Green PCB; a small blue square trimmer potentiometer near the microphone; two small LEDs on the board",
+    "printed_text_to_look_for": "Look for the letters 'AO' and 'DO' printed near the header pins, and a round metal microphone can with a small sound-entry hole in its top face",
+    "easily_confused_with": ["KY-037 high-sensitivity sound sensor (very similar board layout)", "other small electret microphone breakout boards"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "DO", "uno_pin": "D7 (ELEGOO Lesson 20 example code)" },
+      { "part_pin": "AO", "uno_pin": "A0" },
+      { "part_pin": "VCC", "uno_pin": "5V" },
+      { "part_pin": "GND", "uno_pin": "GND" }
+    ],
+    "required_extra_parts": ["4 female-to-male jumper wires (ELEGOO tutorial)"],
+    "arduino_library": "None required; ELEGOO's Lesson 20 example sketch uses only the built-in analogRead and digitalRead functions"
+  },
+  "safety": {
+    "hazards": ["None significant; low voltage sensor module"],
+    "handling_notes": ["Avoid touching or blocking the microphone's sound-entry hole", "The sensitivity potentiometer needs many turns to change anything; adjust it slowly with a small screwdriver"],
+    "common_mistakes": ["Expecting DO to respond to normal-volume sound before turning the threshold potentiometer down", "Swapping the AO and DO wires"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "DO never goes high", "likely_cause": "Threshold potentiometer set too high for the ambient sound level", "check": "Per ELEGOO's tutorial, turn the potentiometer counter-clockwise until the indicator LED goes out, then turn it back slowly while making noise" },
+      { "symptom": "AO reads a constant flat value", "likely_cause": "Microphone or amplifier fault, or AO and DO wires swapped", "check": "Confirm AO is wired to an analog pin (A0 to A5) and DO to a digital pin" }
+    ],
+    "how_to_test_with_a_multimeter": "With VCC and GND connected and the module powered, measure DC voltage at AO; it should sit a small fraction of a volt above 0V at rest and jump briefly when you make a sudden loud sound near the microphone."
+  },
+  "market": {
+    "unit_price_usd": 1.25,
+    "price_source_url": "https://robotpishop.com/products/mini-voice-sound-detection-sensor-module",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Amazon (usually sold in packs of 4 to 5)", "Robot Pi Shop", "Banggood", "AliExpress"]
+  },
+  "sources": [
+    { "title": "THE MOST COMPLETE STARTER KIT TUTORIAL FOR UNO V1.0.19.01.23 (ELEGOO official tutorial PDF), Lesson 20 Sound Sensor Module", "url": "https://m.media-amazon.com/images/I/C1wMkX1+N9L.pdf", "type": "tutorial", "used_for": "confirms this is Lesson 20 of the current kit tutorial, quantity 1, the AO/DO signal names and behavior, sensitivity adjustment procedure, and wiring (4 female-to-male wires, DO to D7, AO to A0)" },
+    { "title": "ELEGOO UNO R3 Project Most Complete Starter Kit Instruction Manual (EL-KIT-001 parts list mirror)", "url": "https://manuals.plus/asin/B01CZTLHGE", "type": "wiki", "used_for": "confirms kit SKU EL-KIT-001, full kit name, and that '1pcs Sound Sensor Module' is in the current parts list" },
+    { "title": "KY-038 Microphone sound sensor module datasheet (Joy-IT)", "url": "https://eclass.uth.gr/modules/document/file.php/E-CE_U_269/Sensors/Sensors_%20Datasheets/KY-038-Joy-IT.pdf", "type": "datasheet", "used_for": "corroborates the AO/DO pin function naming and the amplifier-plus-comparator circuit topology for this class of module" },
+    { "title": "KY-038 Sound Sensor Module product page (Robot Pi Shop)", "url": "https://robotpishop.com/products/mini-voice-sound-detection-sensor-module", "type": "retailer", "used_for": "market.unit_price_usd and electrical.operating_voltage" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer_part_number (no MPN printed on ELEGOO's board)",
+      "pins.pin_1_identification (physical left-to-right pin order on ELEGOO's specific board)",
+      "electrical.absolute_max_voltage",
+      "electrical.typical_current",
+      "electrical.max_current",
+      "electrical.logic_level"
+    ],
+    "notes": "ELEGOO does not publish a standalone spec sheet for this module. Everything beyond what ELEGOO's own tutorial states is corroborated from the widely sold KY-038 module design, which behaves the same way (AO analog out, DO digital out through an onboard comparator and potentiometer) but was not visually confirmed to be bit-for-bit identical to ELEGOO's exact board. This module is confirmed present in the current EL-KIT-001 kit."
+  }
+}

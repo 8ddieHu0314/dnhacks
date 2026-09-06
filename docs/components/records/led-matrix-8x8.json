@@ -1,0 +1,106 @@
+{
+  "id": "led-matrix-8x8",
+  "kit": { "name": "ELEGOO UNO R3 Most Complete Starter Kit", "sku": "EL-KIT-001", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "MAX7219 Module",
+    "canonical_name": "MAX7219-driven 8x8 LED dot matrix display module",
+    "aliases": ["8x8 LED Matrix", "MAX7219 8x8 LED Matrix Module", "MAX7219 LED Dot Matrix Module"],
+    "category": "display",
+    "manufacturer": "The display driver chip (MAX7219) was originally made by Maxim Integrated, now part of Analog Devices. The assembled module itself is generic and unbranded.",
+    "manufacturer_part_number": "MAX7219 (the driver chip). The underlying 8x8 LED matrix part is commonly a 1088AS or 1088BS red common-cathode matrix on modules like this one, but that exact part number was not confirmed for ELEGOO's specific board by a source I fetched.",
+    "generic_equivalents": ["any MAX7219-based 8x8 LED matrix breakout module"],
+    "serial_number": "not_applicable",
+    "package": "assembled module: a small PCB, about 32mm square, with an 8x8 grid of LEDs mounted on top of a MAX7219 driver chip, plus two 5-pin headers (an input side and an output side) for chaining several modules together"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small grid of 64 tiny lights, 8 rows by 8 columns, that can show simple pictures, numbers, or scrolling text, all controlled with just 3 wires from the Arduino.",
+    "what_it_is_used_for": "Simple pixel displays: scrolling text, small icons, animations, or a basic level meter.",
+    "how_it_works_briefly": "The MAX7219 chip built into the module does all the fast row-by-row switching needed to individually light up 64 LEDs. The Arduino only has to send it a stream of on/off, brightness commands one bit at a time (a method called serial communication) over 3 control wires, and the chip handles turning the right LEDs on and off many times per second."
+  },
+  "pins": {
+    "pin_count": 10,
+    "pinout": [
+      { "pin": 1, "name": "VCC", "role": "power in", "notes": "input side header, 5V (components101 module datasheet)" },
+      { "pin": 2, "name": "GND", "role": "ground in", "notes": "input side header" },
+      { "pin": 3, "name": "DIN", "role": "data in", "notes": "serial data from the Arduino; ELEGOO's tutorial wires this to Arduino pin 12" },
+      { "pin": 4, "name": "CS", "role": "chip select in", "notes": "ELEGOO's tutorial wires this to Arduino pin 11" },
+      { "pin": 5, "name": "CLK", "role": "clock in", "notes": "ELEGOO's tutorial wires this to Arduino pin 10" },
+      { "pin": 6, "name": "VCC", "role": "power out", "notes": "output side header, passes power on to the next module in a chain" },
+      { "pin": 7, "name": "GND", "role": "ground out", "notes": "output side header" },
+      { "pin": 8, "name": "DOUT", "role": "data out", "notes": "feeds the DIN pin of the next module when chaining several matrices together" },
+      { "pin": 9, "name": "CS", "role": "chip select out", "notes": "output side header" },
+      { "pin": 10, "name": "CLK", "role": "clock out", "notes": "output side header" }
+    ],
+    "pin_1_identification": "The module has two 5-pin headers on opposite edges, both silkscreened with their pin names. The header whose data pin is labeled DIN (not DOUT) is the input side, the one you wire to the Arduino first (components101 module datasheet).",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "DC 4.7V to 5.3V, typical 5V (ELEGOO's own tutorial); a third-party module datasheet gives a slightly wider 3.7V to 5.3V for the same style of module",
+    "absolute_max_voltage": "not confirmed from a source I fetched",
+    "typical_current": "not separately confirmed; ELEGOO's tutorial lists only an 'Operating Current' figure of 320mA",
+    "max_current": "2A (ELEGOO's own tutorial states a 'Max Operating Current' of 2A, which reflects the worst case of all 64 LEDs lit at full brightness)",
+    "logic_level": "not confirmed from a source I fetched; since the module runs from a 5V supply, its logic signals are almost certainly 5V level",
+    "interface": "SPI"
+  },
+  "key_specs": {
+    "led_count": 64,
+    "grid": "8 rows by 8 columns",
+    "driver_chip": "MAX7219",
+    "daisy_chainable": "yes, several modules can be wired output-to-input to make a bigger display using the same 3 control wires",
+    "pcb_dimensions_mm": "about 32 x 32, per the components101 module datasheet; ELEGOO's exact board dimensions were not separately confirmed",
+    "arduino_library_used": "Maxmatrix, per ELEGOO's own Lesson 15; other published tutorials for the same hardware commonly use the LedControl or MD_MAX72xx library instead"
+  },
+  "visual_identification": {
+    "shape_and_size": "Small square PCB, about 3.2cm on a side, with a grid of 64 LEDs mounted on top and a black rectangular driver chip soldered to the board",
+    "color_and_markings": "Typically a red 8x8 LED grid (the color most commonly shipped in this kit); the driver chip is usually printed with 'MAX7219'; two 5-pin headers on opposite edges, commonly labeled with the pin names or marked IN and OUT",
+    "printed_text_to_look_for": "Look for 'MAX7219' printed on the black driver chip, and the pin names VCC, GND, DIN or DOUT, CS, CLK silkscreened near each header",
+    "easily_confused_with": ["A bare, unassembled 8x8 LED dot matrix display with no driver chip and no header, which needs external shift registers or a separately wired MAX7219 chip to work", "a MAX7219 7-segment display module, which uses the same driver chip but a different kind of display"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "VCC", "uno_pin": "5V" },
+      { "part_pin": "GND", "uno_pin": "GND" },
+      { "part_pin": "DIN", "uno_pin": "D12" },
+      { "part_pin": "CS", "uno_pin": "D11" },
+      { "part_pin": "CLK", "uno_pin": "D10" }
+    ],
+    "required_extra_parts": ["5 female-to-male jumper wires (ELEGOO tutorial)"],
+    "arduino_library": "Maxmatrix library (ELEGOO's Lesson 15); LedControl or MD_MAX72xx are common alternatives used by other tutorials for this same hardware"
+  },
+  "safety": {
+    "hazards": ["None significant; low voltage display module"],
+    "handling_notes": ["Do not exceed the module's 5.3V maximum supply", "Handle the board by its edges to avoid flexing the solder joints under the LED grid"],
+    "common_mistakes": ["Wiring the Arduino to the OUT-side header instead of the IN-side header, which stops the module from responding", "Uploading code written for a different library (Maxmatrix versus LedControl versus MD_MAX72xx) without installing the matching one first"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "Nothing lights up", "likely_cause": "Power or DIN/CS/CLK wiring mismatch, or the wrong library installed", "check": "Recheck wiring against ELEGOO's Lesson 15 diagram, confirm 5V and GND are connected, and confirm the correct library is installed" },
+      { "symptom": "Display is dim or flickers", "likely_cause": "The 5V supply cannot provide enough current, or brightness is set too low in software", "check": "Confirm the 5V source can supply up to 2A at full brightness (ELEGOO's own spec) and check the brightness setting in the code" }
+    ],
+    "how_to_test_with_a_multimeter": "With the module powered from 5V, measure DC voltage between the VCC and GND pins on the input header; it should read close to 5V. The serial data lines (DIN, CS, CLK) are fast pulsing signals, so a multimeter cannot show them meaningfully; use the Arduino sketch's visible output on the display itself as the real test."
+  },
+  "market": {
+    "unit_price_usd": 8.99,
+    "price_source_url": "https://vakits.com/max7219-red-8x8-dot-matrix-module-w-cable",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Amazon (often sold in packs of 3 to 5)", "NightFire Electronics (vakits.com)", "Banggood", "AliExpress"]
+  },
+  "sources": [
+    { "title": "THE MOST COMPLETE STARTER KIT TUTORIAL FOR UNO V1.0.19.01.23 (ELEGOO official tutorial PDF), Lesson 15 MAX7219 LED Dot Matrix Module", "url": "https://m.media-amazon.com/images/I/C1wMkX1+N9L.pdf", "type": "tutorial", "used_for": "confirms this ships as a pre-wired MAX7219-plus-matrix module rather than a bare matrix, quantity 1, operating voltage 4.7-5.3V, operating current 320mA and max 2A, and wiring (DIN to pin 12, CS to pin 11, CLK to pin 10)" },
+    { "title": "ELEGOO UNO R3 Project Most Complete Starter Kit Instruction Manual (EL-KIT-001 parts list mirror)", "url": "https://manuals.plus/asin/B01CZTLHGE", "type": "wiki", "used_for": "confirms kit SKU EL-KIT-001 and that the current parts list names this item '1pcs MAX7219 Module', not a separate bare 8x8 matrix" },
+    { "title": "MAX7219 8x8 LED Matrix Module datasheet (components101)", "url": "https://components101.com/sites/default/files/component_datasheet/max7219-8x8-led-matrix-module-datasheet.pdf", "type": "datasheet", "used_for": "full 10-pin header table (VCC, GND, DIN/DOUT, CS, CLK on both the input and output sides), PCB dimensions, and corroborating operating voltage/current" },
+    { "title": "MAX7219 Red 8x8 Dot Matrix Module with Cable, NightFire Electronics (vakits.com)", "url": "https://vakits.com/max7219-red-8x8-dot-matrix-module-w-cable", "type": "retailer", "used_for": "market.unit_price_usd and confirmation of common-cathode red matrix at 5V" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer_part_number (the underlying 8x8 matrix chip's exact part number, for example 1088AS, was not confirmed for ELEGOO's specific board)",
+      "electrical.absolute_max_voltage",
+      "electrical.typical_current (as distinct from the max figure)",
+      "electrical.logic_level",
+      "visual_identification exact PCB dimensions of ELEGOO's specific board"
+    ],
+    "notes": "Important correction to the seed record: this item does not ship as a bare 8x8 LED matrix driven by two separate 74HC595 shift registers as the seed guessed. Both ELEGOO's current kit parts list and its own tutorial (Lesson 15) confirm it ships as a single pre-assembled module that combines the 8x8 matrix with an onboard MAX7219 driver chip, wired with only 3 control signals (DIN, CS, CLK) plus power. This module is confirmed present in the current EL-KIT-001 kit."
+  }
+}
