@@ -145,11 +145,43 @@ class VisualClarification(BaseModel):
     reason: str = Field(min_length=1, max_length=500)
 
 
+class ObservedConnection(BaseModel):
+    """One image-grounded edge in the reconstructed circuit."""
+
+    source: str = Field(min_length=1, max_length=160)
+    target: str = Field(min_length=1, max_length=160)
+    status: Literal["visible", "inferred", "unclear"]
+    evidence: str = Field(min_length=1, max_length=500)
+
+
+class CircuitUnderstanding(BaseModel):
+    """The circuit graph Claude believes the current frame supports."""
+
+    summary: str = Field(min_length=1, max_length=1_000)
+    components: list[str] = Field(default_factory=list, max_length=20)
+    connections: list[ObservedConnection] = Field(default_factory=list, max_length=24)
+    unknowns: list[str] = Field(default_factory=list, max_length=12)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class CircuitComparison(BaseModel):
+    """Observed graph compared with the configured target behavior."""
+
+    fits_purpose: Literal["yes", "no", "uncertain"]
+    explanation: str = Field(min_length=1, max_length=1_000)
+    matches: list[str] = Field(default_factory=list, max_length=12)
+    mismatches: list[str] = Field(default_factory=list, max_length=12)
+    missing_or_unclear: list[str] = Field(default_factory=list, max_length=12)
+    safety_issues: list[str] = Field(default_factory=list, max_length=12)
+
+
 class DebugGuidance(BaseModel):
     status: Literal["needs_context", "in_progress", "ready_to_test", "resolved"]
     problem: str = Field(min_length=1, max_length=1_000)
     steps: list[DebugStep] = Field(default_factory=list, max_length=8)
     visual_clarification: VisualClarification | None = None
+    observed_circuit: CircuitUnderstanding | None = None
+    comparison: CircuitComparison | None = None
 
 
 class VisionAnalysis(BaseModel):
