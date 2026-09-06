@@ -374,10 +374,11 @@ component-only. Keep that boundary when adding endpoints, workflow definitions, 
   change made on the dashboard is undone by the next phone reconnect unless you also change it
   in the phone's gear menu.
 - Deleting `tts_cache/` costs ElevenLabs characters on the next start.
-- Voice input with the glasses mic puts the whole session on Bluetooth HFP, so ElevenLabs output
-  is 16 kHz mono while listening and the SCO link shares Bluetooth Classic with the DAT video
-  stream. Meta's own sample records HFP audio while streaming, so it should hold, but fps under
-  load and the echo guard are not yet measured on the hardware (see the field notes).
+- Voice input with the glasses mic puts the whole session on Bluetooth HFP, and that link shares
+  the radio with the DAT video stream: while the glasses spoke, the video decoder got corrupt
+  frames, the preview froze and the watchdog restarted the stream. Measured on 2026-09-06, fixed
+  by the phone mic (now the default): the glasses keep A2DP output only and the video is stable.
+  Keep "Microphone: Glasses" as a test setting, not a demo setting.
 - Grounding is only as good as the frames and the record: on 504 px frames with the part a
   hundred pixels wide, the same three questions about the stepper motor came back right in about
   seven of nine runs. Sonnet 5 accepts no temperature, so run-to-run variation is inherent; the

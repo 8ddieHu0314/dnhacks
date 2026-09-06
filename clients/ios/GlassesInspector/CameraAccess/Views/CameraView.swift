@@ -782,7 +782,7 @@ private struct VoiceInputSection: View {
         Text("Phone").tag(VoiceInput.Mic.phone)
       }
       .pickerStyle(.segmented)
-      Text("Wake word: say \"\(voice.wakeWord), how many pins does this have?\", or the wake word alone and then the question. Always: every sentence goes to the Mac. Speech is recognized on the phone; \"stop\" or \"hush\" silences the glasses. Glasses mic uses Bluetooth HFP, so the voice sounds narrower while listening; Phone keeps the high-quality A2DP output.")
+      Text("Wake word: say \"\(voice.wakeWord), how many pins does this have?\", or the wake word alone and then the question. Always: every sentence goes to the Mac. Speech is recognized on the phone; \"stop\" or \"hush\" silences the glasses. Phone mic (default): the glasses keep their high-quality audio link and the video stays stable. Glasses mic opens a Bluetooth headset link that shares the radio with the camera stream; the picture froze while the glasses spoke, so use it only to test.")
         .font(.caption).foregroundStyle(.secondary)
       Text("Status: \(voice.status) · input: \(voice.route.isEmpty ? "none" : voice.route) · heard \(voice.utterances)")
         .font(.caption.monospaced()).foregroundStyle(.secondary)

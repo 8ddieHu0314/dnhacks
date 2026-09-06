@@ -122,7 +122,10 @@ final class VoiceInput {
   init() {
     let d = UserDefaults.standard
     mode = Mode(rawValue: d.string(forKey: "voiceInputMode") ?? "") ?? .off
-    mic = Mic(rawValue: d.string(forKey: "voiceMic") ?? "") ?? .glasses
+    // Phone mic by default: the glasses mic opens a Bluetooth HFP link that shares the radio with
+    // the DAT video stream, and while the glasses spoke the video decoder saw corrupt frames
+    // (freeze, then watchdog restarts). With the phone mic the glasses keep A2DP output only.
+    mic = Mic(rawValue: d.string(forKey: "voiceMic") ?? "") ?? .phone
     wakeWord = d.string(forKey: "wakeWord") ?? "inspector"
   }
 

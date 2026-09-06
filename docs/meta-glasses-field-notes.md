@@ -352,4 +352,10 @@ Glasses camera -> (Meta AI app / DAT, BT+WiFi) -> iOS app GlassesInspector -> HT
   nil, the watchdog restarts the stream after 6 s without a fresh frame, the Diagnostics line
   shows "waiting for a keyframe N s" and decode failures. If the failures cluster on answers
   with the glasses mic, the "Microphone: Phone" setting (A2DP) is the workaround to try.
+- RESOLVED (2026-09-06, ~10:00): with "Microphone: Phone" the freezes stop entirely. So it is
+  Bluetooth contention: the glasses cannot carry the DAT video stream and an HFP (SCO) audio link
+  at once; while they spoke, video frames arrived corrupt, the decoder threw its session away and
+  waited for a keyframe that never came. Phone mic is now the default (the glasses keep A2DP
+  output for the answers). The decoder tolerance, the stall watchdog and the held-frame restart
+  stay as safety nets. Never demo with the glasses mic.
 
