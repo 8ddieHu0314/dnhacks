@@ -283,7 +283,7 @@ struct CameraView: View {
           Text("Mac: \(err)").font(.system(size: 11)).foregroundStyle(.yellow)
         }
         HStack(spacing: 10) {
-          CustomButton(title: viewModel.frameRelay.reactiveEnabled ? "Reactive: \(viewModel.frameRelay.reactiveStatus)" : (viewModel.frameRelay.narrationEnabled ? "Narrating…" : "Describe"), style: .primary, isDisabled: !viewModel.isStreaming) {
+          CustomButton(title: viewModel.frameRelay.reactiveEnabled ? "\(viewModel.frameRelay.reactiveMode == "scene" ? "Scene" : "Parts"): \(viewModel.frameRelay.reactiveStatus)" : "Describe", style: .primary, isDisabled: !viewModel.isStreaming) {
             viewModel.frameRelay.requestInspect()
           }
           if viewModel.frameRelay.speaker.isSpeaking {
@@ -617,7 +617,6 @@ struct RelaySettingsView: View {
   @Bindable var wearablesVM: WearablesViewModel
   @AppStorage("streamResolution") private var streamResolution: String = "low"
   @AppStorage("streamFPS") private var streamFPS: Int = 24
-  @State private var narrationInterval: Double = 8
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
@@ -681,22 +680,27 @@ struct RelaySettingsView: View {
             Slider(value: $relay.jpegQuality, in: 0.3...0.95, step: 0.05)
           }
         }
-        Section("Claude narration") {
-          Toggle("Speak results through glasses", isOn: $relay.speakEnabled)
-          Toggle("Reactive identify (hands-free)", isOn: Binding(
-            get: { relay.reactiveEnabled },
-            set: { relay.setReactive(enabled: $0) }))
-          Text("Reactive: speaks the part name when a new part settles in view; silent otherwise. Runs on the Mac.")
-            .font(.caption).foregroundStyle(.secondary)
-          Toggle("Continuous narration (Mac)", isOn: Binding(
-            get: { relay.narrationEnabled },
-            set: { relay.setNarration(enabled: $0, interval: narrationInterval) }))
-          HStack {
-            Text("Every \(Int(narrationInterval)) s").frame(width: 100, alignment: .leading)
-            Slider(value: $narrationInterval, in: 3...30, step: 1) { editing in
-              if !editing && relay.narrationEnabled { relay.setNarration(enabled: true, interval: narrationInterval) }
-            }
+        Section("Hands-free") {
+          Picker("Mode", selection: $relay.handsFreeMode) {
+            Text("Off").tag("off")
+            Text("Parts").tag("parts")
+            Text("Scene").tag("scene")
           }
+          .pickerStyle(.segmented)
+          Text("Parts: names the catalog part when a new one settles in view. Scene: narrates what changed in view. Both fire on change only; the Mac remembers the mode across reconnects.")
+            .font(.caption).foregroundStyle(.secondary)
+          Text("Mac: \(relay.reactiveEnabled ? "\(relay.reactiveMode) · \(relay.reactiveStatus)" : "off")")
+            .font(.caption.monospaced()).foregroundStyle(.secondary)
+        }
+        Section("Voice") {
+          Picker("Voice", selection: $relay.voiceProvider) {
+            Text("Apple (phone)").tag("apple")
+            Text("ElevenLabs").tag("elevenlabs")
+          }
+          .pickerStyle(.segmented)
+          Text("Active on Mac: \(relay.activeVoice). ElevenLabs needs its key on the Mac and falls back to Apple otherwise.")
+            .font(.caption).foregroundStyle(.secondary)
+          Toggle("Speak results through glasses", isOn: $relay.speakEnabled)
           Button("Test voice on glasses") { relay.speaker.speak("Glasses audio link is live. Claude will speak here.") }
           Button("Stop speaking") { relay.speaker.stop() }
           Text("Narration runs on the Mac; needs ANTHROPIC_API_KEY there, or INSPECT_FAKE=1 to test the audio path.")

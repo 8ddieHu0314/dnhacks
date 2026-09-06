@@ -42,6 +42,10 @@ state = {
     "sharp_threshold": 0.010,    # Laplacian variance on a 96px gray; above = usable without settling
     "cooldown_seconds": 0.8,
     "short_spoken": True,        # announce name + one spec; full line stays on Describe
+    "mode": "parts",             # parts = catalog lookup; scene = free-text narration on change
+    "interrupt_confidence": 0.85,  # a different id must be this sure to cut an announcement in progress
+    "announce_until": 0.0,       # when the current announcement's audio ends
+    "pending": None,             # (pid, rec, conf) waiting for the audio to end
     "last_id": None,
     "last_result": None,
     "last_spoken_at": 0.0,
@@ -351,13 +355,40 @@ def _diff(a, b) -> float:
     return float(np.abs(a - b).mean())
 
 
-async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption):
-    """get_latest() -> (bytes, ts) | (None, 0); on_result(obj); speak(text); speak_stop(); set_caption(text, final)."""
+def _interrupt_policy(pid, conf, now):
+    """Decide what to do with a fresh id while an announcement may still be playing.
+    Returns 'announce', 'interrupt', 'pending' or 'ignore'."""
+    if not pid or conf < state["min_confidence"]:
+        return "ignore"
+    if pid == state["last_id"]:
+        return "ignore"
+    if now >= state["announce_until"]:
+        return "announce"          # nothing playing: say it
+    if conf >= state["interrupt_confidence"]:
+        return "interrupt"         # very sure it's a different part: cut in
+    return "pending"               # probably a misread mid-motion: wait for the audio to end
+
+
+async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption, narrate=None):
+    """get_latest() -> (bytes, ts) | (None, 0); on_result(obj); speak(text) -> seconds of audio;
+    speak_stop(); set_caption(text, final); narrate(data) -> spoken text or None (scene mode)."""
     global _prev_thumb, _prev_frame_ts, _last_motion_at, _identified_thumb, _busy
     while state["enabled"]:
         await asyncio.sleep(0.05)
-        data, ts = get_latest()
         now = time.time()
+        # A pending part whose announcement was deferred: say it once the audio has ended,
+        # unless something else has been announced since.
+        if state["pending"] and now >= state["announce_until"] and not _busy:
+            pid, rec, conf = state["pending"]
+            state["pending"] = None
+            if pid != state["last_id"]:
+                state["last_id"] = pid
+                state["last_spoken_at"] = now
+                line = spoken_short(rec) if state["short_spoken"] else spoken_for(rec, "")
+                secs = await speak(line)
+                state["announce_until"] = time.time() + (secs or 0)
+                await set_caption(line, True)
+        data, ts = get_latest()
         if not data or ts == _prev_frame_ts or now - ts > 2:
             continue
         _prev_frame_ts = ts
@@ -377,36 +408,57 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption):
         if not settled and _sharpness(data) < state["sharp_threshold"]:
             continue
         _busy = True
-        state["status"] = "identifying"
+        state["status"] = "identifying" if state["mode"] == "parts" else "describing"
         await set_caption("Looking…", False)
-        spoke = {"done": False}
-
-        async def on_early(pid, conf, rec):
-            # Speak the instant the id is known; evidence keeps streaming for the dashboard.
-            if pid and rec and conf >= state["min_confidence"] and pid != state["last_id"]:
-                state["last_id"] = pid
-                state["last_spoken_at"] = time.time()
-                spoke["done"] = True
-                await speak_stop()
-                line = spoken_short(rec) if state["short_spoken"] else spoken_for(rec, "")
-                await speak(line)
-                await set_caption(line, True)
-
         try:
+            if state["mode"] == "scene":
+                _identified_thumb = thumb
+                text = await narrate(data) if narrate else None
+                state["last_result"] = {"mode": "scene", "text": text, "ts": time.time()}
+                if text:
+                    state["last_spoken_at"] = time.time()
+                    state["announce_until"] = time.time() + len(text) / 12.0
+                    await set_caption(text, True)
+                else:
+                    await set_caption("no change", True)
+                continue
+
+            decided = {"action": None}
+
+            async def on_early(pid, conf, rec):
+                # Speak the instant the id is known; evidence keeps streaming for the dashboard.
+                action = _interrupt_policy(pid, conf, time.time())
+                decided["action"] = action
+                if action in ("announce", "interrupt") and rec:
+                    if action == "interrupt":
+                        await speak_stop()
+                    state["last_id"] = pid
+                    state["last_spoken_at"] = time.time()
+                    state["pending"] = None
+                    line = spoken_short(rec) if state["short_spoken"] else spoken_for(rec, "")
+                    secs = await speak(line)
+                    state["announce_until"] = time.time() + (secs or 0)
+                    await set_caption(line, True)
+                elif action == "pending" and rec:
+                    state["pending"] = (pid, rec, conf)
+
             obj = await identify_frame(data, on_early=on_early)
             _identified_thumb = thumb
             state["last_result"] = obj
             obj["_frame"] = data
+            obj["action"] = decided["action"]
             await on_result(obj)
             pid, conf = obj.get("id"), float(obj.get("confidence") or 0)
-            if spoke["done"]:
+            if decided["action"] in ("announce", "interrupt"):
                 pass
+            elif decided["action"] == "pending":
+                await set_caption(f"Maybe {obj.get('name')} ({conf:.0%}), waiting for audio to finish.", True)
             elif pid and pid == state["last_id"]:
                 await set_caption(f"Still {obj.get('name')}.", True)
             else:
                 await set_caption(f"Not sure ({obj.get('name')}, {conf:.0%}). {obj.get('evidence', '')}", True)
         except Exception as e:
-            await set_caption(f"identify error: {e}", True)
+            await set_caption(f"error: {e}", True)
         finally:
             _busy = False
             state["status"] = "settled"
@@ -420,9 +472,14 @@ def set_enabled(enabled: bool, **kw):
             state[k] = float(kw[k])
     if kw.get("short_spoken") is not None:
         state["short_spoken"] = bool(kw["short_spoken"])
+    if kw.get("mode") in ("parts", "scene"):
+        state["mode"] = kw["mode"]
+    if kw.get("interrupt_confidence") is not None:
+        state["interrupt_confidence"] = float(kw["interrupt_confidence"])
     state["enabled"] = bool(enabled)
     if enabled:
         state["last_id"] = None
+        state["pending"] = None
         _identified_thumb = None
 
 

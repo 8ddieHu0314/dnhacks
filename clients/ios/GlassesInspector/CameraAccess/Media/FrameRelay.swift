@@ -137,11 +137,15 @@ actor RelaySocket {
     return nil
   }
 
+  var onClose: (@Sendable () -> Void)?
+  func setCloseHandler(_ h: @escaping @Sendable () -> Void) { onClose = h }
+
   func close() {
     connection?.c.cancel()
     connection = nil
     ready = false
     pathDescription = "not connected"
+    onClose?()
     let waiters = readyWaiters
     readyWaiters = []
     for w in waiters { w.resume(throwing: RelayError.disconnected) }
@@ -614,10 +618,26 @@ final class FrameRelay {
   /// Server-side continuous narration state, as reported by the receiver.
   private(set) var narrationEnabled: Bool = false
   private(set) var narrationInterval: Double = 8
-  /// Server-side reactive identification (speaks when a new part comes into view).
+  /// Server-side hands-free mode: "off", "parts" (catalog lookup) or "scene" (narration).
+  /// Persisted, and re-sent to the Mac on every reconnect so it survives restarts.
+  var handsFreeMode: String {
+    didSet {
+      UserDefaults.standard.set(handsFreeMode, forKey: "handsFreeMode")
+      sendCommand(["type": "reactive", "enabled": handsFreeMode != "off", "mode": handsFreeMode == "off" ? "parts" : handsFreeMode])
+    }
+  }
+  /// Voice the Mac should use for speech: "apple" (on the phone) or "elevenlabs" (streamed from the Mac).
+  var voiceProvider: String {
+    didSet {
+      UserDefaults.standard.set(voiceProvider, forKey: "voiceProvider")
+      sendCommand(["type": "voice", "provider": voiceProvider])
+    }
+  }
   private(set) var reactiveEnabled: Bool = false
+  private(set) var reactiveMode: String = "parts"
   private(set) var reactiveStatus: String = "idle"
   private(set) var reactiveLastID: String?
+  private(set) var activeVoice: String = "apple"
   private(set) var lastCommandError: String?
 
   private init() {
@@ -629,6 +649,8 @@ final class FrameRelay {
     targetFPS = d.object(forKey: Self.fpsKey) as? Double ?? 15
     jpegQuality = d.object(forKey: Self.qualityKey) as? Double ?? 0.6
     speakEnabled = d.object(forKey: "relaySpeak") as? Bool ?? true
+    handsFreeMode = d.string(forKey: "handsFreeMode") ?? "off"
+    voiceProvider = d.string(forKey: "voiceProvider") ?? "elevenlabs"
     browser.onUpdate = { [weak self] in self?.applyTarget() }
     browser.start()
     meter.start()
@@ -637,6 +659,9 @@ final class FrameRelay {
     Task { [engine] in
       await engine.socket.setTextHandler { [weak self] text in
         Task { @MainActor [weak self] in self?.handleServerText(text) }
+      }
+      await engine.socket.setCloseHandler { [weak self] in
+        Task { @MainActor [weak self] in self?.announcedPrefs = false }
       }
     }
     statsTask = Task { [weak self] in
@@ -726,8 +751,11 @@ final class FrameRelay {
     sendCommand(["type": "narrate", "enabled": enabled, "interval": interval])
   }
 
-  func setReactive(enabled: Bool) {
-    sendCommand(["type": "reactive", "enabled": enabled])
+  /// Re-assert the phone's preferences after a (re)connect; the Mac's hello triggers this.
+  private var announcedPrefs = false
+  private func announcePrefs() {
+    sendCommand(["type": "voice", "provider": voiceProvider])
+    sendCommand(["type": "reactive", "enabled": handsFreeMode != "off", "mode": handsFreeMode == "off" ? "parts" : handsFreeMode])
   }
 
   private func sendCommand(_ msg: [String: Any]) {
@@ -769,9 +797,16 @@ final class FrameRelay {
       speaker.stop()
       caption = ""
     case "reactive":
+      // First "reactive" after a connect is the Mac's hello: push our saved preferences.
+      if !announcedPrefs {
+        announcedPrefs = true
+        announcePrefs()
+      }
       reactiveEnabled = obj["enabled"] as? Bool ?? false
+      reactiveMode = obj["mode"] as? String ?? "parts"
       reactiveStatus = obj["status"] as? String ?? "idle"
       reactiveLastID = obj["last_id"] as? String
+      activeVoice = obj["voice"] as? String ?? activeVoice
     case "narration":
       narrationEnabled = obj["enabled"] as? Bool ?? false
       narrationInterval = obj["interval"] as? Double ?? narrationInterval

@@ -181,7 +181,8 @@ def _stats():
             "inspections": len(state["report"]), "narration": narration["enabled"], "interval": narration["interval"],
             "reactive": identify.state["enabled"], "reactive_status": identify.state["status"], "last_id": identify.state["last_id"],
             "catalog_parts": len(identify.catalog), "identify_model": identify.MODEL,
-            "tts": {"provider": "elevenlabs" if tts.enabled() else "apple", "chars": speech["chars"],
+            "reactive_mode": identify.state["mode"],
+            "tts": {"provider": _voice_active(), "available": tts.enabled(), "chars": speech["chars"],
                     "errors": speech["errors"], "last_error": speech["last_error"],
                     "cache_hits": speech.get("cache_hits", 0), "speed": tts.SPEED}}
 
@@ -203,12 +204,31 @@ async def _caption(text: str, final: bool):
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
-async def _say(text: str):
-    """Send one sentence to the phone. With ElevenLabs configured the phone shows the caption and
-    waits for PCM audio; otherwise it speaks the text with Apple's voice as before."""
-    if not tts.enabled():
+voice = {"provider": "elevenlabs" if tts.enabled() else "apple"}   # phone can switch this
+
+
+def _voice_active() -> str:
+    return "elevenlabs" if (tts.enabled() and voice["provider"] == "elevenlabs") else "apple"
+
+
+def speech_seconds(text: str) -> float:
+    """How long this sentence will take to play: exact for cached ElevenLabs audio, else estimated."""
+    if _voice_active() == "elevenlabs":
+        pre = tts.cached(text)
+        if pre is not None:
+            return len(pre) / (tts.SAMPLE_RATE * 2)
+        return len(text) / 12.0
+    return len(text) / 14.0   # Apple voice at default rate
+
+
+async def _say(text: str) -> float:
+    """Send one sentence to the phone and return its approximate playback length in seconds.
+    With ElevenLabs active the phone shows the caption and waits for PCM audio; otherwise it
+    speaks the text with Apple's voice."""
+    secs = speech_seconds(text)
+    if _voice_active() != "elevenlabs":
         await _send_all(phones, {"type": "speak", "text": text})
-        return
+        return secs
     speech["next_id"] += 1
     uid = speech["next_id"]
     await _send_all(phones, {"type": "speak", "text": text, "id": uid, "audio": True})
@@ -218,6 +238,7 @@ async def _say(text: str):
     t = speech.get("task")
     if t is None or t.done():
         speech["task"] = asyncio.create_task(_tts_worker())
+    return secs
 
 
 def _drop_pending_speech():
@@ -389,7 +410,11 @@ async def handle_phone_command(msg: dict):
         set_narration(msg.get("enabled", False), msg.get("interval"))
         await _send_all(phones, {"type": "narration", "enabled": narration["enabled"], "interval": narration["interval"]})
     elif kind == "reactive":
-        set_reactive(msg.get("enabled", False))
+        set_reactive(msg.get("enabled", False), mode=msg.get("mode"))
+        await _send_all(phones, {"type": "reactive", **_reactive_public()})
+    elif kind == "voice":
+        if msg.get("provider") in ("apple", "elevenlabs"):
+            voice["provider"] = msg["provider"]
         await _send_all(phones, {"type": "reactive", **_reactive_public()})
 
 
@@ -505,7 +530,7 @@ async def narrate(request: Request):
 
 def _reactive_public():
     st = identify.state
-    return {"enabled": st["enabled"], "status": st["status"], "last_id": st["last_id"],
+    return {"enabled": st["enabled"], "mode": st["mode"], "voice": _voice_active(), "status": st["status"], "last_id": st["last_id"],
             "last_result": st["last_result"], "calls": st["calls"], "catalog": identify.catalog_source,
             "parts": len(identify.catalog), "min_confidence": st["min_confidence"]}
 
@@ -529,21 +554,41 @@ def set_reactive(enabled: bool, **kw):
             with REPORT_PATH.open("a") as f:
                 f.write(json.dumps(entry) + "\n")
         async def speak(text):
-            await _say(text)
+            secs = await _say(text)
             await _send_all(phones, {"type": "speak_end"})
+            return secs
         async def speak_stop():
             _drop_pending_speech()
             await _send_all(phones, {"type": "speak_stop"})
+        async def narrate_scene(data):
+            # Scene mode: free-text narration of what changed, spoken sentence by sentence.
+            if narration["busy"]:
+                return None
+            narration["busy"] = True
+            try:
+                entry = await analyze("Narrate what the wearer is looking at now.", narrate=True)
+                return entry["result"] if entry else None
+            finally:
+                narration["busy"] = False
         identify.state["task"] = asyncio.create_task(identify.reactive_loop(
-            lambda: (state["latest"], state["latest_ts"]), on_result, speak, speak_stop, _caption))
+            lambda: (state["latest"], state["latest_ts"]), on_result, speak, speak_stop, _caption, narrate_scene))
 
 
 @app.post("/reactive")
 async def reactive(request: Request):
     body = await request.json()
-    set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds", "short_spoken")})
+    set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds", "short_spoken", "mode", "interrupt_confidence")})
     await _send_all(phones, {"type": "reactive", **_reactive_public()})
     return _reactive_public()
+
+
+@app.post("/voice")
+async def set_voice(request: Request):
+    body = await request.json()
+    if body.get("provider") in ("apple", "elevenlabs"):
+        voice["provider"] = body["provider"]
+    await _send_all(phones, {"type": "reactive", **_reactive_public()})
+    return {"voice": _voice_active(), "elevenlabs_available": tts.enabled()}
 
 
 @app.get("/reactive")
@@ -609,15 +654,17 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 <aside>
 <input id=q placeholder="Question (optional)">
 <button class=primary onclick="inspect()">Inspect this frame</button>
-<div style="display:flex;gap:8px;align-items:center;margin-top:10px">
-  <label style="font-size:14px"><input type=checkbox id=react onchange="reactive()"> <b>Reactive identify</b></label>
+<div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+  <b style="font-size:14px">Hands-free</b>
+  <select id=mode onchange="reactive()" style="background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:4px">
+    <option value="off">Off</option><option value="parts">Parts (catalog)</option><option value="scene">Scene (narration)</option></select>
+  <b style="font-size:14px;margin-left:8px">Voice</b>
+  <select id=voice onchange="setVoice()" style="background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:4px">
+    <option value="apple">Apple (on phone)</option><option value="elevenlabs">ElevenLabs</option></select>
   <span id=rstat style="font:12px ui-monospace,monospace;color:#9f9"></span>
 </div>
 <div id=card style="display:none;margin-top:10px;padding:10px;background:#1c1c1c;border:1px solid #333;border-radius:8px;font-size:13px"></div>
-<div style="display:flex;gap:8px;align-items:center;margin-top:10px">
-  <label style="font-size:14px"><input type=checkbox id=narr onchange="narrate()"> Narrate continuously</label>
-  <input id=interval type=number min=3 step=1 value=8 style="width:70px;margin:0" onchange="narrate()"> s
-</div>
+
 <div id=out></div>
 <h3>Report</h3><div id=rep></div></aside>
 <script>
@@ -642,8 +689,10 @@ function connect(){
         c.innerHTML=`<b>${m.name||'?'}</b> <span style="color:#888">id=${m.id} · ${Math.round((m.confidence||0)*100)}% · id in ${m.timing?m.timing.id_at_ms:'?'} ms, done ${m.timing?m.timing.total_ms:'?'} ms</span><div>${m.spoken||''}</div><div style="color:#888;font-size:12px">${m.evidence||''}</div>`+
         (m.record?`<pre style="white-space:pre-wrap;font-size:11px;color:#bbb;margin:6px 0 0">${JSON.stringify(m.record,null,1).slice(0,1200)}</pre>`:'');return;}
       if(m.type==='caption'){const out=document.getElementById('out');out.textContent=m.text||(m.final?'':'thinking…');out.style.opacity=m.final?1:0.7;if(m.final&&m.text)loadReport();return;}
-      stats=m;renderHud();document.getElementById('narr').checked=!!m.narration;
-      document.getElementById('react').checked=!!m.reactive;document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
+      stats=m;renderHud();
+      if(document.activeElement.id!=='mode')document.getElementById('mode').value=m.reactive?(m.reactive_mode||'parts'):'off';
+      if(document.activeElement.id!=='voice')document.getElementById('voice').value=(m.tts&&m.tts.provider)||'apple';
+      document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
     try{const b=await createImageBitmap(e.data);if(bmp)bmp.close();bmp=b;draw();
       shown++;const now=performance.now();if(now-lastShown>1000){dispFps=shown*1000/(now-lastShown);shown=0;lastShown=now;}}catch(err){}
   };
@@ -656,8 +705,8 @@ window.addEventListener('resize',draw);
 async function inspect(){const out=document.getElementById('out');out.textContent='thinking…';
  const r=await fetch('/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:document.getElementById('q').value||undefined})});
  const j=await r.json();if(j.error)out.textContent=j.error;loadReport();}
-async function reactive(){await fetch('/reactive',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:document.getElementById('react').checked})});}
-async function narrate(){await fetch('/narrate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:document.getElementById('narr').checked,interval:+document.getElementById('interval').value})});}
+async function reactive(){const v=document.getElementById('mode').value;await fetch('/reactive',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:v!=='off',mode:v==='off'?undefined:v})});}
+async function setVoice(){await fetch('/voice',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:document.getElementById('voice').value})});}
 async function loadReport(){const rep=await (await fetch('/report')).json();
  document.getElementById('rep').innerHTML=rep.map(e=>`<div class=e><small>${new Date(e.ts*1000).toLocaleTimeString()} · ${e.model}</small><div>${e.result}</div><img src="/frames/${e.frame}"></div>`).join('');}
 loadReport();connect();
