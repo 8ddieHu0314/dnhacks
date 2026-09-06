@@ -331,24 +331,19 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
               schema: dict[str, Any] | None = None) -> dict[str, Any]:
         body = super()._body(system=system, text=text, frame=frame, schema=schema)
         body["max_tokens"] = 160
+        body.pop("temperature", None)
         body["system"] = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
         return body
 
     def _system_prompt(self) -> str:
         return ("Identify the electronic component in view against this catalog. Read printed markings first; "
-                "never invent specifications. Return only the requested JSON.\n\nCatalog:\n" + self._catalog_index)
-
-    @staticmethod
-    def _identification_schema(ids: list[str]) -> dict[str, Any]:
-        return {"type": "object", "properties": {
-            "id": {"type": ["string", "null"], "enum": [*ids, None]},
-            "confidence": {"type": "number"}, "name": {"type": "string"}, "evidence": {"type": "string"},
-        }, "required": ["id", "confidence", "name", "evidence"]}
+                "never invent specifications. Reply with JSON only: {\"id\": \"catalog id or null\", \"confidence\": "
+                "number, \"name\": \"short name\", \"evidence\": \"12 words max\"}.\n\nCatalog:\n" + self._catalog_index)
 
     async def analyze(self, frame: Frame) -> VisionOutput:
         payload = await self._complete(
             system=self._system_prompt(), text=frame.metadata.user_request or "Identify the component in view.",
-            frame=frame, schema=self._identification_schema(list(self._knowledge_base._by_id)),
+            frame=frame,
         )
         record = self._knowledge_base.record_for(str(payload.get("id"))) if payload.get("id") else None
         evidence = str(payload.get("evidence", "")).strip()
