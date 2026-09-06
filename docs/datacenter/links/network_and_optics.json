@@ -1,0 +1,202 @@
+{
+  "group": "network_and_optics",
+  "collected_on": "2026-09-05",
+  "items": [
+    {
+      "id": "network_and_optics/cisco-nexus-93180yc-ex-hig",
+      "category": "switch",
+      "vendor": "Cisco",
+      "product_family": "Nexus 9000 Series (9300 fixed switches)",
+      "model_examples": ["Nexus 93180YC-EX"],
+      "doc_type": "installation_guide",
+      "title": "Cisco Nexus 93180YC-EX NX-OS Mode Hardware Installation Guide",
+      "url": "https://www.cisco.com/c/en/us/td/docs/switches/datacenter/nexus9000/hw/n93180ycex_hig/guide/b_n93180ycex_nxos_mode_hardware_install_guide/b_n93180ycex_nxos_mode_hardware_install_guide_preface_00.html",
+      "format": "html",
+      "fetched_ok": true,
+      "approx_pages": 70,
+      "what_a_tech_uses_it_for": "To physically install, rack, cable, and swap parts on a Nexus 9300 top of rack switch safely.",
+      "key_procedures_inside": [
+        "rail kit and chassis installation",
+        "connecting the switch to the network",
+        "replacing power supplies and fans",
+        "site preparation and rack specifications",
+        "LED status reference"
+      ],
+      "safety_relevant": true,
+      "notes": "Covers the 93180YC-EX chassis specifically. Other Nexus 9300 chassis, such as 93180YC-FX and the 9348 family, have sibling guides in the same document set on the same Cisco support page."
+    },
+    {
+      "id": "network_and_optics/cisco-optics-compatibility-matrix",
+      "category": "optic",
+      "vendor": "Cisco",
+      "product_family": "Transceiver Modules, Optics Compatibility Matrix tool",
+      "model_examples": ["SFP-10G-SR", "SFP-25G-SR-S", "QSFP-100G-SR4-S"],
+      "doc_type": "product_page",
+      "title": "Cisco Optics-to-Device Compatibility Matrix",
+      "url": "https://tmgmatrix.cisco.com/",
+      "format": "html",
+      "fetched_ok": true,
+      "approx_pages": 1,
+      "what_a_tech_uses_it_for": "To confirm a specific transceiver part number is supported in a specific Cisco switch or line card before plugging it in.",
+      "key_procedures_inside": [
+        "cross reference an optic part number to a switch platform",
+        "filter by data rate, reach, cable type, and form factor"
+      ],
+      "safety_relevant": false,
+      "notes": "This is an interactive web tool, not a static document. It replaces the old PDF compatibility matrices Cisco used to publish."
+    },
+    {
+      "id": "network_and_optics/arista-7050x4-qsg",
+      "category": "switch",
+      "vendor": "Arista",
+      "product_family": "7050X Series data center switches (7050X4 generation)",
+      "model_examples": ["DCS-7050DX4-32S", "DCS-7050PX4-32S"],
+      "doc_type": "quick_start",
+      "title": "Quick Start Guide, 7050X4 Series Data Center Switches",
+      "url": "https://www.arista.com/assets/data/pdf/qsg/qsg-books/QS_7050X4.pdf",
+      "format": "pdf",
+      "fetched_ok": true,
+      "approx_pages": 20,
+      "what_a_tech_uses_it_for": "To unbox, rack mount, cable, power on, and do first time setup of an Arista 7050X4 top of rack switch.",
+      "key_procedures_inside": [
+        "unboxing and shipping damage inspection",
+        "rack mounting",
+        "cabling data ports and console",
+        "power connection",
+        "initial boot and Zero Touch Provisioning"
+      ],
+      "safety_relevant": true,
+      "notes": "PDF fetched successfully (about 2.9MB). Automated text extraction could not read the embedded fonts, but the file path and title confirm this is the official quick start guide for the 7050X4 family, found via Arista's own quick start guide index."
+    },
+    {
+      "id": "network_and_optics/juniper-qfx5120-hardware-guide",
+      "category": "switch",
+      "vendor": "Juniper",
+      "product_family": "QFX5120 Switch",
+      "model_examples": ["QFX5120-32C", "QFX5120-48Y"],
+      "doc_type": "installation_guide",
+      "title": "QFX5120 Switch Hardware Guide",
+      "url": "https://www.juniper.net/documentation/us/en/hardware/qfx5120/index.html",
+      "format": "html",
+      "fetched_ok": true,
+      "approx_pages": 100,
+      "what_a_tech_uses_it_for": "To install, cable, power, and maintain a Juniper QFX5120 top of rack switch and to read hardware fault indicators.",
+      "key_procedures_inside": [
+        "unpacking and mounting the chassis",
+        "connecting transceivers and cables",
+        "power supply and fan tray replacement",
+        "initial configuration",
+        "troubleshooting and LED reference"
+      ],
+      "safety_relevant": true,
+      "notes": "Landing page links out to the Fast Track install steps, the Unpack and Mount topic, and a full combined PDF version of the same guide."
+    },
+    {
+      "id": "network_and_optics/cisco-10gbase-sfp-plus-datasheet",
+      "category": "optic",
+      "vendor": "Cisco",
+      "product_family": "10GBASE SFP+ Modules",
+      "model_examples": ["SFP-10G-SR", "SFP-H10GB-CUxM (Twinax DAC)", "SFP-10G-AOCxM"],
+      "doc_type": "datasheet",
+      "title": "Cisco 10GBASE SFP+ Modules Data Sheet",
+      "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/data_sheet_c78-455693.html",
+      "format": "html",
+      "fetched_ok": true,
+      "approx_pages": 30,
+      "what_a_tech_uses_it_for": "To pick the right 10G SFP+ optic or direct attach cable for a link and to check its reach, connector, and handling notes before install.",
+      "key_procedures_inside": [
+        "module and cable ordering information",
+        "optical and electrical specifications by reach",
+        "environmental and power specs",
+        "connector types, LC duplex and Twinax"
+      ],
+      "safety_relevant": true,
+      "notes": "SFP-10G-SR reach is 26m on legacy MMF, 300m on OM3, 400m on OM4, at 850nm over a dual LC/PC connector. Same document also covers passive and active Twinax direct attach copper cables and SFP+ active optical cables (AOC), 1 to 10 meters."
+    },
+    {
+      "id": "network_and_optics/cisco-25gbase-sfp28-datasheet",
+      "category": "optic",
+      "vendor": "Cisco",
+      "product_family": "25GBASE SFP28 Modules",
+      "model_examples": ["SFP-25G-SR-S", "SFP-25G-CSR-S"],
+      "doc_type": "datasheet",
+      "title": "Cisco 25GBASE SFP28 Modules Data Sheet",
+      "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/datasheet-c78-736950.html",
+      "format": "html",
+      "fetched_ok": true,
+      "approx_pages": 20,
+      "what_a_tech_uses_it_for": "To choose and verify a 25G SFP28 optic for a server or switch uplink, including whether the host port needs RS-FEC turned on.",
+      "key_procedures_inside": [
+        "ordering information",
+        "optical specifications by reach, 70m OM3 and 100m OM4",
+        "power consumption and environmental limits"
+      ],
+      "safety_relevant": true,
+      "notes": "SFP-25G-SR-S is 850nm over a dual LC/PC connector, max 1.2W, and requires RS-FEC (Reed-Solomon forward error correction) enabled on the host port to operate correctly."
+    },
+    {
+      "id": "network_and_optics/cisco-100gbase-qsfp-100g-datasheet",
+      "category": "optic",
+      "vendor": "Cisco",
+      "product_family": "100GBASE QSFP-100G Modules",
+      "model_examples": ["QSFP-100G-SR4-S"],
+      "doc_type": "datasheet",
+      "title": "Cisco 100GBASE QSFP-100G Modules Data Sheet",
+      "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/datasheet-c78-736282.html",
+      "format": "html",
+      "fetched_ok": true,
+      "approx_pages": 25,
+      "what_a_tech_uses_it_for": "To identify a 100G QSFP28 optic, confirm it takes an MPO-12 fiber trunk, and check reach and power draw before installing it.",
+      "key_procedures_inside": [
+        "ordering information",
+        "optical specifications, 850nm, MPO-12 connector, 70m OM3 and 100m OM4",
+        "power consumption (about 3.5W)",
+        "compliance standards"
+      ],
+      "safety_relevant": true,
+      "notes": "QSFP-100G-SR4-S is the parallel fiber variant that plugs into MPO/MTP trunk cabling rather than a duplex LC patch cord."
+    },
+    {
+      "id": "network_and_optics/arista-optics-and-cables-datasheet",
+      "category": "optic",
+      "vendor": "Arista",
+      "product_family": "Optics Modules and Cables",
+      "model_examples": ["SFP-10G-SR", "SFP28-25G-SR", "QSFP-100G-SR4", "CAB-SFP-SFP direct attach copper"],
+      "doc_type": "datasheet",
+      "title": "Optics Modules and Cables Data Sheet",
+      "url": "https://www.arista.com/assets/data/pdf/Datasheets/Transceiver-Data-Sheet.pdf",
+      "format": "pdf",
+      "fetched_ok": true,
+      "approx_pages": 15,
+      "what_a_tech_uses_it_for": "To cross reference Arista's own transceiver and direct attach cable part numbers against reach, speed, and connector type.",
+      "key_procedures_inside": [
+        "transceiver and cable part number listing",
+        "reach and speed by form factor, SFP+, SFP28, QSFP28"
+      ],
+      "safety_relevant": false,
+      "notes": "PDF fetched successfully (about 1.9MB). Automated text extraction failed on the embedded fonts, but the URL and file name, found via Arista's transceivers-cables product page, confirm this is the official combined optics and cables data sheet."
+    },
+    {
+      "id": "network_and_optics/foa-mpo-mtp-array-connectors",
+      "category": "cabling",
+      "vendor": "Fiber Optic Association (FOA)",
+      "product_family": "MPO/MTP array connectors",
+      "model_examples": ["MPO", "MTP", "Type A", "Type B", "Type C"],
+      "doc_type": "spec_sheet",
+      "title": "MPO/MTP Array Connectors: Description, Polarity, and Testing",
+      "url": "https://www.thefoa.org/tech/ref/testing/test/test-MPO.html",
+      "format": "html",
+      "fetched_ok": true,
+      "approx_pages": 3,
+      "what_a_tech_uses_it_for": "To recognize an MPO/MTP trunk connector, tell Type A, B, and C polarity apart, and know how a parallel fiber link gets tested.",
+      "key_procedures_inside": [
+        "identifying the MPO/MTP connector and key orientation",
+        "Type A, B, and C polarity per TIA-568",
+        "mating adapter key-up versus key-down orientation",
+        "OTDR and breakout cable test methods"
+      ],
+      "safety_relevant": false,
+      "notes": "Corning, CommScope, and Panduit polarity guides were tried first, direct guesses and their site search pages, but every attempt came back 403, 404, or a JavaScript only search shell with no fetchable static document. The Fiber Optic Association, a nonprofit fiber optics trade and education body, is used instead and explicitly covers TIA-568 Type A/B/C polarity, which is the core concept a tech needs at the rack."
+    }
+  ]
+}

@@ -1,0 +1,186 @@
+{
+  "id": "stepper-28byj48",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "Stepper Motor",
+    "canonical_name": "28BYJ-48 stepper motor",
+    "aliases": [
+      "28BYJ48",
+      "5V unipolar geared stepper motor"
+    ],
+    "category": "actuator",
+    "manufacturer": "generic, produced by multiple Chinese manufacturers; no single branded OEM confirmed for the ELEGOO-bundled unit",
+    "manufacturer_part_number": "28BYJ-48",
+    "generic_equivalents": [
+      "28BYJ48-5V variant",
+      "35BYJ series (larger frame, different mounting, not a drop-in swap)"
+    ],
+    "serial_number": "not_applicable",
+    "package": "module, permanent-magnet geared can motor with a 5-wire pigtail and connector"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small motor that turns in fixed, precise steps instead of spinning freely, so a microcontroller can command an exact rotation and know where the shaft ended up without any extra position sensor.",
+    "what_it_is_used_for": "Precise positioning tasks such as camera pan/tilt rigs, clock hands, valve actuators, and small mechanisms that need to move a known amount and hold position.",
+    "how_it_works_briefly": "Four internal coils are energized in sequence, and each energizing step pulls a geared magnetic rotor forward by a small fixed angle. A built-in gearbox (about 64:1) turns many small internal steps into one much finer, stronger step at the output shaft."
+  },
+  "pins": {
+    "pin_count": 5,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "Orange",
+        "role": "coil A",
+        "notes": "one end of coil A; other end shares the common Red wire"
+      },
+      {
+        "pin": 2,
+        "name": "Pink",
+        "role": "coil B",
+        "notes": "one end of coil B"
+      },
+      {
+        "pin": 3,
+        "name": "Yellow",
+        "role": "coil C",
+        "notes": "one end of coil C"
+      },
+      {
+        "pin": 4,
+        "name": "Blue",
+        "role": "coil D",
+        "notes": "one end of coil D"
+      },
+      {
+        "pin": 5,
+        "name": "Red",
+        "role": "common +5V",
+        "notes": "center-tap wire shared by all four coils; connects to the driver board's '+' terminal"
+      }
+    ],
+    "pin_1_identification": "The motor ends in a small white 5-pin plastic plug that only fits the matching driver board socket one way. Genuine 28BYJ-48 pigtails use this wire order: Orange, Pink, Yellow, Blue, Red (common).",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "5V DC (this kit's variant; a visually identical 12V-coil version also exists and is not interchangeable)",
+    "absolute_max_voltage": "no formal absolute-maximum figure is published by the generic manufacturers of this part; treat 5V as the ceiling for this variant",
+    "typical_current": "0.1 A (100 mA) per energized coil, per the Botland retailer's spec sheet",
+    "max_current": "not confirmed from a source I could fetch; some tutorials cite roughly 240 mA total when two coils are active in full-step drive mode, but this could not be traced to a source that loaded",
+    "logic_level": "the motor itself is not driven by logic-level signals directly; it is driven at 5V through the ULN2003 driver board",
+    "interface": "digital, only through the ULN2003 driver board, never wired straight to an Arduino pin"
+  },
+  "key_specs": {
+    "gear_ratio": "approximately 64:1 (63.68:1 exact ratio, widely cited across sources)",
+    "stride_angle": "5.625 degrees / 64 (the motor's internal step before gearing)",
+    "steps_per_revolution_full_step": 2048,
+    "steps_per_revolution_half_step": 4096,
+    "holding_torque": "0.03 N*m (0.3 kgf*cm / 300 gf*cm); this figure was independently confirmed by two separate sources (components101 and Botland)",
+    "coil_resistance": "50 ohm per coil, per Botland's listing",
+    "weight": "35 g",
+    "shaft_diameter": "5 mm"
+  },
+  "visual_identification": {
+    "shape_and_size": "small round metal-cased can motor about 28 mm in diameter and roughly 19 mm deep, with a white plastic gearbox cap and a thin output shaft",
+    "color_and_markings": "blue-grey or silver metal body; a white 5-wire pigtail (orange, pink, yellow, blue, red) exits one side ending in a small white 5-pin connector; '28BYJ-48' is often printed or stamped on a label on the can",
+    "printed_text_to_look_for": "'28BYJ-48' on a label or stamped on the metal can; sometimes a voltage rating like '5V DC' printed nearby",
+    "easily_confused_with": [
+      "similar-looking 24BYJ or 35BYJ can motors used in HVAC dampers (different pinout/voltage)",
+      "a plain 2-wire DC gear motor (this part always has 5 wires, not 2)"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "Red (common) + Orange/Pink/Yellow/Blue",
+        "uno_pin": "not connected directly to the UNO; the 5-pin motor connector plugs only into the ULN2003 driver board's motor socket"
+      },
+      {
+        "part_pin": "(via driver board) IN1-IN4",
+        "uno_pin": "UNO digital pins 7, 6, 5, 4 respectively, per the DigiKey wiring example used for the driver board record"
+      }
+    ],
+    "required_extra_parts": [
+      "ULN2003 driver board (this motor cannot be safely driven directly from Arduino pins)",
+      "external 5V supply recommended for full torque"
+    ],
+    "arduino_library": "Stepper.h (built into the Arduino IDE) or AccelStepper (third-party)"
+  },
+  "safety": {
+    "hazards": [
+      "very low voltage, no shock hazard",
+      "the internal gearbox can be damaged by forcing the shaft to turn by hand while powered, or by stalling it against a hard stop for a long time"
+    ],
+    "handling_notes": [
+      "don't force or over-tighten anything onto the thin 5mm output shaft",
+      "the 5-pin connector is keyed and only seats correctly one way into the driver board's socket"
+    ],
+    "common_mistakes": [
+      "trying to power the motor directly from an Arduino pin instead of through the driver board (it draws far more current than a pin can safely supply)",
+      "mixing up full-step and half-step code and expecting 4096 steps per revolution while running full-step mode (which only gives 2048)"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "motor buzzes or vibrates without turning",
+        "likely_cause": "one of the 4 coil wires is loose or swapped, or the code's step sequence doesn't match the wiring",
+        "check": "reseat the connector fully and verify the library's step table matches the coil wire order"
+      },
+      {
+        "symptom": "motor turns the opposite direction from what's expected",
+        "likely_cause": "the coil order is effectively reversed relative to what the code assumes",
+        "check": "flip the sign of the step count in code rather than rewiring the connector"
+      },
+      {
+        "symptom": "motor stalls or skips steps under light load",
+        "likely_cause": "the driver board is being powered from the Arduino's onboard 5V regulator, which can't supply enough current under load",
+        "check": "power the driver board's '+' pin from a separate 5V supply and confirm current draw with a multimeter in series"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "With the motor disconnected from the driver board, measure resistance between the Red wire and each of Orange/Pink/Yellow/Blue in turn; each should read roughly 50 ohm (per the coil resistance spec) and be close to equal across all four. An infinite (open) reading on any pair indicates a broken coil wire."
+  },
+  "market": {
+    "unit_price_usd": 3.16,
+    "price_source_url": "https://botland.store/stepper-motors/12807-stepper-motor-28byj-48-5v-01a-003nm-with-uln2003-controller-5904422306410.html",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "ELEGOO (bundled in kits)",
+      "Botland",
+      "Amazon",
+      "AliExpress"
+    ]
+  },
+  "sources": [
+    {
+      "title": "28BYJ-48 Stepper Motor Pinout, Wiring, Specifications, Uses Guide & Datasheet",
+      "url": "https://components101.com/motors/28byj-48-stepper-motor",
+      "type": "wiki",
+      "used_for": "pins (pinout wire colors), key_specs (stride angle, steps per revolution, pull-in torque)"
+    },
+    {
+      "title": "Controlling a 28BYJ-48 Stepper Motor with ULN2003 Driver (DigiKey Maker Project)",
+      "url": "https://www.digikey.com/en/maker/projects/controlling-a-28byj-48-stepper-motor-with-uln2003-driver/3afa0f367d2349b9bf0f6feea6545053",
+      "type": "tutorial",
+      "used_for": "gear ratio confirmation (64:1), steps per revolution (2048 full-step / 4096 half-step), wiring_to_uno example, motor description"
+    },
+    {
+      "title": "Stepper motor 28BYJ-48 5V / 0.1A / 0.03Nm with ULN2003 controller",
+      "url": "https://botland.store/stepper-motors/12807-stepper-motor-28byj-48-5v-01a-003nm-with-uln2003-controller-5904422306410.html",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, key_specs (holding torque, coil resistance, weight, shaft diameter, current per coil)"
+    }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "max_current (total draw at the connector under full 2-phase-on drive)",
+      "exact manufacturer (this is a generic, multi-sourced part)",
+      "absolute_max_voltage (no formal datasheet was found for this generic part)"
+    ],
+    "notes": "ELEGOO's own tutorial and wiki pages for this motor could not be reached (403/404 errors during research), so identity and specs come from components101, a DigiKey maker tutorial, and the Botland retailer listing instead. Botland's price was listed in EUR (2.90 EUR / 2.44 EUR excl. tax) and converted to approximately 3.16 USD at an approximate rate that was not independently fetched in this session; treat this price as approximate."
+  }
+}

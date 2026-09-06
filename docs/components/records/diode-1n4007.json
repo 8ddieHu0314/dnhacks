@@ -1,0 +1,108 @@
+{
+  "id": "elegoo-uno-r3-kit/diode-1n4007",
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "unknown (not confirmed via a fetched source in this research pass)", "quantity_in_kit": 2 },
+  "identity": {
+    "name_on_kit": "Diode Rectifier",
+    "canonical_name": "1N4007 rectifier diode",
+    "aliases": ["1N4007G (Pb-free / lead-free version)", "General purpose rectifier diode", "Flyback diode / freewheeling diode (this kit's usage, not the part's generic name)"],
+    "category": "passive",
+    "manufacturer": "Not confirmed for the specific units in this kit. 1N4007 is a generic, JEDEC-registered part number made by many manufacturers (onsemi, Vishay, Diodes Incorporated, Diotec, Good-Ark, MCC, and others). Electrical specs in this record are sourced from onsemi's datasheet as a representative manufacturer.",
+    "manufacturer_part_number": "1N4007",
+    "generic_equivalents": ["1N4006 (800V, one step down in the same family, otherwise nearly identical)", "1N4007 as sold by other manufacturers (Vishay, Diodes Inc., Diotec, Good-Ark, MCC) under the same part number, same JEDEC ratings"],
+    "serial_number": "not_applicable",
+    "package": "DO-41 (axial-lead, glass-passivated, epoxy molded; onsemi calls this outline Case 59-10, which follows the JEDEC DO-41 outline)"
+  },
+  "function": {
+    "one_sentence_plain_english": "A diode is a one-way valve for electric current: it lets current flow easily in one direction, from the anode to the cathode, and blocks it in the other direction.",
+    "what_it_is_used_for": "In this kit it is mainly used as a flyback diode, also called a freewheeling diode, wired backwards across a relay coil or motor. Coils and motors are inductive loads, meaning that when the current driving them is suddenly switched off, the collapsing magnetic field creates a brief high-voltage spike in the opposite direction. The diode sits reverse-biased (blocking, doing nothing) during normal operation, but that voltage spike forward-biases it for an instant, giving the spike a safe path to dissipate instead of destroying the transistor or Arduino pin that was driving the coil. The same part can also rectify, meaning convert AC to pulsing DC, in a basic power supply, though that is not how this kit's tutorial uses it.",
+    "how_it_works_briefly": "Inside the diode is a P-N junction, the boundary between two differently-doped regions of silicon. When the anode side is at a higher voltage than the cathode side, the junction conducts and current flows easily with roughly a 0.7 to 1.1 volt drop across it. When the voltage is reversed, the junction blocks current, up to the diode's rated reverse voltage of 1000V, beyond which it can break down and fail."
+  },
+  "pins": {
+    "pin_count": 2,
+    "pinout": [
+      { "pin": 1, "name": "Cathode", "role": "Current exits here during forward conduction. This is the terminal marked by the painted stripe/band on the body.", "notes": "In flyback wiring across a coil, this lead connects toward the positive/supply side of the coil so the diode stays reverse-biased in normal operation." },
+      { "pin": 2, "name": "Anode", "role": "Current enters here during forward conduction. This is the unmarked end, with no stripe.", "notes": "In flyback wiring, this lead connects to the switched node, for example the collector of the transistor or relay driver that pulls the coil low." }
+    ],
+    "pin_1_identification": "Look for the single light-colored stripe or band painted around the body near one end. The lead closest to that stripe is the cathode. This is a bare through-hole part, not a module, so there is no printed pin-1 marker other than the stripe.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "Not a powered/logic part. When forward-biased (conducting) it drops about 0.93V typical (1.1V max) at 1A. When reverse-biased it blocks voltage up to its rated maximum (see absolute_max_voltage).",
+    "absolute_max_voltage": "1000V VRRM (peak repetitive reverse voltage); 1200V VRSM (non-repetitive surge reverse voltage, half-wave single-phase 60Hz); 700V VR(RMS).",
+    "typical_current": "Up to 1.0A average rectified forward current (IO), single-phase resistive load, 60Hz, 75 degrees C ambient.",
+    "max_current": "30A non-repetitive peak surge current (IFSM) for one 8.3ms half-cycle (60Hz surge rating). Continuous current above 1.0A average is outside the rated spec.",
+    "logic_level": "not_applicable",
+    "interface": "none"
+  },
+  "key_specs": {
+    "package_case": "DO-41 outline (onsemi Case 59-10), axial-lead, epoxy molded, about 0.4 gram",
+    "VRRM_peak_reverse_voltage": "1000 V",
+    "VRSM_surge_reverse_voltage": "1200 V (half-wave, single phase, 60 Hz)",
+    "VR_RMS_reverse_voltage": "700 V",
+    "IO_average_forward_current": "1.0 A (resistive load, 60 Hz, ambient 75 C)",
+    "IFSM_peak_surge_current": "30 A for one cycle",
+    "VF_forward_voltage_drop": "0.93 V typical, 1.1 V max, at 1.0A forward current, 25 C junction temperature",
+    "VF_AV_max_full_cycle_average": "0.8 V max",
+    "IR_reverse_leakage_current": "10 uA max at 25 C junction temp; 50 uA max at 100 C junction temp",
+    "operating_storage_temp_range": "-65 C to +150 C",
+    "body_dimensions": "4.10 to 5.20 mm long, 2.00 to 2.70 mm diameter (0.161 to 0.205 in by 0.079 to 0.106 in)",
+    "lead_length_min_each_side": "25.4 mm (1 inch)"
+  },
+  "visual_identification": {
+    "shape_and_size": "Small cylindrical body about 5.2mm long and 2.7mm in diameter, roughly the size of a grain of rice, with two thin wire leads extending straight out from each end (each at least 25mm long before any bend).",
+    "color_and_markings": "Solid black or dark gray epoxy body with a single light gray or white stripe/band painted near one end. That band marks the cathode lead.",
+    "printed_text_to_look_for": "1N4007 printed in small white or gray text along the body. Some units also show a date code (year and work week) and a small manufacturer logo.",
+    "easily_confused_with": [
+      "1N4001 through 1N4006 (identical black cylindrical body and stripe marking, differ only in the printed number and reverse-voltage rating)",
+      "1N4148 / 1N914 small-signal switching diode (similar stripe marking but a much smaller clear glass body, not black plastic, and cannot handle 1A)",
+      "Zener diodes in the same DO-41 package (look externally identical, only the printed part number and a datasheet lookup tell them apart)"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "Cathode (striped end)", "uno_pin": "Not wired to an Arduino pin directly. Connects to the positive/supply-side terminal of the relay coil or motor (the same node as the coil's Vcc / flyback supply connection)." },
+      { "part_pin": "Anode (unstriped end)", "uno_pin": "Not wired to an Arduino pin directly. Connects to the switched node, i.e. the relay driver transistor's collector or the motor driver output, so the diode is reverse-biased during normal operation and only conducts during the coil's turn-off voltage spike." }
+    ],
+    "required_extra_parts": ["Relay module or DC motor (the inductive load the diode protects)", "NPN transistor or MOSFET driving the coil, if building a discrete driver instead of using a relay module", "External power supply appropriate for the relay/motor coil"],
+    "arduino_library": "none. The diode is a passive protection component; it is not addressed by Arduino code."
+  },
+  "safety": {
+    "hazards": [
+      "Not a shock or fire hazard by itself at hobby voltages, but if installed backwards (reversed polarity) across an inductive load, it will not block the flyback voltage spike, letting that spike damage the driving transistor or an Arduino pin.",
+      "If driven well beyond its 1A / 1000V ratings, for example wired directly across a live AC mains circuit without a current-limiting load, it can overheat and rupture."
+    ],
+    "handling_notes": [
+      "Do not bend the leads sharply right at the body. Bend at least a few millimeters away from the body to avoid cracking the glass-passivated junction inside.",
+      "Leads conduct soldering heat toward the body. Avoid holding a lead near the body for more than a few seconds while soldering."
+    ],
+    "common_mistakes": [
+      "Installing the diode with the stripe (cathode) on the wrong side, which reverses its polarity and defeats its job as a flyback diode.",
+      "Leaving the flyback diode out entirely across a relay coil or motor, letting inductive voltage spikes reach and potentially damage the driving transistor or Arduino pin.",
+      "Confusing it with a similarly shaped small-signal diode, such as a 1N4148, which cannot handle 1A of current."
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "Relay driver transistor (or motor driver IC) fails repeatedly after a period of use", "likely_cause": "Missing flyback diode, or diode installed backwards, so the coil's turn-off voltage spike is not being clamped", "check": "Visually confirm the diode is present across the coil with the cathode stripe toward the supply/positive side. Verify polarity with a multimeter diode test." },
+      { "symptom": "Diode measures as an open circuit in both directions", "likely_cause": "Diode has failed open, usually from an excessive voltage spike or current surge", "check": "Multimeter diode test in both directions. A good diode reads roughly 0.5 to 0.8V one way and open (OL) the other." },
+      { "symptom": "Diode measures as a short circuit in both directions", "likely_cause": "Junction failure from overcurrent or reverse-voltage breakdown", "check": "Multimeter diode test. If shorted, replace the part, and check the upstream circuit for whatever caused the overcurrent or overvoltage before powering back up." }
+    ],
+    "how_to_test_with_a_multimeter": "Set the multimeter to diode test mode (the diode symbol). Touch the red lead to the anode (unstriped end) and the black lead to the cathode (striped end): a good diode shows roughly 0.5 to 0.8V forward voltage drop. Reverse the leads: a good diode shows an open circuit (OL). If both directions read near 0V, the diode is shorted; if both read OL, it is open, either way it needs replacing."
+  },
+  "market": {
+    "unit_price_usd": null,
+    "price_source_url": "",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["DigiKey", "Mouser", "Amazon (bundled in ELEGOO kits or sold as standalone multi-packs)"]
+  },
+  "sources": [
+    { "title": "1N4001, 1N4002, 1N4003, 1N4004, 1N4005, 1N4006, 1N4007 - Axial-Lead Glass Passivated Standard Recovery Rectifiers (onsemi datasheet, Rev. 18, June 2024)", "url": "https://www.onsemi.com/download/data-sheet/pdf/1n4001-d.pdf", "type": "datasheet", "used_for": "electrical.absolute_max_voltage, electrical.typical_current, electrical.max_current, all of key_specs (VRRM, VRSM, VR(RMS), IO, IFSM, VF, VF(AV), IR, operating/storage temp, body and lead dimensions), identity.package (DO-41 / Case 59-10), pins.pin_1_identification and pinout polarity (cathode = stripe/polarity band), market.lifecycle_status (datasheet shows plain 1N4007 as discontinued vs. Pb-free 1N4007G as active)" },
+    { "title": "ELEGOO UNO R3 Super Starter Kit - product listing with What's In Box section", "url": "https://www.elexp.com/products/arduino-starter-kit-elegoo", "type": "retailer", "used_for": "kit.quantity_in_kit (confirms 2pcs Diode Rectifier 1N4007 included), identity.name_on_kit confirmation, corroborates the kit also includes a 5V relay module consistent with the flyback-diode use case described in function.what_it_is_used_for" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": ["market.unit_price_usd", "kit.sku", "identity.manufacturer"],
+    "notes": "Electrical ratings, package (DO-41 outline, onsemi Case 59-10), pinout polarity, and physical dimensions are sourced directly from onsemi's official 1N4001 through 1N4007 datasheet (fetched and read in full), so pins, voltage, and current numbers here are high confidence. Kit quantity (2) and part identity are confirmed from an ELEGOO UNO R3 Super Starter Kit retailer listing's What's In Box section (elexp.com), which also lists a 5V relay module, consistent with the seed's flyback-diode use case. Two gaps could not be resolved within the research budget (4 WebSearch and 6 WebFetch calls, both fully used): first, a live single-unit retail price for the 1N4007 from DigiKey or Mouser could not be fetched (repeated timeouts on both mouser.com attempts), so market.unit_price_usd is left null rather than guessed; the seed record's 0.05 USD figure was explicitly a guess and is not carried forward unconfirmed. Second, the specific manufacturer of the two diodes physically included in this ELEGOO kit is not stated anywhere in the kit listing, since 1N4007 is a generic industry-standard part made by many manufacturers; the electrical specs here come from onsemi's datasheet as a representative source and should hold for other reputable manufacturers since VRRM, IO, and the DO-41 package are JEDEC-registered values for this part number. The kit SKU could not be confirmed via a fetched source and is left as unknown. Note also that onsemi's own datasheet marks the plain 1N4007 (non-Pb-free) as discontinued in their line specifically, while 1N4007G (Pb-free) remains active, and other manufacturers continue to produce 1N4007 under their own suffixes, so lifecycle_status is recorded as active for the part family as a whole."
+  }
+}

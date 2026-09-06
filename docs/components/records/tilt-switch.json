@@ -1,0 +1,156 @@
+{
+  "id": "tilt-switch",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "Tilt Ball Switch",
+    "canonical_name": "SW-520D ball tilt switch (bare 2-lead component)",
+    "aliases": [
+      "ball tilt sensor",
+      "vibration/tilt switch",
+      "SW-520",
+      "roll ball switch"
+    ],
+    "category": "sensor",
+    "manufacturer": "generic (SW-520D is a widely cloned part number/footprint; the datasheet fetched is from Bailin Electronics, sold under the 'Beelee' brand, but the same numbering is used by many manufacturers)",
+    "manufacturer_part_number": "SW-520D",
+    "generic_equivalents": [
+      "SW-200D (different size)",
+      "other 2-lead roll-ball tilt switches with the same footprint"
+    ],
+    "serial_number": "not_applicable",
+    "package": "small cylindrical 2-lead through-hole switch, heat-shrink tube body"
+  },
+  "function": {
+    "one_sentence_plain_english": "A tiny sealed tube with metal balls inside that acts like a switch: closed one way up, open when tilted the other way.",
+    "what_it_is_used_for": "Used as a crude orientation or motion sensor, for example to detect if something has been tipped over, shaken, or turned upside down.",
+    "how_it_works_briefly": "Inside the small tube, two tiny conductive balls sit next to two contact pins. Held so the part's own 'upright' side faces down, gravity pulls the balls onto the contacts, closing the circuit. Tilt it far enough the other way (about 10 degrees one direction, about 45 degrees sideways, per the datasheet) and the balls roll away from the contacts, opening the circuit. It is a simple mechanical switch, not an electronic sensor, so it only reports 'past the tilt threshold' or not, never a precise angle."
+  },
+  "pins": {
+    "pin_count": 2,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "Lead 1",
+        "role": "one side of the internal ball-and-contact switch",
+        "notes": "no fixed polarity; interchangeable with lead 2"
+      },
+      {
+        "pin": 2,
+        "name": "Lead 2",
+        "role": "other side of the internal ball-and-contact switch",
+        "notes": "no fixed polarity; interchangeable with lead 1"
+      }
+    ],
+    "pin_1_identification": "Both leads are electrically identical and interchangeable; there is no 'pin 1' polarity to find. What matters instead is physical orientation: per the manufacturer's diagram, tilting the body so the far (cap) end points down by more than 10 degrees opens the circuit, while tilting so the lead/pin end points down by more than 10 degrees closes it; held on its side, roughly 45 degrees of tilt is needed to change state.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "rated up to 12V per the manufacturer datasheet (a separate retailer's spec sheet for the same part number claims up to 24V; treat 12V as the better-sourced figure)",
+    "absolute_max_voltage": "12V (Bailin/Beelee datasheet contact rating)",
+    "typical_current": "well under the part's rating; normally wired through a pull-up/pull-down resistor into a digital input, so only a few mA flow at most",
+    "max_current": "not explicitly stated in the fetched manufacturer datasheet; a separate retailer (Sunrom) lists switching current under 5 mA for the same part number",
+    "logic_level": "simple dry contact; works fine at 3.3V or 5V logic since it is just a mechanical switch",
+    "interface": "digital"
+  },
+  "key_specs": {
+    "body_size_mm": "5.2 diameter x 11.5 length (excluding leads)",
+    "lead_size_mm": "0.6 diameter x 8 length, spaced 2.4 mm apart",
+    "contact_resistance": "<10 ohm",
+    "insulation_resistance": ">10 Mohm",
+    "capacitance": "5 pF",
+    "tilt_threshold": "about 10 degrees tilting toward the cap or lead end; about 45 degrees tilting sideways (per manufacturer diagram)",
+    "mechanical_life": "rated in the tens of thousands of cycles by the manufacturer; sources vary between 50,000 and 100,000+"
+  },
+  "visual_identification": {
+    "shape_and_size": "Tiny black (sometimes gray) cylindrical tube, about 11.5 mm long and 5.2 mm across, like a small pill or capsule, with two thin bare metal legs (about 8 mm long) sticking straight out of one end.",
+    "color_and_markings": "Plain black or gray heat-shrink tube body, no printed text or markings. You can sometimes hear or feel the tiny metal balls rattling faintly inside if you shake it.",
+    "printed_text_to_look_for": "None; the part has no printed label.",
+    "easily_confused_with": [
+      "a small electrolytic capacitor (similar cylindrical shape, but a capacitor is usually shinier or metal-cased and larger, this switch is noticeably shorter and thinner)",
+      "a small diode (similar 2-lead axial shape, but a diode is glass or plastic with a printed stripe and part number, this switch is a plain unmarked tube)"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "Lead 1",
+        "uno_pin": "a digital pin, e.g. D2"
+      },
+      {
+        "part_pin": "Lead 2",
+        "uno_pin": "GND (when using the pin's internal pull-up), or 5V with an external pull-down resistor to the digital pin"
+      }
+    ],
+    "required_extra_parts": [
+      "10k ohm resistor for an external pull-up/pull-down, or use the UNO's built-in pull-up via pinMode(pin, INPUT_PULLUP) and skip the extra resistor"
+    ],
+    "arduino_library": "none needed; read with the built-in digitalRead() function"
+  },
+  "safety": {
+    "hazards": [
+      "none inherent; low voltage, low current, sealed part"
+    ],
+    "handling_notes": [
+      "do not crush or puncture the tube; it is sealed and not meant to be opened",
+      "mounting orientation matters: decide which way is 'up' for the project and test both tilt directions since the switch is not symmetric"
+    ],
+    "common_mistakes": [
+      "assuming it detects tilt equally in every direction, when per the datasheet it takes only about 10 degrees one way but about 45 degrees the other way or sideways",
+      "wiring only one lead, or leaving the input floating without a pull-up/pull-down resistor, causing random readings"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "input never changes no matter how the switch is tilted",
+        "likely_cause": "one lead not actually connected, or the switch is mounted in an orientation where it never crosses its threshold angle",
+        "check": "test continuity with a multimeter while manually tilting the part through a full range of angles"
+      },
+      {
+        "symptom": "reading flickers or is unreliable right at the tilt point",
+        "likely_cause": "this is a mechanical ball switch, so near the threshold angle it can bounce between open and closed; this is normal, not a fault",
+        "check": "add simple debounce logic in code, or mount it well past the threshold in the intended resting orientation"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "Set the multimeter to continuity/beep mode and touch a probe to each lead. Slowly rotate the switch through different angles; it should beep (closed) in some orientations and go silent (open) in others, matching the manufacturer's tilt diagram."
+  },
+  "market": {
+    "unit_price_usd": 0.12,
+    "price_source_url": "https://www.sunrom.com/p/sw520d-sw-520d-tilt-sensor",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "Sunrom Electronics",
+      "Amazon (uxcell, Tegg, multi-packs)",
+      "generic electronics resellers"
+    ]
+  },
+  "sources": [
+    {
+      "title": "SW-520D Roll Ball Switch datasheet - Bailin Electronics (Beelee)",
+      "url": "https://www.tme.com/Document/f1e6cedd8cb7feeb250b353b6213ec6c/SW-520D.pdf",
+      "type": "datasheet",
+      "used_for": "pin count, body/lead dimensions, contact rating voltage, contact resistance, insulation resistance, capacitance, tilt-angle ON/OFF behavior, mechanical life"
+    },
+    {
+      "title": "SW520D SW-520D Tilt Sensor - Sunrom Electronics",
+      "url": "https://www.sunrom.com/p/sw520d-sw-520d-tilt-sensor",
+      "type": "retailer",
+      "used_for": "single-unit retail price (converted from Indian rupee), cross-check of pin count and bare-component form factor"
+    }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "electrical.max_current (not explicit in the fetched manufacturer datasheet; a secondary retailer states <5 mA for the same part number but this is unconfirmed against the primary datasheet)",
+      "electrical.operating_voltage and absolute_max_voltage (primary datasheet says 12V; a different retailer listing for the same part number claims 24V; the discrepancy is not resolved)",
+      "key_specs.mechanical_life (sources disagree: 50,000 vs 100,000+ cycles)",
+      "market.unit_price_usd (converted from Indian rupee at an approximate exchange rate, not a native USD listing; every Amazon fetch attempt failed with HTTP 500)"
+    ],
+    "notes": "ELEGOO's kit lid lists a bare 'Tilt Ball Switch' with 2 pins (matching the seed data), not the 3-pin LM393 breakout module sold under the same SW-520D name; this record is priced and specified for the bare 2-lead part. The Bailin/Beelee datasheet fetched via TME.com is the primary source; it disagrees slightly with a secondary retailer's spec sheet (Sunrom) on maximum voltage and cycle life, so both figures are listed as uncertain rather than one being picked arbitrarily."
+  }
+}

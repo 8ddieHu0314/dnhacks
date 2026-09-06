@@ -3,8 +3,10 @@
 .venv/
 __pycache__/
 *.py[cod]
+*.ino.cpp
 *.egg-info/
 .pytest_cache/
+.pio/
 data/
 # Xcode
 xcuserdata/

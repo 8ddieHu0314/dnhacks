@@ -1,0 +1,100 @@
+{
+  "id": "elegoo-uno-r3-kit/cap-ceramic-22pf",
+  "kit": { "name": "ELEGOO UNO R3 Project Most Complete Starter Kit", "sku": "EL-KIT-001", "quantity_in_kit": 5 },
+  "identity": {
+    "name_on_kit": "Ceramic Capacitor 22pF",
+    "canonical_name": "22 pF ceramic disc capacitor",
+    "aliases": ["22pF capacitor", "crystal load capacitor", "22pF disc cap"],
+    "category": "passive",
+    "manufacturer": "unbranded / generic (no manufacturer markings printed on the part)",
+    "manufacturer_part_number": "not specified by ELEGOO, generic part with no confirmed single MPN",
+    "generic_equivalents": ["Circuit Specialists 21CB022 (22pF 50V 5% ceramic disc)", "Jameco Valuepro DC22 (22pF 50V Z5U ceramic disc)"],
+    "serial_number": "not_applicable",
+    "package": "ceramic disc, through-hole, radial leads"
+  },
+  "function": {
+    "one_sentence_plain_english": "A tiny capacitor that stores a very small electric charge and is almost always used in a matched pair to help a quartz crystal start up and keep steady time.",
+    "what_it_is_used_for": "This kit does not wire it into a single named lesson by itself. Its standard job, and the reason it is bundled at all, is as a load capacitor on the two legs of a quartz crystal on a microcontroller. The ATmega328 datasheet lists 12-22 pF as its recommended crystal load capacitor range, which is why kits built around the ATmega328 (the chip on the UNO) include 22pF capacitors.",
+    "how_it_works_briefly": "Two conductive plates separated by a ceramic insulator. It charges and discharges almost instantly, far faster than an electrolytic capacitor, which is exactly the behavior a crystal oscillator circuit needs: two of these capacitors, one from each crystal leg to ground, present a combined load capacitance that lets the crystal oscillate at its rated frequency."
+  },
+  "pins": {
+    "pin_count": 2,
+    "pinout": [
+      { "pin": 1, "name": "Lead A", "role": "circuit terminal, non-polarized", "notes": "Either lead can connect to either side of the circuit; no polarity." },
+      { "pin": 2, "name": "Lead B", "role": "circuit terminal, non-polarized", "notes": "Electrically identical to Lead A and interchangeable with it." }
+    ],
+    "pin_1_identification": "Not applicable. There is no positive lead. Both leads are electrically identical and can be swapped without changing the circuit.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "0-50V DC (rated maximum, per a comparable retail part)",
+    "absolute_max_voltage": "50V DC (per Circuit Specialists 21CB022, a comparable 22pF 50V ceramic disc capacitor; ELEGOO's exact unit is not independently datasheet-confirmed)",
+    "typical_current": "not applicable, passive component with no intrinsic current draw",
+    "max_current": "not applicable",
+    "logic_level": "not applicable",
+    "interface": "none"
+  },
+  "key_specs": {
+    "capacitance": "22 pF",
+    "voltage_rating": "50V",
+    "tolerance_percent": "5%, per Circuit Specialists 21CB022, a comparable retail part; ELEGOO's exact tolerance is not independently confirmed",
+    "marking_code": "Small values like 22pF are normally printed directly on the disc as '22', without the 3-digit EIA multiplier code used for larger values like '104'.",
+    "typical_use_note": "12-22 pF is the crystal load capacitor range recommended by the ATmega328 datasheet, per discussion on the Arduino Forum."
+  },
+  "visual_identification": {
+    "shape_and_size": "A small flat disc or rounded teardrop shape, roughly 5-6 mm across, with two straight wire leads coming out the bottom, spaced about 0.1-0.2 inch (2.5-5 mm) apart.",
+    "color_and_markings": "Body color varies by supplier, commonly blue, yellow/tan, or brown. Printed with the number 22 (sometimes followed by a tolerance letter like J or K).",
+    "printed_text_to_look_for": "22",
+    "easily_confused_with": [
+      "104 ceramic capacitor: same disc shape and through-hole leads, but marked '104' instead of '22' and usually a visibly larger body since it holds much more capacitance",
+      "other small-value ceramic discs such as 33 or 47, distinguished only by the printed number"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "Lead A", "uno_pin": "one leg of an external quartz crystal (if used for its standard oscillator-load purpose), other end to GND" },
+      { "part_pin": "Lead B", "uno_pin": "the crystal's other leg, other end to GND" }
+    ],
+    "required_extra_parts": ["a quartz crystal, if wired for its standard oscillator-load purpose (the UNO board itself already has its own crystal and load capacitors built in, so this loose part is for a separate breadboard oscillator circuit)"],
+    "arduino_library": "none"
+  },
+  "safety": {
+    "hazards": ["none under normal use within its 50V rating", "exceeding the voltage rating can crack the ceramic or cause an internal short"],
+    "handling_notes": ["no polarity to worry about", "handle by the body rather than repeatedly flexing the leads, which can fatigue and snap them"],
+    "common_mistakes": [
+      "confusing it with the visually similar 104 capacitor since both are small ceramic discs",
+      "using it where a much larger capacitance is needed; 22 pF is about 4,500 times smaller than the 104 capacitor's 100,000 pF (100 nF)"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "a breadboard crystal-oscillator circuit will not start, or a microcontroller runs at the wrong clock speed", "likely_cause": "load capacitance far from the crystal's rated value, a missing capacitor, or a bad connection", "check": "measure capacitance directly with a multimeter's capacitance mode and compare to 22 pF; confirm both leads are firmly connected" }
+    ],
+    "how_to_test_with_a_multimeter": "Set the multimeter to capacitance mode (the F or farad symbol) and clip the probes to the two leads; expect a reading close to 22 pF. Many basic multimeters only resolve down to nF or pF ranges with reduced accuracy at this small a value, so treat the reading as approximate."
+  },
+  "market": {
+    "unit_price_usd": 0.14,
+    "price_source_url": "https://www.circuitspecialists.com/21cb022",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Circuit Specialists", "Jameco", "Tayda Electronics", "Amazon"]
+  },
+  "sources": [
+    { "title": "Elegoo For Arduino UNO R3 Project Most Complete Starter Kit (EL-KIT-001) - Newegg", "url": "https://www.newegg.com/elegoo-el-kit-001-accessories/p/293-001C-00001", "type": "retailer", "used_for": "kit.name, kit.sku, and kit.quantity_in_kit (parts list confirms 5x 22pF ceramic capacitors)" },
+    { "title": "ELEGOO UNO R3 Project Most Complete Starter Kit Instruction Manual", "url": "https://manuals.plus/asin/B01CZTLHGE", "type": "manufacturer", "used_for": "corroborates kit.quantity_in_kit from ELEGOO's own instruction manual parts list ('5pcs 22pf Ceramic Capacitor')" },
+    { "title": "22 pF, 50 Volt +/-5% Tolerance Ceramic Disc Capacitor - Circuit Specialists", "url": "https://www.circuitspecialists.com/21cb022", "type": "retailer", "used_for": "key_specs.tolerance_percent, key_specs.voltage_rating, electrical.absolute_max_voltage, market.unit_price_usd" },
+    { "title": "Why 22pf capacitors for crystal oscillator? - Arduino Forum", "url": "https://forum.arduino.cc/t/why-22pf-capacitors-for-crystal-oscillator/5732", "type": "wiki", "used_for": "function.what_it_is_used_for, function.how_it_works_briefly, key_specs.typical_use_note (standard crystal-load capacitor use, ATmega328 datasheet's recommended 12-22pF range)" },
+    { "title": "Capacitor Kit Identification Guide - SparkFun Learn", "url": "https://learn.sparkfun.com/tutorials/capacitor-kit-identification-guide/all", "type": "tutorial", "used_for": "visual_identification.color_and_markings (ceramic disc general appearance) and key_specs.marking_code (small values printed directly rather than 3-digit coded)" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer",
+      "identity.manufacturer_part_number",
+      "key_specs.tolerance_percent (confirmed only for a comparable retail part, not ELEGOO's exact unit)",
+      "electrical.absolute_max_voltage (same caveat)",
+      "wiring_to_uno.example_connections (generic crystal-load wiring, not tied to a specific numbered ELEGOO lesson)"
+    ],
+    "notes": "This corrects the seed's quantity_in_kit from 10 to 5: three independently fetched sources (Newegg's EL-KIT-001 listing and ELEGOO's own instruction manual, hosted on manuals.plus) all state 5pcs of the 22pF ceramic capacitor, not 10. ELEGOO's own website (elegoo.com and us.elegoo.com product/tutorial pages) returned HTTP 403 Forbidden on every fetch attempt, so this record relies on a third-party retailer listing and a third-party host of ELEGOO's own instruction manual instead. ELEGOO ships a generic, unbranded part and publishes no datasheet, manufacturer name, or MPN for it; tolerance and voltage-rating figures are from a comparable retail part (Circuit Specialists 21CB022), not ELEGOO's exact unit."
+  }
+}

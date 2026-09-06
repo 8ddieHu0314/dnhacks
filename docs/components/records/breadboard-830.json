@@ -1,0 +1,184 @@
+{
+  "id": "breadboard-830",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "830 Tie-Points Breadboard",
+    "canonical_name": "830 tie-point solderless breadboard",
+    "aliases": [
+      "MB-102 breadboard",
+      "full-size breadboard",
+      "plug-in breadboard",
+      "protoboard"
+    ],
+    "category": "tool",
+    "manufacturer": "ELEGOO (breadboard itself is a generic full-size design sold by many brands under this spec)",
+    "manufacturer_part_number": "commonly labeled MB-102, an industry-generic name rather than a confirmed ELEGOO-specific part number",
+    "generic_equivalents": [
+      "MB-102 830 tie-point breadboard",
+      "any full-size 830-point solderless breadboard"
+    ],
+    "serial_number": "not_applicable",
+    "package": "breadboard (flat plastic tool, not an electronic component package)"
+  },
+  "function": {
+    "one_sentence_plain_english": "A plastic board full of spring-loaded holes that lets you connect electronic parts together temporarily, with no soldering.",
+    "what_it_is_used_for": "Building and testing circuits quickly. You push component legs and wire ends into the holes, and hidden metal clips join the right holes together so current can flow, the same as a soldered connection but removable.",
+    "how_it_works_briefly": "Underneath the plastic top, rows of springy metal clips made of phosphor bronze (a springy copper alloy) grip whatever is pushed into a group of holes and electrically join that whole group into one node. The middle area is organized into short columns of 5 joined holes each. The strips along the top and bottom edges are long rows used to spread power and ground to many parts at once."
+  },
+  "pins": {
+    "pin_count": 830,
+    "pinout": [
+      {
+        "pin": "circuit area, upper half",
+        "name": "63 columns x 5 holes",
+        "role": "component tie-points",
+        "notes": "315 holes. Each column of 5 holes is one electrically joined node, used to plug in a component leg or wire. Not connected to the lower half."
+      },
+      {
+        "pin": "circuit area, lower half",
+        "name": "63 columns x 5 holes",
+        "role": "component tie-points",
+        "notes": "315 holes, mirrors the upper half. A center gap running the length of the board separates upper and lower halves; nothing crosses that gap internally."
+      },
+      {
+        "pin": "top power rail pair",
+        "name": "2 rows x 50 holes",
+        "role": "power distribution",
+        "notes": "100 holes. One row is marked with a red stripe/plus sign (intended for a positive supply), the other with a blue or black stripe/minus sign (intended for ground). All holes along one marked row are joined into a single long node."
+      },
+      {
+        "pin": "bottom power rail pair",
+        "name": "2 rows x 50 holes",
+        "role": "power distribution",
+        "notes": "100 holes, mirrors the top pair. The top and bottom rail pairs are separate nodes from each other unless a wire bridges them."
+      }
+    ],
+    "pin_1_identification": "There is no pin 1. Orientation is read from the printed + and - symbols and red/blue color stripes next to the two power rail rows at the top and bottom edges. A wide unmarked center gap running the long way across the board splits the main circuit area into an upper and lower half that are not connected to each other.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "not_applicable, this is a passive connector, not a power source; whatever is plugged in sets the actual voltage present",
+    "absolute_max_voltage": "36V per the manufacturer's contact rating",
+    "typical_current": "not_applicable",
+    "max_current": "2A per contact point per the manufacturer's rating; real safe current also depends on the gauge of wire plugged in",
+    "logic_level": "not_applicable, the board has no logic of its own",
+    "interface": "none"
+  },
+  "key_specs": {
+    "tie_points_total": 830,
+    "tie_points_circuit_area": 630,
+    "tie_points_power_rails": 200,
+    "hole_pitch": "0.1 in (2.54 mm), square holes",
+    "dimensions": "165.1 x 54.6 x 8.5 mm (6.5 x 2.2 x 0.3 in)",
+    "contact_material": "phosphor bronze with nickel plating",
+    "contact_life_insertions": 50000,
+    "wire_gauge_range": "21 to 26 AWG (0.4 to 0.7 mm diameter)",
+    "usable_signal_frequency": "best kept below about 10 MHz; contact resistance and stray capacitance between contacts degrade higher-frequency or very sensitive circuits",
+    "backing": "metal back plate, 0.8 mm thick, with peelable adhesive tape for mounting"
+  },
+  "visual_identification": {
+    "shape_and_size": "A flat, rectangular plastic board about 165 mm long, 55 mm wide, and 8 to 9 mm thick, roughly the size of a large smartphone. Covered in a precise grid of small square holes.",
+    "color_and_markings": "Usually white or off-white ABS plastic. Two long rows of holes at the very top edge and two at the very bottom edge are marked with a red line and + symbol (one rail of each pair) and a blue or black line and - symbol (the other rail). A wide unmarked gap runs down the center of the board, splitting the main grid into upper and lower halves.",
+    "printed_text_to_look_for": "Small printed column numbers along the top of the main hole grid and row letters along one side, silkscreened directly onto the plastic. A peel-off label naming the kit or brand may be stuck to the underside metal backing plate.",
+    "easily_confused_with": [
+      "smaller half-size or mini breadboards (170 or 400 tie points, roughly half the length)",
+      "the small prototype breadboard built into the kit's own prototype expansion module",
+      "a plain plastic ruler at a glance, before the hole grid is visible up close"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "top + power rail",
+        "uno_pin": "5V"
+      },
+      {
+        "part_pin": "top - power rail",
+        "uno_pin": "GND"
+      }
+    ],
+    "required_extra_parts": [
+      "jumper wires to link the breadboard's power rails to the UNO's power pins and to link components to each other"
+    ],
+    "arduino_library": "not_applicable, a purely mechanical part with no code or library"
+  },
+  "safety": {
+    "hazards": [
+      "none inherent to the board by itself",
+      "a rail can become a shock or fire risk only if a circuit plugged into it exceeds the board's 36V/2A per-contact rating or shorts across a power rail"
+    ],
+    "handling_notes": [
+      "keep the board dry, the internal spring clips can corrode",
+      "do not force oversized leads (thicker than about 0.7 mm, thinner than 21 AWG wire is fine) into the holes, it can permanently spread the internal clips and ruin that hole's grip",
+      "peel and stick the metal backing plate to a flat surface if the board needs to stay in place"
+    ],
+    "common_mistakes": [
+      "assuming the upper and lower halves of the main circuit area are electrically joined across the center gap; they are not",
+      "assuming all four power rail rows are tied together; the top pair and bottom pair are usually separate unless bridged with a wire",
+      "plugging a component's two legs into what looks like one column but is actually split across the center gap, leaving the circuit open"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "circuit does not work even though the wiring looks right",
+        "likely_cause": "a component leg landed one column off from where a jumper wire is, so they are not actually in the same 5-hole node",
+        "check": "recount columns carefully, or test continuity between the two holes with a multimeter"
+      },
+      {
+        "symptom": "intermittent connection, circuit cuts out when the board is bumped",
+        "likely_cause": "a spring clip has worn out after repeated use (rated for about 50,000 insertions) or a lead was too thick or thin for a solid grip",
+        "check": "move the same wire to a fresh, unused column and see if the fault follows the wire or stays with that spot on the board"
+      },
+      {
+        "symptom": "part of the circuit has no power",
+        "likely_cause": "assuming the left and right (or top and bottom) power rails are joined together when they are actually separate rail pairs",
+        "check": "run a multimeter continuity test along the rail between the point being powered and the point being supplied"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "Set the multimeter to continuity or resistance mode. Touch one probe to a hole and the other probe to a hole you believe is in the same node (same 5-hole column, or same power rail row). A beep or a reading near 0 ohms confirms they are connected. No beep means they are not connected, or the spring clip has failed."
+  },
+  "market": {
+    "unit_price_usd": 7.95,
+    "price_source_url": "https://www.elexp.com/products/03mb102breadboards-solderless-model",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "Amazon",
+      "Electronix Express",
+      "generic electronics retailers worldwide"
+    ]
+  },
+  "sources": [
+    {
+      "title": "Elegoo 830 Breadboard datasheet",
+      "url": "http://www.pgccphy.net/1020/datasheets/ELEGOO%20830%20430%20tie-points%20Breadboard.pdf",
+      "type": "manufacturer",
+      "used_for": "tie point counts and breakdown (630 in the circuit area plus 200 in the distribution/rail strips), dimensions, hole pitch, contact material, contact life, voltage/current rating, wire gauge range"
+    },
+    {
+      "title": "MB102 Full Sized Breadboard datasheet, Handson Technology",
+      "url": "http://www.handsontec.com/dataspecs/m102-830-bread-board.pdf",
+      "type": "manufacturer",
+      "used_for": "confirms 830 total tie points, board dimensions, and the internal row/column connection layout"
+    },
+    {
+      "title": "Premium Solderless Breadboard, MB102, Electronix Express",
+      "url": "https://www.elexp.com/products/03mb102breadboards-solderless-model",
+      "type": "retailer",
+      "used_for": "single-unit retail price"
+    }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer_part_number (MB-102 is the common industry name for this style of board, not a confirmed ELEGOO-specific SKU)",
+      "row letter labeling convention (commonly a through e and f through j) is standard practice on this style of board but was not spelled out in the text of the fetched datasheets, only visible in their diagrams"
+    ],
+    "notes": "Core numbers (830 total tie points split 630/200, dimensions, 36V/2A contact rating, 50,000 insertion life, 21-26 AWG wire range) come directly from an ELEGOO-branded spec sheet and a matching generic MB-102 spec sheet, which agree with each other. Price is from a generic MB-102-style board since ELEGOO does not appear to sell this exact breadboard as a standalone single-unit SKU; it is normally only sold bundled inside a kit."
+  }
+}

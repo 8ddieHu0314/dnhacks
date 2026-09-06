@@ -1,0 +1,216 @@
+{
+  "id": "uln2003-driver",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "ULN2003 Stepper Motor Driver Module",
+    "canonical_name": "ULN2003 stepper driver board",
+    "aliases": [
+      "ULN2003 driver board",
+      "28BYJ-48 driver board",
+      "ULN2003A stepper driver module"
+    ],
+    "category": "driver_ic",
+    "manufacturer": "unbranded generic board; onboard chip is commonly Toshiba ULN2003APG or a second-source equivalent (e.g. STMicroelectronics ULN2003A, UTC ULN2003G)",
+    "manufacturer_part_number": "ULN2003APG (chip); the breakout board itself has no board-level MPN, it is a generic unbranded design",
+    "generic_equivalents": [
+      "ULN2003A",
+      "ULN2003AN",
+      "ULN2003AFWG",
+      "ULN2003G"
+    ],
+    "serial_number": "not_applicable",
+    "package": "module, small PCB carrying one 16-pin DIP driver IC"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small circuit board that acts like a strong relay for weak signals, letting the tiny electrical pulses from an Arduino control a motor that needs far more current than the Arduino can supply directly.",
+    "what_it_is_used_for": "Driving the 28BYJ-48 stepper motor (or other small 4-phase unipolar stepper motors, or other inductive loads like relays and lamps) from a microcontroller.",
+    "how_it_works_briefly": "Inside is a ULN2003 chip containing seven Darlington transistor pairs. Each pair works like a switch: a small current from an Arduino IN pin flips the switch, letting a much bigger current from the external power supply flow through one motor coil at a time in the right sequence."
+  },
+  "pins": {
+    "pin_count": 6,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "IN1",
+        "role": "control input",
+        "notes": "drives motor coil channel 1; connects to an Arduino digital pin"
+      },
+      {
+        "pin": 2,
+        "name": "IN2",
+        "role": "control input",
+        "notes": "drives motor coil channel 2"
+      },
+      {
+        "pin": 3,
+        "name": "IN3",
+        "role": "control input",
+        "notes": "drives motor coil channel 3"
+      },
+      {
+        "pin": 4,
+        "name": "IN4",
+        "role": "control input",
+        "notes": "drives motor coil channel 4"
+      },
+      {
+        "pin": 5,
+        "name": "+",
+        "role": "power input",
+        "notes": "5-12V supply for the motor coils, can be separate from the Arduino's own power"
+      },
+      {
+        "pin": 6,
+        "name": "-",
+        "role": "ground",
+        "notes": "common ground, must be tied to the Arduino's GND even if using a separate supply"
+      }
+    ],
+    "pin_1_identification": "IN1-IN4 are printed on the board's silkscreen next to a row of 4 header pins, usually beside 4 small LED indicators that flash as each coil activates. The board also has a separate white 5-pin socket (not part of this 6-pin count) that plugs directly into the stepper motor's cable.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "5-12V DC on the motor supply (separate from Arduino logic)",
+    "absolute_max_voltage": "the onboard chip is rated to 50V collector-emitter (Toshiba ULN2003APG datasheet), but the board's connectors and traces are only intended for the 5-12V motor supplies used with the 28BYJ-48",
+    "typical_current": "varies with the attached motor; per-channel draw for the 28BYJ-48 is roughly 0.1A per active coil",
+    "max_current": "500 mA per channel, absolute maximum, per the Toshiba ULN2003APG manufacturer page",
+    "logic_level": "5V input compatible (standard TTL/CMOS-level input threshold for this chip family)",
+    "interface": "digital"
+  },
+  "key_specs": {
+    "driver_ic": "ULN2003 family, 7-channel Darlington transistor array (e.g. Toshiba ULN2003APG)",
+    "channels_on_chip": 7,
+    "channels_used_for_stepper": 4,
+    "indicator_leds": "4, one per active coil channel, confirmed on the RobotPiShop listing",
+    "motor_connector": "5-pin JST/XH-style socket wired to match the 28BYJ-48 motor's 5-wire pigtail"
+  },
+  "visual_identification": {
+    "shape_and_size": "small rectangular PCB roughly 3.5 cm by 1.5 cm",
+    "color_and_markings": "usually a green or blue PCB; the driver chip is a black 16-pin rectangular DIP package printed with a code like 'ULN2003' or 'ULN2003AN'; four small LEDs sit in a row and blink as the motor steps",
+    "printed_text_to_look_for": "'ULN2003' printed on the black IC in the middle of the board; silkscreen labels 'IN1' through 'IN4' and '+' / '-' near the header pins; a small white or blue 5-pin socket on one edge for the motor cable",
+    "easily_confused_with": [
+      "L293D or L298N motor driver boards (different chip shape and pinout, meant for DC or bipolar stepper motors)",
+      "generic 16-pin DIP breakout boards for unrelated logic chips"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "IN1",
+        "uno_pin": "Digital pin 7 (example wiring from a DigiKey maker tutorial)"
+      },
+      {
+        "part_pin": "IN2",
+        "uno_pin": "Digital pin 6"
+      },
+      {
+        "part_pin": "IN3",
+        "uno_pin": "Digital pin 5"
+      },
+      {
+        "part_pin": "IN4",
+        "uno_pin": "Digital pin 4"
+      },
+      {
+        "part_pin": "+",
+        "uno_pin": "5V (or an external 5-12V supply for full torque)"
+      },
+      {
+        "part_pin": "-",
+        "uno_pin": "GND"
+      }
+    ],
+    "required_extra_parts": [
+      "28BYJ-48 stepper motor",
+      "external 5-12V power supply recommended for full torque instead of the Arduino's own 5V pin"
+    ],
+    "arduino_library": "Stepper.h (built into the Arduino IDE) or AccelStepper (third-party, gives smoother acceleration control)"
+  },
+  "safety": {
+    "hazards": [
+      "low voltage overall (5-12V), minimal shock risk",
+      "the board and chip can get warm during stalled or continuous full-current operation"
+    ],
+    "handling_notes": [
+      "the motor's 5-pin connector is keyed and only fits the socket one way; don't force it",
+      "do not exceed about 12V on the '+' terminal; the board's traces are sized for small hobby motors, not larger industrial steppers"
+    ],
+    "common_mistakes": [
+      "wiring IN1-IN4 in the wrong order, which makes the motor jitter or spin the wrong way",
+      "powering the board only from the Arduino's onboard 5V pin while other parts also draw current, causing brownouts and skipped steps",
+      "mistaking this for an L293D/L298N DC motor driver board, which has a different pin layout and purpose"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "motor vibrates but doesn't turn",
+        "likely_cause": "a coil wire is loose or the IN1-IN4 order doesn't match the code's step sequence",
+        "check": "reseat the 5-pin motor connector fully and confirm the wiring order matches what the library expects"
+      },
+      {
+        "symptom": "no movement at all and the LEDs never light",
+        "likely_cause": "no power reaching the '+' and '-' pins, or the sketch isn't running",
+        "check": "measure DC voltage between '+' and '-' with a multimeter; it should read close to the supply voltage (5-12V)"
+      },
+      {
+        "symptom": "motor is weak or skips steps under load",
+        "likely_cause": "insufficient current from the Arduino's onboard 5V regulator",
+        "check": "power the board's '+' pin from a separate 5V supply instead, and confirm the two grounds are still tied together"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "With power connected, set the multimeter to DC voltage and measure between '+' and '-'; expect a reading close to the supply voltage. To confirm an IN pin is toggling, measure DC voltage from that IN pin to GND while the motor is stepping; it should switch between roughly 0V and 5V."
+  },
+  "market": {
+    "unit_price_usd": 1.5,
+    "price_source_url": "https://robotpishop.com/products/uln2003-driver-board",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "ELEGOO (bundled in kits)",
+      "RobotPiShop",
+      "Amazon",
+      "AliExpress",
+      "LCSC (bare IC only, not the assembled board)"
+    ]
+  },
+  "sources": [
+    {
+      "title": "ULN2003APG product page",
+      "url": "https://toshiba.semicon-storage.com/ap-en/semiconductor/product/linear-ics/transistor-arrays/detail.ULN2003APG.html",
+      "type": "manufacturer",
+      "used_for": "electrical: max current per channel (500 mA), max voltage (50V), package (DIP-16), channel count (7), and lifecycle status of the Toshiba chip"
+    },
+    {
+      "title": "ULN2003APG | Toshiba | JLCPCB part page",
+      "url": "https://jlcpcb.com/partdetail/TOSHIBA-ULN2003APG/C5251",
+      "type": "retailer",
+      "used_for": "confirming package type (DIP-16) and 7-channel description"
+    },
+    {
+      "title": "Controlling a 28BYJ-48 Stepper Motor with ULN2003 Driver (DigiKey Maker Project)",
+      "url": "https://www.digikey.com/en/maker/projects/controlling-a-28byj-48-stepper-motor-with-uln2003-driver/3afa0f367d2349b9bf0f6feea6545053",
+      "type": "tutorial",
+      "used_for": "wiring_to_uno example connections (IN1-IN4 to digital pins 7,6,5,4) and function/how-it-works description"
+    },
+    {
+      "title": "ULN2003 Driver Board product page",
+      "url": "https://robotpishop.com/products/uln2003-driver-board",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, pin labels (IN1-IN4, XH-5P motor socket), visual identification (4 indicator LEDs)"
+    }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "exact board-level brand/manufacturer (this is an unbranded generic design)",
+      "typical_current for the assembled board while actually driving a motor load",
+      "ELEGOO's own specific Arduino pin choice in their kit tutorial (their tutorial and wiki pages returned 403/404 errors during research; a third-party DigiKey wiring example was used instead)"
+    ],
+    "notes": "ELEGOO's own blog tutorial (elegoo.com/blogs/arduino-projects/elegoo-uln2003-stepper-motors-and-motor-driver-boards-tutorial) returned HTTP 403, and their wiki pages for this kit item returned 404, so board identity and wiring are confirmed from generic driver-board retailer listings (RobotPiShop, JLCPCB) plus the Toshiba manufacturer page for the underlying chip, rather than from ELEGOO's own documentation. Toshiba's own ULN2003APG part is listed end-of-life with TBD62003APG suggested as a replacement; this does not affect kit availability since boards are commonly built with whichever ULN2003-family chip (from Toshiba, ST, UTC, etc.) is in stock."
+  }
+}

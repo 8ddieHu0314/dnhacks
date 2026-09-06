@@ -1,0 +1,147 @@
+{
+  "id": "jumper-wire",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 65
+  },
+  "identity": {
+    "name_on_kit": "Breadboard Jumper Wire",
+    "canonical_name": "solid-core breadboard jumper wire",
+    "aliases": [
+      "pre-formed jumper wire",
+      "solid-core jumper wire",
+      "breadboard wire"
+    ],
+    "category": "wiring",
+    "manufacturer": "not confirmed. ELEGOO bundles a generic, unbranded wire supplier's product, not a named-brand part",
+    "manufacturer_part_number": "not confirmed. This is a commodity part with no manufacturer part number found for the exact ELEGOO-bundled version",
+    "generic_equivalents": [
+      "SparkFun PRT-00124 Jumper Wire Kit, 140pcs",
+      "any 22 AWG solid-core pre-formed jumper wire kit"
+    ],
+    "serial_number": "not_applicable",
+    "package": "cable, single pre-bent solid wire (loose piece, not a module)"
+  },
+  "function": {
+    "one_sentence_plain_english": "A short, stiff, pre-bent wire that plugs straight into two breadboard holes to connect them electrically.",
+    "what_it_is_used_for": "Making the short connections inside a breadboard circuit, for example linking a resistor to a power rail or joining two rows together, without needing to bend and strip your own wire.",
+    "how_it_works_briefly": "The wire is solid metal, not stranded, so it holds whatever shape it is bent into. Its bare ends are sized to grip the spring clips hidden inside each breadboard hole, making an electrical connection just by being pushed in."
+  },
+  "pins": {
+    "pin_count": 1,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "conductor",
+        "role": "single wire; carries whatever signal or power is present at whichever breadboard row it is plugged into",
+        "notes": "Both ends are bare, identical wire tips. There is no fixed pin 1 and no internal direction."
+      }
+    ],
+    "pin_1_identification": "Not applicable. Both ends are plain bare wire tips, electrically identical. Either end can go in either breadboard hole.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "not_applicable. This is a passive wire with no operating voltage of its own; it simply carries whatever voltage is applied through the breadboard row it connects.",
+    "absolute_max_voltage": "not confirmed for the exact ELEGOO-bundled wire. Comparable 22 AWG jumper wire kits (e.g. Remington Industries) list PVC insulation rated around 300V, which is far above anything used in this kit (5V-9V), so it is not a practical limit here.",
+    "typical_current": "not confirmed for this exact part; no source found gives a current rating for the ELEGOO-bundled wire specifically",
+    "max_current": "not confirmed for this exact part. General 22 AWG solid copper wire is commonly treated as good for roughly 1-2A in short low-voltage breadboard runs, but this figure could not be traced to a source for this specific product, so it is left as a gap rather than stated as fact",
+    "logic_level": "not_applicable, passive wire",
+    "interface": "none"
+  },
+  "key_specs": {
+    "wire_gauge": "22 AWG (confirmed as the standard gauge for this style of breadboard jumper wire across multiple retailer listings)",
+    "conductor_type": "solid core, not stranded",
+    "insulation": "colored PVC sleeve over most of the wire, with bare uninsulated wire at both tips where it plugs into the breadboard",
+    "typical_length_range": "commodity 22 AWG pre-formed jumper kits commonly include 10 pieces each of 14 lengths from about 2mm to 125mm; the exact length breakdown for this ELEGOO kit's 65 pieces was not separately confirmed",
+    "kit_size_as_shipped": "65 pieces in this ELEGOO kit (per the kit's seed inventory); a comparable commercial jumper wire kit (SparkFun PRT-00124) ships 140 pieces per box"
+  },
+  "visual_identification": {
+    "shape_and_size": "A short, rigid wire pre-bent into a simple shape (often a shallow U or Z bend) so it lies flat on the breadboard with both ends pointing straight down into the holes. Comes in many different lengths, from very short (a few millimeters) to a few centimeters.",
+    "color_and_markings": "Colored plastic insulation (commonly red, orange, yellow, green, blue, purple, gray, brown, or white) covering most of the wire, with bare, silver-colored metal exposed at both tips. No printed text or labeling on the wire itself.",
+    "printed_text_to_look_for": "None. These wires carry no printing.",
+    "easily_confused_with": [
+      "dupont-fm (female-to-male Dupont jumper wire): a dupont-fm wire is flexible stranded wire and has a molded plastic connector housing on at least one end (a female socket that plugs onto a header pin). This solid-core jumper wire, by contrast, is rigid, keeps a bent shape, and has bare exposed wire at both ends with no connector housing at all."
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "either bare end",
+        "uno_pin": "not directly wired to the UNO; this wire only connects one breadboard hole to another. A separate dupont-fm wire (see that record) is what typically bridges the breadboard to the UNO's header pins."
+      }
+    ],
+    "required_extra_parts": [
+      "breadboard-830 (the breadboard these wires plug into)"
+    ],
+    "arduino_library": "none. It is a passive wire; no code is involved."
+  },
+  "safety": {
+    "hazards": [
+      "None under the kit's normal low-voltage use (5V logic, 9V battery power).",
+      "If a wire's insulation is cut or frayed, or it is used near mains voltage, the exposed metal ends could cause a short circuit. Keep this part limited to low-voltage breadboard work."
+    ],
+    "handling_notes": [
+      "Bend the wire only at its existing fold. Repeatedly re-bending the same spot fatigues the solid metal and it can snap.",
+      "If a wire does not seem to fit a breadboard hole, do not force it. Forcing an oversized or bent tip can damage the breadboard's internal spring clips."
+    ],
+    "common_mistakes": [
+      "Pushing too many wires into a single breadboard hole, which loosens the internal clip and causes a poor or intermittent connection.",
+      "Mixing this rigid wire up with the flexible dupont-fm wire when following a tutorial's wiring diagram."
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "Circuit does not work even though the wiring looks correct",
+        "likely_cause": "A jumper wire's bare end is not fully seated in the breadboard hole, or the breadboard's internal spring clip at that spot is worn out",
+        "check": "Push the wire in fully, then try moving the same connection to an unused row as a test"
+      },
+      {
+        "symptom": "Circuit works intermittently, cutting in and out",
+        "likely_cause": "A wire that has been bent too many times and partially broken inside, or a loose breadboard hole",
+        "check": "Gently wiggle the wire while the circuit is powered; swap in a spare wire of the same length"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "Set a multimeter to continuity or resistance mode and touch one probe to each end of the wire. A good wire reads close to 0 ohms (continuity mode beeps). A broken wire reads open/infinite resistance."
+  },
+  "market": {
+    "unit_price_usd": 0.06,
+    "price_source_url": "https://www.sparkfun.com/jumper-wire-kit-140pcs.html",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "SparkFun",
+      "Amazon (various generic sellers)",
+      "Remington Industries",
+      "DigiKey"
+    ]
+  },
+  "sources": [
+    {
+      "title": "22 AWG Solid Jumper Wire Kit, Remington Industries",
+      "url": "https://www.remingtonindustries.com/hook-up-wire/jumper-wire-kit-22-awg-solid-350-pieces/",
+      "type": "manufacturer",
+      "used_for": "wire gauge (22 AWG), solid conductor type, PVC insulation, voltage rating, and wire diameter, used in key_specs and electrical"
+    },
+    {
+      "title": "Jumper Wire Kit, 140pcs, SparkFun Electronics",
+      "url": "https://www.sparkfun.com/jumper-wire-kit-140pcs.html",
+      "type": "retailer",
+      "used_for": "retail price used to compute the per-unit price in market.unit_price_usd, plus confirmation of 22 AWG gauge, 140-piece count, and the 14-length breakdown in key_specs"
+    }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer",
+      "identity.manufacturer_part_number",
+      "electrical.typical_current",
+      "electrical.max_current",
+      "electrical.absolute_max_voltage",
+      "key_specs.typical_length_range (exact ELEGOO 65-piece breakdown not confirmed, inferred from a comparable 140-piece commercial kit)",
+      "market.unit_price_usd (computed from a generic-equivalent kit's pack price, not the exact ELEGOO-branded wire)"
+    ],
+    "notes": "ELEGOO's own product page returned only site navigation content when fetched, with no item-level specs, and the ELEGOO Super Starter Kit tutorial PDF found via search exceeded the fetchable size limit. So the exact wire ELEGOO ships in this 65-piece pack could not be confirmed directly from ELEGOO. This record instead relies on a SparkFun 140-piece jumper wire kit and a generic Remington Industries 22 AWG jumper kit as reasonable commodity-part stand-ins; the 22 AWG gauge is well corroborated across both. Per AGENT_BRIEF rule 7, the unit price of $0.06 is computed by dividing the SparkFun 140-piece kit's $8.95 retail price by 140, since these wires are not sold individually and no ELEGOO-specific price was found."
+  }
+}

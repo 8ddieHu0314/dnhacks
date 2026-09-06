@@ -151,6 +151,29 @@ To support another provider or an on-device runtime, implement the
 `VisionEngine.analyze(frame) -> VisionOutput` contract and register it in
 `build_vision_engine`.
 
+## Arduino context node
+
+[`firmware/context_node/context_node.ino`](firmware/context_node/context_node.ino)
+uses only the Arduino core and the starter-kit parts: a photoresistor on A0,
+tilt switch on D3, active buzzer on D8, and HC-SR04 on D9/D10. It prints one
+JSON observation every 250 ms at 115200 baud. The photoresistor reports the
+brightness of an indicator light; it is not a voltage sensor.
+
+To use it in VS Code, install the **PlatformIO IDE** extension, then open
+`firmware/context_node` as the folder. Select the `uno` environment, use
+**Build**, then **Upload**, and open the PlatformIO serial monitor at 115200.
+The included `platformio.ini` supplies the Uno configuration. The threshold at
+the top of the sketch should be calibrated from the actual light readings.
+
+From a terminal, the equivalent commands are:
+
+```bash
+cd firmware/context_node
+pio run
+pio run --target upload --upload-port /dev/cu.usbmodemXXXX
+pio device monitor --port /dev/cu.usbmodemXXXX --baud 115200
+```
+
 ## First integration steps
 
 1. **Mobile transport adapter:** In the iOS/Android app, request the applicable

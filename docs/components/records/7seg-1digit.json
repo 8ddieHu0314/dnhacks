@@ -1,0 +1,210 @@
+{
+  "id": "7seg-1digit",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "1 Digit 7-Segment Display",
+    "canonical_name": "0.56 inch single-digit common-cathode 7-segment LED display (5161AS)",
+    "aliases": [
+      "7-segment display",
+      "single digit LED display",
+      "LS-5161AS",
+      "5161AS"
+    ],
+    "category": "display",
+    "manufacturer": "generic, widely cloned part number; the datasheet fetched is from XLITX Technology, but the same 5161AS numbering and pinout is used by many Chinese LED display makers",
+    "manufacturer_part_number": "5161AS",
+    "generic_equivalents": [
+      "LS-5161AS (Jameco house brand)",
+      "LD-5161AS",
+      "other 0.56 inch common-cathode single-digit displays with the same 10-pin layout"
+    ],
+    "serial_number": "not_applicable",
+    "package": "10-pin through-hole DIP-style 7-segment display, 0.56 inch (14.2 mm) digit height"
+  },
+  "function": {
+    "one_sentence_plain_english": "Eight little LEDs arranged to draw any digit 0-9 (plus a decimal point), all sharing one ground pin.",
+    "what_it_is_used_for": "Used to show a single number, like a counter, a temperature reading, or one digit of a clock.",
+    "how_it_works_briefly": "Seven LED bars (segments a-g) plus one dot (dp) are arranged in the classic figure-8 pattern. This is the common-cathode version, so all 8 LEDs share one ground (cathode) connection. The Arduino lights up whichever segments it needs by sending +5V, through a current-limiting resistor, to each segment pin. Turning on segments a, b, c, d, e, f (but not g) draws a '0', for example."
+  },
+  "pins": {
+    "pin_count": 10,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "E",
+        "role": "segment E anode",
+        "notes": "needs a series resistor to 5V to light"
+      },
+      {
+        "pin": 2,
+        "name": "D",
+        "role": "segment D anode",
+        "notes": "needs a series resistor to 5V to light"
+      },
+      {
+        "pin": 3,
+        "name": "COM",
+        "role": "common cathode",
+        "notes": "wire to GND; internally joined to pin 8"
+      },
+      {
+        "pin": 4,
+        "name": "C",
+        "role": "segment C anode",
+        "notes": "needs a series resistor to 5V to light"
+      },
+      {
+        "pin": 5,
+        "name": "DP",
+        "role": "decimal point anode",
+        "notes": "needs a series resistor to 5V to light"
+      },
+      {
+        "pin": 6,
+        "name": "B",
+        "role": "segment B anode",
+        "notes": "needs a series resistor to 5V to light"
+      },
+      {
+        "pin": 7,
+        "name": "A",
+        "role": "segment A anode",
+        "notes": "needs a series resistor to 5V to light"
+      },
+      {
+        "pin": 8,
+        "name": "COM",
+        "role": "common cathode",
+        "notes": "wire to GND; internally joined to pin 3"
+      },
+      {
+        "pin": 9,
+        "name": "F",
+        "role": "segment F anode",
+        "notes": "needs a series resistor to 5V to light"
+      },
+      {
+        "pin": 10,
+        "name": "G",
+        "role": "segment G anode",
+        "notes": "needs a series resistor to 5V to light"
+      }
+    ],
+    "pin_1_identification": "Confirmed from the datasheet's dimension diagram: hold the display face-up with the decimal point dot in the bottom-right corner (normal reading orientation). Pin 1 is the leftmost pin on the front (bottom) row of legs.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "driven at 5V through a series resistor per segment; not powered directly",
+    "absolute_max_voltage": "5V max reverse voltage per segment (datasheet)",
+    "typical_current": "10 mA per segment (the datasheet's forward-voltage test condition)",
+    "max_current": "30 mA continuous per segment; 200 mA peak per segment at 1/10 duty cycle, 10 kHz (datasheet absolute maximum ratings)",
+    "logic_level": "5V logic; each segment needs a current-limiting resistor (commonly 220-330 ohm) between the Arduino pin and the segment, it is not directly logic-level driven",
+    "interface": "digital"
+  },
+  "key_specs": {
+    "digit_height_mm": 14.2,
+    "color": "red (ultra-bright), peak wavelength 640 nm",
+    "forward_voltage_per_segment": "1.8V typical at 10 mA",
+    "configuration": "common cathode"
+  },
+  "visual_identification": {
+    "shape_and_size": "Black rectangular plastic housing about 14 mm tall (digit height) and roughly 19 mm overall including pins, about 12.6 mm wide, with a figure-8 shaped red display window on the front and a small round dot (decimal point) at the bottom-right corner. Ten thin metal legs come out the bottom, 5 per row, front and back.",
+    "color_and_markings": "Black plastic body, red digit segments visible through the front window (grey/dark red when off). Usually no printed part number on the part itself.",
+    "printed_text_to_look_for": "Usually none on the display itself; if there is a print or sticker, look for '5161' as the model family.",
+    "easily_confused_with": [
+      "the 4-digit 7-segment display in this kit (also black with red segments, but shows four figure-8 windows instead of one)",
+      "a small LED bar-graph or matrix display"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "pin 3 or 8 (common cathode)",
+        "uno_pin": "GND"
+      },
+      {
+        "part_pin": "pin 7 (segment A)",
+        "uno_pin": "digital pin, e.g. D7, through a 220-330 ohm resistor"
+      },
+      {
+        "part_pin": "pin 6 (segment B)",
+        "uno_pin": "digital pin, e.g. D6, through a 220-330 ohm resistor"
+      }
+    ],
+    "required_extra_parts": [
+      "one 220-330 ohm resistor per segment pin used (up to 8 for all segments plus dp)"
+    ],
+    "arduino_library": "none required for basic use (direct digitalWrite per segment); the SevSeg library simplifies driving it if desired"
+  },
+  "safety": {
+    "hazards": [
+      "none inherent; low voltage part"
+    ],
+    "handling_notes": [
+      "always use a series resistor; connecting a segment straight to 5V with no resistor can burn out that LED segment",
+      "legs are thin and can bend"
+    ],
+    "common_mistakes": [
+      "wiring it as if it were common anode (sending GND to segments and 5V to the common pin) when it is actually common cathode, so nothing lights up",
+      "leaving both common pins (3 and 8) unconnected, so the whole display stays dark even though only one needs to be wired since they are joined internally"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "nothing lights up",
+        "likely_cause": "common pin not connected to GND, or common/anode logic reversed",
+        "check": "confirm pin 3 or 8 goes to GND and that the circuit treats this as common cathode, not common anode"
+      },
+      {
+        "symptom": "wrong segments light up or the digit looks scrambled",
+        "likely_cause": "segment pins wired to the wrong Arduino pins in code",
+        "check": "re-check each segment pin against the datasheet map: A=7, B=6, C=4, D=2, E=1, F=9, G=10, DP=5"
+      },
+      {
+        "symptom": "a segment is dim or appears burned out",
+        "likely_cause": "missing or undersized series resistor, exceeding the 30 mA continuous rating",
+        "check": "measure the in-circuit resistor value; should be 220-330 ohm for a 5V supply"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "Set a multimeter to its diode-test function. Touch the negative probe to pin 3 or 8 (common) and the positive probe to any segment pin; that segment should light up dimly, confirming both the segment map and that this part is common cathode."
+  },
+  "market": {
+    "unit_price_usd": 0.35,
+    "price_source_url": "https://powermavelectronics.com/shop/led/0-56inch-1-digit-7-segment-cathode-5161as/",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "Jameco (LS-5161AS)",
+      "Amazon (LD-5161AS, MECCANIXITY 5161AS-1)",
+      "XLITX Technology (factory/bulk)",
+      "generic electronics resellers"
+    ]
+  },
+  "sources": [
+    {
+      "title": "5161AS datasheet - XLITX Technology",
+      "url": "https://www.xlitx.com/datasheet/5161AS.pdf",
+      "type": "datasheet",
+      "used_for": "pin numbering/segment map, common cathode confirmation, forward voltage, reverse voltage/current, max continuous and peak forward current per segment, operating/storage temperature, physical dimensions, pin 1 location"
+    },
+    {
+      "title": "0.56 inch 1 digit 7-segment cathode 5161AS - PowerMav Electronics",
+      "url": "https://powermavelectronics.com/shop/led/0-56inch-1-digit-7-segment-cathode-5161as/",
+      "type": "retailer",
+      "used_for": "single-unit retail price (converted from Philippine peso)"
+    }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer (the fetched datasheet is from XLITX Technology, one of several factories making a 5161AS-numbered part; ELEGOO's actual supplier is unconfirmed)",
+      "market.unit_price_usd (converted from Philippine peso at an approximate exchange rate, not a native USD retail listing)"
+    ],
+    "notes": "Every US retailer fetch attempted (Amazon x3, Jameco) failed with HTTP 403 or 500, likely bot blocking, so the single-unit retail price is taken from a Philippine electronics shop and converted to USD at an approximate September 2026 rate (~56 PHP/USD). The manufacturer's own bulk factory price ($0.45 per 100-piece minimum order from XLITX) is far lower per unit than any real single-piece retail price and was not used as the headline number for that reason, though the datasheet from that same source was used for all pin and electrical specs."
+  }
+}

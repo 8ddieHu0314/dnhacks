@@ -1,0 +1,164 @@
+{
+  "id": "pot-10k",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "Potentiometer 10K",
+    "canonical_name": "WH148-style 10 kOhm linear (B-taper) rotary potentiometer with knob",
+    "aliases": [
+      "10K pot",
+      "rotary potentiometer",
+      "volume-knob style pot",
+      "B10K"
+    ],
+    "category": "input",
+    "manufacturer": "generic (WH148-family part cloned by many Chinese OEMs, e.g. KLS Electronic's KLS4-WH148 series); ELEGOO does not brand it as their own",
+    "manufacturer_part_number": "WH148 (B10K), datasheet family KLS4-WH148-1A/1B",
+    "generic_equivalents": [
+      "KLS4-WH148 series",
+      "Alpha RV16AF series",
+      "Bourns PDB18 series"
+    ],
+    "serial_number": "not_applicable",
+    "package": "16 mm diameter rotary potentiometer can, through-hole solder-lug pins, knurled metal shaft usually fitted with a plastic knob"
+  },
+  "function": {
+    "one_sentence_plain_english": "A twist knob that turns how far you turn it into a changing voltage the Arduino can read.",
+    "what_it_is_used_for": "Used to make an adjustable analog input, like a volume knob, a brightness dial, or a speed control for something in your program.",
+    "how_it_works_briefly": "Inside the can is a strip of resistive material running end to end, about 10,000 ohms total. A metal wiper contact slides along that strip as you turn the shaft. The pin attached to the wiper picks off whatever fraction of the full 10K it currently sits at, so the voltage on that pin changes smoothly as you turn the knob."
+  },
+  "pins": {
+    "pin_count": 3,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "Terminal 1 (track end A)",
+        "role": "one fixed end of the resistive track",
+        "notes": "Wire to 5V or GND"
+      },
+      {
+        "pin": 2,
+        "name": "Terminal 2 (wiper)",
+        "role": "sliding contact, the variable output",
+        "notes": "Wire to an analog input pin such as A0"
+      },
+      {
+        "pin": 3,
+        "name": "Terminal 3 (track end B)",
+        "role": "other fixed end of the resistive track",
+        "notes": "Wire to whichever of 5V/GND pin 1 is not using"
+      }
+    ],
+    "pin_1_identification": "Confirmed from the KLS4-WH148 datasheet's circuit diagram: with the three solder-lug pins facing you and the shaft pointing up, pin 1 is the leftmost lug, pin 2 (the wiper) is the middle lug, and pin 3 is the rightmost lug. The pins are evenly spaced (5 mm apart) but unmarked on the part itself.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "no fixed operating voltage; works fine at Arduino's 5V or 3.3V, has no polarity",
+    "absolute_max_voltage": "200V max for the linear/B-taper version, per datasheet (Arduino use is far below this)",
+    "typical_current": "negligible; only the small leakage current through the 10K track (about 0.5 mA at 5V across the full track)",
+    "max_current": "bounded by rated power, 0.125W for the B (linear) taper at up to 200V, per datasheet",
+    "logic_level": "not applicable (passive analog component)",
+    "interface": "analog"
+  },
+  "key_specs": {
+    "resistance_total": "10 kOhm +/-20%",
+    "taper": "B = linear",
+    "rated_power": "0.125 W (linear/B taper), 0.063 W for other tapers",
+    "rotation_angle": "300 deg +/-5 deg, single turn, mechanical stops at each end",
+    "rotary_life": "10,000 cycles",
+    "shaft_diameter_mm": 6
+  },
+  "visual_identification": {
+    "shape_and_size": "Round metal can body about 16-17 mm across and roughly 10-13 mm thick, with a knurled metal shaft sticking out of one face, usually topped with a small plastic knob (often blue or black in ELEGOO kits). Three straight metal legs come out of the bottom, evenly spaced about 5 mm apart.",
+    "color_and_markings": "Metal can is usually plain silver/tin colored; sometimes printed with '103' near the shaft base (the standard code meaning 10 x 10^3 = 10,000 ohms) and a taper letter.",
+    "printed_text_to_look_for": "Look for '103' printed on the can, meaning 10,000 ohms, and possibly a 'B' for linear taper.",
+    "easily_confused_with": [
+      "small trimmer potentiometers (smaller, screwdriver-adjusted, no knob)",
+      "rotary encoders (similar shape but click as they turn and usually have 5 pins)",
+      "the identical part built into a joystick module's housing"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "Terminal 1",
+        "uno_pin": "5V"
+      },
+      {
+        "part_pin": "Terminal 2 (wiper)",
+        "uno_pin": "A0"
+      },
+      {
+        "part_pin": "Terminal 3",
+        "uno_pin": "GND"
+      }
+    ],
+    "required_extra_parts": [],
+    "arduino_library": "none needed; read with the built-in analogRead(A0), which returns a value from 0 to 1023"
+  },
+  "safety": {
+    "hazards": [
+      "none; low voltage passive part"
+    ],
+    "handling_notes": [
+      "do not force the shaft past its mechanical stop (about 300 degrees of travel); forcing it can crack the internal track",
+      "legs are stiff metal; bend gently if needed to match breadboard spacing"
+    ],
+    "common_mistakes": [
+      "swapping the wiper (middle pin) with an end pin, which still produces a reading but reverses which turn direction increases the value",
+      "wiring only the wiper pin and forgetting both end pins need power (one to 5V, one to GND) for it to work as a voltage divider"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "analogRead() always returns the same value no matter the knob position",
+        "likely_cause": "wiper pin not actually connected to the analog input pin, or only 2 of the 3 pins are wired",
+        "check": "confirm all three pins are wired: one end to 5V, the other end to GND, and the middle (wiper) pin to the analog pin"
+      },
+      {
+        "symptom": "reading is noisy or jumps around",
+        "likely_cause": "a worn or dirty resistive track, or a loose breadboard connection",
+        "check": "wiggle the wires while watching the value in the Serial Monitor; clean contacts or swap the part if it is worn"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "Set the multimeter to resistance mode. Between the two end pins it should read a steady ~10 kOhm regardless of knob position. Between the wiper (middle) pin and either end pin, resistance should change smoothly from near 0 to near 10 kOhm as you turn the shaft."
+  },
+  "market": {
+    "unit_price_usd": 0.5,
+    "price_source_url": "https://handsontec.com/index.php/product/10k-single-turn-wh148-potentiometer/",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "HandsOnTec",
+      "Amazon",
+      "generic electronics resellers",
+      "AliExpress"
+    ]
+  },
+  "sources": [
+    {
+      "title": "Potentiometer KLS4-WH148 Series datasheet - KLS Electronic",
+      "url": "https://www.rcscomponents.kiev.ua/datasheets/20130416150848kls4-wh148.pdf",
+      "type": "datasheet",
+      "used_for": "pin layout/numbering (1=end, 2=wiper, 3=end), resistance tolerance, rated wattage, max operating voltage, rotation angle, rotary life, shaft diameter"
+    },
+    {
+      "title": "10 kOhm Single-Turn WH148 Potentiometer - HandsOnTec",
+      "url": "https://handsontec.com/index.php/product/10k-single-turn-wh148-potentiometer/",
+      "type": "retailer",
+      "used_for": "unit price, resistance value/tolerance cross-check, pin count, termination style"
+    }
+  ],
+  "confidence": {
+    "overall": "high",
+    "fields_uncertain": [
+      "exact shaft length/knob variant ELEGOO ships (datasheet lists several shaft lengths and mounting styles; ELEGOO's own tutorial/product pages returned HTTP 403 on every fetch attempt so the specific suffix could not be confirmed)",
+      "identity.manufacturer_part_number (WH148 is a widely cloned generic family name, not necessarily the literal branded part ELEGOO sources)"
+    ],
+    "notes": "The KLS4-WH148 datasheet PDF would not render as text through WebFetch (returned garbled binary) but was successfully fetched and then read directly as a PDF file, confirming pin order and electrical ratings first-hand. ELEGOO's own product and tutorial pages for this kit returned HTTP 403 on every attempt, so the exact shaft/knob variant is inferred from the generic WH148 family rather than confirmed against ELEGOO's own documentation."
+  }
+}

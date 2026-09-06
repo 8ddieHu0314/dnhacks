@@ -1,0 +1,180 @@
+{
+  "id": "elegoo-uno-r3-kit/ir-receiver",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "IR Receiver Module",
+    "canonical_name": "Infrared (IR) receiver module (VS1838B-type)",
+    "aliases": [
+      "IR receiver breakout",
+      "IR receiving head",
+      "38 kHz IR receiver module",
+      "VS1838B module",
+      "HX1838 module"
+    ],
+    "category": "sensor",
+    "manufacturer": "Generic (no manufacturer branding printed on the ELEGOO-supplied board); the receiver IC's datasheet is published under the VS1838B part designation",
+    "manufacturer_part_number": "VS1838B (best match to the fetched datasheet; ELEGOO's own product pages could not be loaded to confirm the exact silkscreen on the physical part)",
+    "generic_equivalents": [
+      "HX1838",
+      "TL1838",
+      "AX-1838HS",
+      "generic 1838-series 38 kHz IR receiver modules"
+    ],
+    "serial_number": "not_applicable",
+    "package": "module (3-pin through-hole IR receiver in a small black epoxy dome, either bare or soldered to a tiny breakout PCB)"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small sensor that listens for the invisible blinking light from an infrared remote control and turns it into an electrical signal the Arduino can read.",
+    "what_it_is_used_for": "Letting the Arduino receive button presses from the kit's included infrared remote control, for example to control an LED, a motor, or an on-screen menu.",
+    "how_it_works_briefly": "Inside the black dome is a photodiode tuned to see only light that blinks 38,000 times per second (38 kHz), the flicker rate used by most IR remotes. A small chip inside filters out sunlight and lamp flicker, then outputs a clean digital pulse train that matches the remote's code."
+  },
+  "pins": {
+    "pin_count": 3,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "OUT",
+        "role": "digital output",
+        "notes": "Goes low briefly when it detects an IR pulse; connect to an Arduino digital input pin"
+      },
+      {
+        "pin": 2,
+        "name": "GND",
+        "role": "ground",
+        "notes": "Connect to Arduino GND"
+      },
+      {
+        "pin": 3,
+        "name": "VCC",
+        "role": "power in",
+        "notes": "Connect to Arduino 5V (module accepts 2.7-5.5V per datasheet)"
+      }
+    ],
+    "pin_1_identification": "Looking at the flat back face of the black dome with the three legs pointing toward you, the legs read left to right as OUT, GND, VCC. This order is confirmed in the fetched VS1838B datasheet's own labeled pinout diagram.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "2.7V to 5.5V DC",
+    "absolute_max_voltage": "6.0V DC",
+    "typical_current": "0.4 mA (standby, no IR signal present)",
+    "max_current": "1.5 mA (no-signal quiescent maximum per datasheet; current rises briefly while decoding a signal)",
+    "logic_level": "Output swings between about 0.2-0.4V (logic low) and 4.5V+ (logic high) at a 5V supply; compatible with 5V Arduino digital inputs",
+    "interface": "digital"
+  },
+  "key_specs": {
+    "carrier_frequency": "38 kHz",
+    "reception_angle": "about \u00b145 degrees off-axis",
+    "reception_distance": "about 18-20 m to a standard remote, per datasheet test conditions",
+    "operating_temperature": "-20C to 80C recommended (up to 85C absolute)",
+    "storage_temperature": "-40C to 125C"
+  },
+  "visual_identification": {
+    "shape_and_size": "A small black plastic dome (like a squashed bead), roughly 6-7mm across and 5mm deep, mounted on three thin metal legs about 2.5cm long; sometimes sold pre-soldered to a small breakout PCB with a 3-pin header instead.",
+    "color_and_markings": "Black or dark epoxy dome; tiny white text such as 'VS1838B', 'HX1838', or just '1838' is sometimes printed on the flat back face or on the breakout PCB silkscreen.",
+    "printed_text_to_look_for": "VS1838B, HX1838, TL1838, or '1838' on the dome's flat face or on the small PCB it may be mounted to.",
+    "easily_confused_with": [
+      "A standard 5mm IR LED (the remote's own transmitter, which is clear or bluish, not black)",
+      "a generic phototransistor or photodiode used for visible-light sensing"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "VCC",
+        "uno_pin": "5V"
+      },
+      {
+        "part_pin": "GND",
+        "uno_pin": "GND"
+      },
+      {
+        "part_pin": "OUT",
+        "uno_pin": "D11 (illustrative; any free digital pin works)"
+      }
+    ],
+    "required_extra_parts": [
+      "IRremote Arduino library",
+      "the kit's IR remote control (needs a CR2025 coin cell, not included)"
+    ],
+    "arduino_library": "IRremote (Arduino-IRremote)"
+  },
+  "safety": {
+    "hazards": [
+      "None significant; low-voltage, signal-level part",
+      "Ordinary static sensitivity like any small semiconductor"
+    ],
+    "handling_notes": [
+      "Bend the legs gently only near the base, never right at the plastic body",
+      "Double check VCC/GND orientation before powering up; reversing them can kill the internal IC"
+    ],
+    "common_mistakes": [
+      "Wiring VCC and GND backwards",
+      "Operating it near fluorescent or some LED lighting, which can flood it with interference",
+      "Expecting it to work through walls or at angles beyond about 45 degrees off-axis"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "No response at all from the remote",
+        "likely_cause": "Reversed VCC/GND, dead coin cell in the remote, or wrong pin number in the sketch",
+        "check": "Confirm 5V at VCC with a multimeter, replace the remote's battery, verify the OUT pin matches the pin defined in code"
+      },
+      {
+        "symptom": "Only works up very close",
+        "likely_cause": "Weak remote battery or a damaged receiver",
+        "check": "Swap the remote's battery; view the remote's LED through a phone camera, which can often see it blink"
+      },
+      {
+        "symptom": "Garbled or inconsistent codes",
+        "likely_cause": "Nearby fluorescent lighting or another IR source interfering",
+        "check": "Move away from lights and direct sunlight, then retest"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "With the module powered, measure DC voltage between VCC and GND to confirm 5V is present. Then measure OUT to GND: it should sit high (near VCC) with no IR present and dip low briefly when a remote button is pressed and pointed at it."
+  },
+  "market": {
+    "unit_price_usd": 0.11,
+    "price_source_url": "https://robocraze.com/products/ir-receiving-head-vs1838b-remote-control-receiver",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "Robocraze",
+      "Amazon (third-party generic sellers)",
+      "AliExpress/eBay (various unbranded listings)"
+    ]
+  },
+  "sources": [
+    {
+      "title": "Infrared Receiver Module VS1838B datasheet",
+      "url": "https://www.elecrow.com/download/Infrared%20receiver%20vs1838b.pdf",
+      "type": "datasheet",
+      "used_for": "pins, electrical (voltage, current, carrier frequency, angle, temperature ranges), key_specs"
+    },
+    {
+      "title": "Lesson 14 - IR Receiver Module (ElegooTutorial mirror)",
+      "url": "https://github.com/rmorenojr/ElegooTutorial/blob/master/Lesson%2014%20-%20IR%20Receiver%20Module/README.md",
+      "type": "tutorial",
+      "used_for": "function, confirms this is the kit's IR receiver + remote lesson, required jumper wires"
+    },
+    {
+      "title": "Buy IR Receiving Head VS1838B Remote Control Receiver",
+      "url": "https://robocraze.com/products/ir-receiving-head-vs1838b-remote-control-receiver",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, market.typical_suppliers"
+    }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer_part_number (ELEGOO's own wiki/product pages for this module returned empty or 404 on fetch, so I could not confirm whether the physical board is silkscreened VS1838B, HX1838, or AX-1838HS; a sibling ELEGOO kit's own datasheet folder on GitHub uses the name AX-1838HS for the same role)",
+      "wiring_to_uno.example_connections (OUT pin number is a common illustrative example, not confirmed from an ELEGOO-specific sketch)",
+      "market.unit_price_usd (converted from an Indian retailer's INR sale price using an approximate 87 INR/USD rate; Amazon, eBay, Makerfabs, and Abra-Electronics pages all failed to load through automated fetch this session)"
+    ],
+    "notes": "Pin order, voltage range, and carrier frequency come from a VS1838B datasheet PDF I fetched and read directly (not a search-engine summary), so I'm confident in the electrical figures. The identity and exact price are the weaker parts of this record because ELEGOO's own pages would not load."
+  }
+}

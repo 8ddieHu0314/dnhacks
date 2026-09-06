@@ -1,0 +1,180 @@
+{
+  "id": "elegoo-uno-r3-kit/dht11",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "DHT11 Temperature and Humidity Module",
+    "canonical_name": "DHT11 digital temperature and humidity sensor module",
+    "aliases": [
+      "DHT11 breakout",
+      "3-pin DHT11 module",
+      "SSR1006 (HandsOn Technology's version of this common module)"
+    ],
+    "category": "sensor",
+    "manufacturer": "Aosong (Guangzhou Aosong Electronics) makes the DHT11 sensing element; the small blue breakout board is an unbranded generic design widely resold under many names",
+    "manufacturer_part_number": "DHT11",
+    "generic_equivalents": [
+      "Bare 4-pin DHT11 sensor (no PCB)",
+      "AM2302/DHT22 (a different, more accurate sensor; not electrically or timing-compatible as a drop-in swap)"
+    ],
+    "serial_number": "not_applicable",
+    "package": "module (about 32mm x 14mm blue PCB with the blue DHT11 sensor block, one indicator LED, and a 3-pin 2.54mm header)"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small sensor that tells the Arduino how warm it is and how humid the air is.",
+    "what_it_is_used_for": "Reading room temperature and relative humidity, for example for a weather display, an incubator, or a greenhouse controller.",
+    "how_it_works_briefly": "Inside the blue plastic block is a humidity-sensing film and a small temperature sensor, plus a tiny chip that measures both and sends the readings out as a timed digital pulse pattern on a single data wire, about once per second."
+  },
+  "pins": {
+    "pin_count": 3,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "VCC",
+        "role": "power in",
+        "notes": "3.5-5.5V DC"
+      },
+      {
+        "pin": 2,
+        "name": "DATA",
+        "role": "digital I/O (single-wire)",
+        "notes": "Serial data for both temperature and humidity; the module has a built-in pull-up resistor"
+      },
+      {
+        "pin": 3,
+        "name": "GND",
+        "role": "ground",
+        "notes": ""
+      }
+    ],
+    "pin_1_identification": "On the module, with the blue sensor block facing up and the 3-pin header facing you, pins read left to right as VCC, DATA, GND. Confirmed from the HandsOn Technology DHT11 module datasheet's own labeled diagram.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "3.5V to 5.5V DC",
+    "absolute_max_voltage": "not published for the module in the sources checked; do not exceed 5.5V",
+    "typical_current": "about 0.15 mA in standby between reads",
+    "max_current": "3 mA during a measurement",
+    "logic_level": "5V (commonly run at 5V on the UNO; datasheet's range also covers 3.3V logic)",
+    "interface": "1-wire"
+  },
+  "key_specs": {
+    "humidity_range": "20% to 90% RH",
+    "humidity_accuracy": "+/-5% RH",
+    "temperature_range": "0C to 50C",
+    "temperature_accuracy": "+/-1C per the fetched module datasheet (some Aosong bare-chip datasheets state +/-2C; treat +/-1-2C as the realistic accuracy band)",
+    "sampling_period": "1 reading per second minimum; many libraries recommend waiting 2 seconds between reads for reliable data"
+  },
+  "visual_identification": {
+    "shape_and_size": "Small blue PCB about 32mm long by 14mm wide, with a taller blue plastic perforated sensor block mounted at one end and a 3-pin header at the other end.",
+    "color_and_markings": "Blue PCB, blue perforated sensor housing on top, one small red LED near the header, 'DHT11' printed in small white letters on the sensor housing itself.",
+    "printed_text_to_look_for": "'DHT11' printed or embossed on the blue sensor block; the PCB may carry no other markings or a small 'DHT11 Module' silkscreen label.",
+    "easily_confused_with": [
+      "DHT22/AM2302 module (looks almost identical but is usually white and has different accuracy/timing)",
+      "a generic unrelated 3-pin sensor breakout of similar size"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "VCC",
+        "uno_pin": "5V"
+      },
+      {
+        "part_pin": "DATA",
+        "uno_pin": "A0 (used as a digital pin in the datasheet's own example sketch)"
+      },
+      {
+        "part_pin": "GND",
+        "uno_pin": "GND"
+      }
+    ],
+    "required_extra_parts": [
+      "Adafruit Unified Sensor library",
+      "Adafruit DHT sensor library (or SimpleDHT)"
+    ],
+    "arduino_library": "DHT sensor library (Adafruit) or SimpleDHT"
+  },
+  "safety": {
+    "hazards": [
+      "None; low voltage, low current sensor"
+    ],
+    "handling_notes": [
+      "Avoid getting the sensor wet or breathing on it at close range for long periods, since this can affect long-term accuracy",
+      "Avoid touching the perforated sensing element directly; skin oils can affect the humidity reading over time"
+    ],
+    "common_mistakes": [
+      "Reading it faster than once per second, which returns stale or failed (NaN) readings",
+      "Wiring VCC/GND backwards",
+      "Leaving the code set to DHT22 timing constants when a DHT11 is actually installed"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "Serial monitor shows 'Failed to read from DHT sensor'",
+        "likely_cause": "Reading too often, loose wiring, or wrong DHTTYPE/DHTPIN defined in code",
+        "check": "Confirm DHTTYPE is set to DHT11, add at least a 1-2 second delay between reads, reseat the data wire"
+      },
+      {
+        "symptom": "Humidity or temperature always reads the same fixed number",
+        "likely_cause": "Sensor is damaged or the DATA line isn't actually connected",
+        "check": "Wiggle-test the data wire and verify continuity with a multimeter in continuity mode"
+      },
+      {
+        "symptom": "Readings drift or seem off by a few degrees or percent",
+        "likely_cause": "Normal DHT11 accuracy limits, or the sensor is near a heat source",
+        "check": "Compare against a separate reference thermometer/hygrometer; this may be expected sensor-grade accuracy rather than a fault"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "With the module powered, measure DC voltage between VCC and GND to confirm 3.5-5.5V is present. The DATA line uses timed pulses rather than a steady voltage, so a multimeter will just show it resting near VCC between reads; an oscilloscope or logic analyzer is needed to see the actual data pulses."
+  },
+  "market": {
+    "unit_price_usd": 0.68,
+    "price_source_url": "https://robocraze.com/products/dht11-humidity-temperature-sensor-module",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "Robocraze",
+      "Amazon (third-party generic sellers)",
+      "Adafruit (a different DHT11 breakout, now discontinued at $5.00)"
+    ]
+  },
+  "sources": [
+    {
+      "title": "DHT11 Humidity & Temperature Sensor Module (HandsOn Technology user guide)",
+      "url": "https://www.handsontec.com/dataspecs/sensor/DHT11%20Humidity%20Temp%20Sensor.pdf",
+      "type": "datasheet",
+      "used_for": "pins, electrical (voltage, current, humidity/temperature range and accuracy, sampling period), wiring example"
+    },
+    {
+      "title": "Lesson 12 - DHT11 (ElegooTutorial mirror)",
+      "url": "https://github.com/rmorenojr/ElegooTutorial/blob/master/Lesson%2012%20-%20DHT11/README.md",
+      "type": "tutorial",
+      "used_for": "function, confirms the module name shipped in the kit"
+    },
+    {
+      "title": "DHT11 basic temperature-humidity sensor + extras",
+      "url": "https://www.adafruit.com/product/386",
+      "type": "retailer",
+      "used_for": "cross-check of price/lifecycle status on a name-brand DHT11 breakout (a different form factor from ELEGOO's part, and discontinued)"
+    },
+    {
+      "title": "Buy DHT11 Digital Humidity and Temperature sensor Module",
+      "url": "https://robocraze.com/products/dht11-humidity-temperature-sensor-module",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, market.typical_suppliers"
+    }
+  ],
+  "confidence": {
+    "overall": "high",
+    "fields_uncertain": [
+      "electrical.absolute_max_voltage (not stated in the sources checked)",
+      "market.unit_price_usd (converted from an Indian retailer's INR price using an approximate 87 INR/USD rate; Adafruit's USD listing is for a different, discontinued breakout)"
+    ],
+    "notes": "The HandsOn Technology datasheet's photo and dimensions (32mm x 14mm blue PCB, red LED, 3-pin header) match ELEGOO's kit photos closely, so this is very likely the same generic module family, even though ELEGOO's own wiki page for this lesson returned a 404 on fetch."
+  }
+}

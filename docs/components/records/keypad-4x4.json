@@ -1,0 +1,101 @@
+{
+  "id": "keypad-4x4",
+  "kit": { "name": "ELEGOO UNO R3 Most Complete Starter Kit", "sku": "EL-KIT-001", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "Membrane Switch Module",
+    "canonical_name": "4x4 matrix membrane keypad",
+    "aliases": ["Keypad Module", "16-key membrane keypad", "4x4 matrix keypad"],
+    "category": "input",
+    "manufacturer": "Generic; no manufacturer name is printed on the membrane. This part is sold under many brand labels with the same 4x4 layout.",
+    "manufacturer_part_number": "None confirmed; a generic 4x4 matrix membrane keypad, the same functional part sold as Adafruit product 3844 and Handson Technology's 4x4 Matrix Membrane Keypad",
+    "generic_equivalents": ["Adafruit 4x4 Matrix Keypad (product 3844)", "Handson Technology 4x4 Matrix Membrane Keypad"],
+    "serial_number": "not_applicable",
+    "package": "flat flexible plastic membrane with adhesive backing, ending in a ribbon cable with an 8-pin, 0.1 inch pitch connector"
+  },
+  "function": {
+    "one_sentence_plain_english": "A flat, bendable button pad with 16 keys (0 to 9, A to D, star, and pound) that lets someone type numbers or letters into the Arduino.",
+    "what_it_is_used_for": "User input, for example a door lock code pad, a simple calculator, or menu navigation.",
+    "how_it_works_briefly": "The 16 keys are wired in a grid of 4 rows and 4 columns, so only 8 wires are needed instead of 16. Under each key is a simple switch that, when pressed, connects one row wire to one column wire. The Arduino repeatedly checks each row and column combination (a process called scanning) to work out which single key was pressed."
+  },
+  "pins": {
+    "pin_count": 8,
+    "pinout": [
+      { "pin": 1, "name": "Row 1 (R1)", "role": "row scan line", "notes": "Row pins are on the left side when facing the keypad with the keys up (Handson Technology datasheet)" },
+      { "pin": 2, "name": "Row 2 (R2)", "role": "row scan line", "notes": "" },
+      { "pin": 3, "name": "Row 3 (R3)", "role": "row scan line", "notes": "" },
+      { "pin": 4, "name": "Row 4 (R4)", "role": "row scan line", "notes": "" },
+      { "pin": 5, "name": "Column 1 (C1)", "role": "column scan line", "notes": "Column pins are on the right side (Handson Technology datasheet)" },
+      { "pin": 6, "name": "Column 2 (C2)", "role": "column scan line", "notes": "" },
+      { "pin": 7, "name": "Column 3 (C3)", "role": "column scan line", "notes": "" },
+      { "pin": 8, "name": "Column 4 (C4)", "role": "column scan line", "notes": "" }
+    ],
+    "pin_1_identification": "With the keypad facing you, keys up, and the ribbon cable coming off the bottom edge, the first 4 pins on the connector are the rows and the last 4 are the columns (Handson Technology datasheet). ELEGOO's own tutorial wires the first pin to Arduino D9 through the eighth pin to D2, in that same order.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "No chip onboard, so it works at whatever logic level the microcontroller uses; the switch contacts themselves are rated a maximum of 24VDC / 30mA (Handson Technology datasheet)",
+    "absolute_max_voltage": "24V DC across any single switch contact (Handson Technology datasheet)",
+    "typical_current": "Negligible; a plain mechanical switch closure, current is set by the microcontroller's own pull resistor, not by the keypad",
+    "max_current": "30mA per switch contact (Handson Technology datasheet)",
+    "logic_level": "None; passive switches only, logic level is whatever the connected microcontroller pins use",
+    "interface": "digital matrix"
+  },
+  "key_specs": {
+    "key_count": 16,
+    "layout": "4 rows by 4 columns: keys 0-9, A-D, star (*), and pound (#)",
+    "life_expectancy": "1 million closures (Handson Technology datasheet)",
+    "bounce_time": "5 milliseconds or less (Handson Technology datasheet)",
+    "operating_temperature": "0 to 50 degrees C (Handson Technology datasheet)",
+    "dimensions": "about 69mm x 65.5mm (Adafruit product 3844); Handson Technology's own version lists a very similar 6.9cm x 7.6cm"
+  },
+  "visual_identification": {
+    "shape_and_size": "Thin, flat, bendable black rectangular pad about 7cm by 7cm, printed with a 4x4 grid of key labels, with a narrow ribbon tail coming off one edge ending in an 8-pin connector",
+    "color_and_markings": "Black membrane surface with light-colored printed digits 0 to 9, letters A to D, and the star and pound symbols in a 4x4 grid; the ribbon tail is often a different colored film (commonly tan or grey)",
+    "printed_text_to_look_for": "The key labels themselves: 0-9, A, B, C, D, star, pound. Usually no other printed text on the membrane.",
+    "easily_confused_with": ["3x4 phone-style keypad (only 12 keys and 7 pins)", "a silicone push-button keypad in the same 4x4 layout, which has raised rubber buttons instead of a flat membrane"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "Pin 1 (R1)", "uno_pin": "D9" },
+      { "part_pin": "Pin 2 (R2)", "uno_pin": "D8" },
+      { "part_pin": "Pin 3 (R3)", "uno_pin": "D7" },
+      { "part_pin": "Pin 4 (R4)", "uno_pin": "D6" },
+      { "part_pin": "Pin 5 (C1)", "uno_pin": "D5" },
+      { "part_pin": "Pin 6 (C2)", "uno_pin": "D4" },
+      { "part_pin": "Pin 7 (C3)", "uno_pin": "D3" },
+      { "part_pin": "Pin 8 (C4)", "uno_pin": "D2" }
+    ],
+    "required_extra_parts": ["8 male-to-male jumper wires (ELEGOO tutorial)"],
+    "arduino_library": "Keypad library (by Mark Stanley and Alexander Brevig), per ELEGOO's Lesson 11"
+  },
+  "safety": {
+    "hazards": ["None; passive low-voltage switches"],
+    "handling_notes": ["Do not fold or crease the membrane sharply; it is a flexible film and can crack", "The adhesive backing is meant for one-time mounting, so avoid pressing it down until you have chosen a final position"],
+    "common_mistakes": ["Wiring the row and column pins in the wrong order without checking the datasheet", "Assuming the keymap in the code matches the printed key layout without verifying it"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "No key presses register", "likely_cause": "The Keypad library is not installed, or the row/column wiring order does not match the code", "check": "Confirm the Keypad library is installed (ELEGOO Lesson 1) and that the row/column pin arrays in the sketch match the physical wiring" },
+      { "symptom": "The wrong character shows for a key that is pressed", "likely_cause": "Rows and columns swapped, or the keymap array in the code does not match the physical key layout", "check": "Compare the keymap array in the sketch against the printed layout on the keypad" }
+    ],
+    "how_to_test_with_a_multimeter": "With the keypad unplugged from the Arduino, set a multimeter to continuity or resistance mode, touch one probe to a row pin and the other to a column pin, and hold down the key at their intersection. You should read a low resistance only while that specific key is held, and an open circuit otherwise."
+  },
+  "market": {
+    "unit_price_usd": 5.95,
+    "price_source_url": "https://www.adafruit.com/product/3844",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Adafruit", "Amazon (often sold in packs of 2 to 10)", "SparkFun", "generic electronics resellers"]
+  },
+  "sources": [
+    { "title": "THE MOST COMPLETE STARTER KIT TUTORIAL FOR UNO V1.0.19.01.23 (ELEGOO official tutorial PDF), Lesson 11 Membrane Switch Module", "url": "https://m.media-amazon.com/images/I/C1wMkX1+N9L.pdf", "type": "tutorial", "used_for": "confirms this is Lesson 11 of the current kit tutorial, 16 keys on 8 pins, quantity 1, and the exact wiring order (pin 1 to D9 through pin 8 to D2)" },
+    { "title": "ELEGOO UNO R3 Project Most Complete Starter Kit Instruction Manual (EL-KIT-001 parts list mirror)", "url": "https://manuals.plus/asin/B01CZTLHGE", "type": "wiki", "used_for": "confirms kit SKU EL-KIT-001 and that '1pcs Keypad Module' is in the current parts list" },
+    { "title": "Handson Technology 4x4 Matrix Membrane Keypad data specs", "url": "http://handsontec.com/dataspecs/4x4%20keypad.pdf", "type": "datasheet", "used_for": "pin order (rows then columns), maximum electrical rating, life expectancy, bounce time, dimensions, operating temperature" },
+    { "title": "4x4 Matrix Keypad, Adafruit product page", "url": "https://www.adafruit.com/product/3844", "type": "retailer", "used_for": "market.unit_price_usd and dimensions" }
+  ],
+  "confidence": {
+    "overall": "high",
+    "fields_uncertain": ["identity.manufacturer_part_number (generic part with no printed MPN)"],
+    "notes": "ELEGOO's own tutorial and the independent Handson Technology datasheet agree on pin order, key count, and layout, so confidence is high despite this being an unbranded generic part. This module is confirmed present in the current EL-KIT-001 kit."
+  }
+}

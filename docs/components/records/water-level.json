@@ -1,0 +1,92 @@
+{
+  "id": "water-level",
+  "kit": { "name": "ELEGOO UNO R3 Most Complete Starter Kit", "sku": "EL-KIT-001 (confirmed)", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "Water Level Detection Sensor Module",
+    "canonical_name": "resistive water level detection sensor module",
+    "aliases": ["water level sensor", "water sensor brick", "rain/water depth sensor"],
+    "category": "sensor",
+    "manufacturer": "Generic; this is a simple PCB sensor built around a transistor amplifier circuit, not a manufacturer's catalog chip, so there is no chip-level manufacturer to cite. The specific board's PCB manufacturer is unconfirmed.",
+    "manufacturer_part_number": "none found; ELEGOO's own kit tutorial does not give this part a model number, calling it simply the \"water sensor\"",
+    "generic_equivalents": ["RobotDyn water level sensor module", "diymore rain/water level sensor module (near-identical design and published spec)"],
+    "serial_number": "not_applicable",
+    "package": "module (small elongated PCB with exposed parallel copper traces at one end)"
+  },
+  "function": {
+    "one_sentence_plain_english": "This sensor tells you roughly how deep it is submerged in water, by measuring how many of its exposed copper strips are touching the water.",
+    "what_it_is_used_for": "Detecting rainfall, measuring water depth in a container, or building a simple water-leak alarm.",
+    "how_it_works_briefly": "The sensor has a comb of exposed parallel copper traces. Water bridges neighboring traces and lowers the resistance between them; a small onboard transistor amplifier converts that changing resistance into an analog voltage the Arduino can read. The higher the water rises up the comb, the more traces get bridged and the higher the output voltage."
+  },
+  "pins": {
+    "pin_count": 3,
+    "pinout": [
+      { "pin": 1, "name": "S", "role": "analog signal out", "notes": "Connect to any Arduino analog input pin (A0-A5); ELEGOO's tutorial says any one is fine as long as the sketch matches (ELEGOO tutorial)." },
+      { "pin": 2, "name": "+", "role": "power in", "notes": "Connect to the Arduino's 5V pin (ELEGOO tutorial)." },
+      { "pin": 3, "name": "-", "role": "ground", "notes": "Connect to the Arduino's GND pin (ELEGOO tutorial)." }
+    ],
+    "pin_1_identification": "Pins are printed S, +, - on the small header at the end of the board opposite the exposed copper comb traces.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "5V (ELEGOO's own kit tutorial). A similar generic sensor of this same design, sold separately by diymore, is rated DC 3.3V-5.5V, so a wider tolerance is plausible, but only the 5V figure is confirmed for this exact kit's tutorial.",
+    "absolute_max_voltage": "not confirmed; no manufacturer datasheet exists for this generic, unbranded sensor",
+    "typical_current": "less than 20 mA (ELEGOO tutorial)",
+    "max_current": "not confirmed beyond the \"less than 20 mA\" figure from ELEGOO's tutorial",
+    "logic_level": "analog output, 0V to about 4.2V (ELEGOO tutorial)",
+    "interface": "analog"
+  },
+  "key_specs": {
+    "detection_width": "40mm x 16mm (ELEGOO tutorial)",
+    "output_voltage_range": "0 to 4.2V (ELEGOO tutorial)",
+    "operating_temperature": "10 to 30 degrees C (ELEGOO tutorial)",
+    "sense_trace_pull_up": "the exposed sense traces have a weak 1 megaohm pull-up resistor built in, which a drop of water pulls low by shorting a sense trace to a grounded trace (ELEGOO tutorial component description)"
+  },
+  "visual_identification": {
+    "shape_and_size": "Small elongated rectangular PCB, roughly 6cm x 2cm, with a row of exposed parallel copper traces (like a comb) covering most of one end.",
+    "color_and_markings": "PCB color not independently confirmed for the ELEGOO-bundled unit (similar generic boards are commonly sold in blue or red); a small red power LED and a couple of small components (a resistor and a transistor) sit near the 3-pin header at the end opposite the copper comb.",
+    "printed_text_to_look_for": "Pins printed S, +, - near the header. There is no chip part number to look for since this board has no primary IC, just a transistor amplifier circuit.",
+    "easily_confused_with": ["Soil moisture sensor modules (a very similar comb-trace design, but meant to be pushed into soil rather than dipped in water)", "Rain sensor modules (same working principle and often the same physical board, just relabeled)"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "S", "uno_pin": "A0" },
+      { "part_pin": "+", "uno_pin": "5V" },
+      { "part_pin": "-", "uno_pin": "GND" }
+    ],
+    "required_extra_parts": ["3 female-to-male Dupont wires (per ELEGOO's own kit tutorial)"],
+    "arduino_library": "none required; read the sensor with the built-in analogRead() function"
+  },
+  "safety": {
+    "hazards": ["Submerging anything beyond the marked copper comb area (the header or wiring) risks short circuits or long-term corrosion", "Standing water near mains-powered equipment is an electrical hazard in general, though this sensor itself only runs on a safe low voltage (5V)"],
+    "handling_notes": ["Dry the sensor thoroughly after use to slow corrosion of the exposed copper traces", "Do not exceed the rated voltage"],
+    "common_mistakes": ["Expecting a precise depth measurement; this sensor gives a rough analog trend, not a calibrated reading", "Leaving the sensor wet and powered for long periods, which speeds up corrosion of the copper traces"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "Reading stays near 0 even when wet", "likely_cause": "Wiring fault, or water not reaching high enough up the comb", "check": "Confirm + and - are wired correctly, then wet more of the comb and watch the reading change" },
+      { "symptom": "Reading drifts over repeated use", "likely_cause": "Corrosion building up on the copper traces from repeated wetting", "check": "Gently clean the copper traces and compare a fresh dry-air reading against the original baseline" }
+    ],
+    "how_to_test_with_a_multimeter": "With the board powered, measure the S pin's voltage relative to GND while dry (expect it near 0V) and again with the comb dipped in water (expect it to rise); this confirms the sensor's analog behavior even without a microcontroller attached."
+  },
+  "market": {
+    "unit_price_usd": 3.99,
+    "price_source_url": "https://www.diymore.cc/products/rain-water-sensor-water-level-sensor-module-depth-of-detection-board-for-arduino-dc-3-3v-5v",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Amazon", "diymore.cc", "generic Chinese electronics resellers"]
+  },
+  "sources": [
+    { "title": "THE MOST COMPLETE STARTER KIT TUTORIAL FOR UNO (ELEGOO, V1.0.19.01.23), Lesson 18 Water Level Detection Sensor Module", "url": "https://m.media-amazon.com/images/I/C1wMkX1+N9L.pdf", "type": "tutorial", "used_for": "identity, function, pins (S/+/- pin labels and wiring), electrical (5V, less than 20mA, 0-4.2V output), key_specs (detection width, temperature range, pull-up resistor)" },
+    { "title": "Rain Water Sensor / Water Level Sensor Module product page (diymore.cc)", "url": "https://www.diymore.cc/products/rain-water-sensor-water-level-sensor-module-depth-of-detection-board-for-arduino-dc-3-3v-5v", "type": "retailer", "used_for": "market.unit_price_usd, cross-check of operating voltage range on a similar generic board" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "electrical.absolute_max_voltage (no manufacturer datasheet exists for this generic part)",
+      "electrical.max_current beyond the tutorial's less-than-20mA typical figure",
+      "visual_identification.color_and_markings",
+      "the exact manufacturer or model of the specific board ELEGOO bundles, since this is a generic, unbranded sensor design shared across many kit makers"
+    ],
+    "notes": "This is a simple, unbranded sensor PCB with no chip datasheet to cite; every electrical figure above traces back to ELEGOO's own kit tutorial rather than a component manufacturer, which is why several fields are still flagged uncertain despite coming from ELEGOO's own official source."
+  }
+}

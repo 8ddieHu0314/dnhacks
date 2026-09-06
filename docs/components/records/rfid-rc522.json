@@ -1,0 +1,101 @@
+{
+  "id": "rfid-rc522",
+  "kit": { "name": "ELEGOO UNO R3 Most Complete Starter Kit", "sku": "EL-KIT-001 (confirmed)", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "RC522 RFID Module",
+    "canonical_name": "MFRC522 RFID reader/writer module (13.56 MHz)",
+    "aliases": ["RC522 module", "RFID-RC522", "MFRC522 breakout"],
+    "category": "sensor",
+    "manufacturer": "NXP Semiconductors (MFRC522 chip); the breakout board itself is a generic, unconfirmed clone-board design",
+    "manufacturer_part_number": "MFRC522, confirmed by both ELEGOO's own kit tutorial (component introduction names \"The MFRC522\") and the NXP datasheet",
+    "generic_equivalents": ["Any MFRC522-based RC522 breakout board (widely sold by HiLetgo, SunFounder, Addicore, and others, all with a near-identical 8-pin layout)"],
+    "serial_number": "not_applicable (the module itself carries none; the MIFARE card and key fob it works with each carry a factory-set UID, which functions like an identifier for that specific tag but is not a device serial number)",
+    "package": "module (roughly square breakout PCB with a printed antenna coil; chip in a QFN/HVQFN package)"
+  },
+  "function": {
+    "one_sentence_plain_english": "This module reads, and can write to, contactless ID cards and key fobs held close to it, the same technology used in office badge readers.",
+    "what_it_is_used_for": "Access-control projects, attendance systems, or anything that should react differently depending on which card or fob is tapped against it.",
+    "how_it_works_briefly": "The module's antenna coil radiates a 13.56 MHz radio signal. A nearby MIFARE card or fob draws its power from that signal and sends back its stored ID number, which the module decodes and passes on to the Arduino over SPI."
+  },
+  "pins": {
+    "pin_count": 8,
+    "pinout": [
+      { "pin": 1, "name": "SDA", "role": "SPI chip select (also usable as I2C data)", "notes": "Printed SDA on the board silkscreen but used as the SPI slave-select (SS/NSS) line in ELEGOO's default wiring. Maps to the MFRC522 chip's pin 24." },
+      { "pin": 2, "name": "SCK", "role": "SPI clock", "notes": "Maps to chip pin 29 (also usable for I2C address selection or UART timing depending on mode, per the NXP datasheet)." },
+      { "pin": 3, "name": "MOSI", "role": "SPI data in (to the module)", "notes": "Maps to chip pin 30." },
+      { "pin": 4, "name": "MISO", "role": "SPI data out (from the module)", "notes": "Maps to chip pin 31." },
+      { "pin": 5, "name": "IRQ", "role": "interrupt output", "notes": "Maps to chip pin 23. Optional; often left unconnected in basic SPI wiring." },
+      { "pin": 6, "name": "GND", "role": "ground", "notes": "The chip has several internal ground pins (DVSS, PVSS, AVSS, TVSS per the NXP datasheet); this module brings out one combined GND pin." },
+      { "pin": 7, "name": "RST", "role": "reset / power-down", "notes": "Maps to chip pin 6 (NRSTPD). Pulling this pin low powers the chip down." },
+      { "pin": 8, "name": "3.3V", "role": "power in", "notes": "The chip has several internal supply pins (VDDA, VDDD, and others per the NXP datasheet); this module brings out one combined 3.3V supply pin." }
+    ],
+    "pin_1_identification": "No numbered pin 1. The 8-pin header is printed left to right SDA SCK MOSI MISO IRQ GND RST 3.3V on the standard RC522 breakout silkscreen. The square copper antenna trace running around the board's edge is the clearest identifying feature.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "3.3V only for this module; the MFRC522 chip's own operating range is 2.5V to 3.6V (NXP MFRC522 datasheet, Table 151 Operating conditions)",
+    "absolute_max_voltage": "-0.5V to +4.0V on the chip's supply pins (NXP MFRC522 datasheet, Table 150 Limiting values)",
+    "typical_current": "roughly 13.5-19 mA combined analog and digital supply current at 3.3V, not counting antenna-driving current (NXP MFRC522 datasheet: IDDD 6.5-9 mA typical, IDDA 7-10 mA typical)",
+    "max_current": "up to 100 mA on the antenna driver supply pin (TVDD) under continuous-wave transmission (NXP MFRC522 datasheet)",
+    "logic_level": "3.3V family per the NXP datasheet. Sellers commonly describe these breakout boards as 5V-logic tolerant on the SPI lines, but this claim was not confirmed in the NXP datasheet itself, which specifies 3.3V-class supply and I/O; do not assume 5V tolerance without checking the specific board's own circuitry.",
+    "interface": "SPI"
+  },
+  "key_specs": {
+    "carrier_frequency": "13.56 MHz (NXP MFRC522 datasheet)",
+    "protocol_support": "ISO/IEC 14443 Type A, MIFARE Classic/Standard cards (NXP MFRC522 datasheet)",
+    "spi_speed": "up to 10 Mbit/s (NXP MFRC522 datasheet)",
+    "included_accessories_in_elegoo_kit": "seed data for this kit lists 1 white MIFARE card and 1 key fob bundled with the module; not independently re-confirmed by a fetched source in this pass"
+  },
+  "visual_identification": {
+    "shape_and_size": "Roughly square PCB, about 4 cm x 4 cm, with a copper trace coil running around the board's perimeter (the antenna).",
+    "color_and_markings": "Commonly sold with a light blue or purple PCB; exact color as bundled in this specific ELEGOO kit was not independently confirmed. A small square chip sits near the center of the board, often mounted at a slight diagonal.",
+    "printed_text_to_look_for": "\"RC522\" or \"MFRC522\" printed on the board; the 8-pin header labeled SDA SCK MOSI MISO IRQ GND RST 3.3V.",
+    "easily_confused_with": ["Other 13.56 MHz reader boards using a different chip, such as PN532 (supports more modes and has a different pin layout)", "125 kHz RFID readers (a different frequency, not compatible with the same cards despite superficially similar boards)"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "RST", "uno_pin": "D9" },
+      { "part_pin": "SDA", "uno_pin": "D10" },
+      { "part_pin": "MOSI", "uno_pin": "D11" },
+      { "part_pin": "MISO", "uno_pin": "D12" },
+      { "part_pin": "SCK", "uno_pin": "D13" },
+      { "part_pin": "3.3V", "uno_pin": "3.3V" },
+      { "part_pin": "GND", "uno_pin": "GND" }
+    ],
+    "required_extra_parts": ["7 female-to-male Dupont wires (per ELEGOO's own kit tutorial)"],
+    "arduino_library": "ELEGOO's tutorial names an \"rfid\" library; this is commonly the MFRC522 library by miguelbalboa, which defines the RST_PIN=9 and SS_PIN=10 constants shown in the tutorial's example code"
+  },
+  "safety": {
+    "hazards": ["Powering the module from 5V instead of 3.3V can damage the chip (NXP datasheet lists an absolute maximum of 4.0V on the supply pins)"],
+    "handling_notes": ["Handle the board by its edges, avoid touching the chip", "Keep the antenna coil trace away from metal surfaces, which can weaken read range"],
+    "common_mistakes": ["Wiring the module's 3.3V pin to the Uno's 5V pin", "Mismatching the RST/SDA pin numbers between the physical wiring and the sketch's RST_PIN/SS_PIN constants"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "Card or fob not detected", "likely_cause": "Card held too far from the antenna, or the module isn't getting 3.3V", "check": "Hold the card within a few centimeters of the board and confirm 3.3V is reaching the module with a multimeter" },
+      { "symptom": "Random resets or garbled reads", "likely_cause": "Long or loose Dupont wires picking up noise on the SPI lines", "check": "Shorten the wires and reseat every connection" }
+    ],
+    "how_to_test_with_a_multimeter": "With the Arduino powered, measure between the module's 3.3V pin and GND; expect a reading close to 3.3V. A multimeter cannot verify SPI communication; use the library's example sketch with the serial monitor for that."
+  },
+  "market": {
+    "unit_price_usd": 3.89,
+    "price_source_url": "https://www.addicore.com/products/rfid-rc522-mifare-module",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Amazon", "Addicore", "SunFounder", "HiLetgo", "generic Chinese electronics resellers"]
+  },
+  "sources": [
+    { "title": "THE MOST COMPLETE STARTER KIT TUTORIAL FOR UNO (ELEGOO, V1.0.19.01.23), Lesson 21 RC522 RFID Module", "url": "https://m.media-amazon.com/images/I/C1wMkX1+N9L.pdf", "type": "tutorial", "used_for": "identity (confirms the RC522/MFRC522 module ships in this kit), wiring_to_uno RST_PIN/SS_PIN code values, arduino_library name, function" },
+    { "title": "MFRC522 Standard performance MIFARE and NTAG frontend, product data sheet (NXP Semiconductors)", "url": "https://www.nxp.com/docs/en/data-sheet/MFRC522.pdf", "type": "datasheet", "used_for": "pins (chip pin table and pin-to-module mapping), electrical (operating voltage range, absolute maximum ratings, supply current), key_specs (carrier frequency, protocol support, SPI speed)" },
+    { "title": "RFID RC522 MIFARE Module product page (Addicore)", "url": "https://www.addicore.com/products/rfid-rc522-mifare-module", "type": "retailer", "used_for": "market.unit_price_usd" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "electrical.logic_level 5V-tolerance claim (widely repeated by sellers but not confirmed in the NXP datasheet, which specifies a 3.3V-class supply)",
+      "visual_identification.color_and_markings",
+      "whether the ELEGOO kit's card-plus-fob bundle composition (1 card, 1 fob) still matches the seed data; not re-verified from a fetched source this pass"
+    ],
+    "notes": "The market price above is for a bare RC522 module without a card or key fob. ELEGOO's kit (per seed data) bundles the module with 1 card and 1 key fob, so the kit's true per-unit cost for this line item is likely somewhat higher than the $3.89 bare-module price used here."
+  }
+}

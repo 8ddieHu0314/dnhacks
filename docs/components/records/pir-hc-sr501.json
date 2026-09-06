@@ -1,0 +1,94 @@
+{
+  "id": "pir-hc-sr501",
+  "kit": { "name": "ELEGOO UNO R3 Most Complete Starter Kit", "sku": "EL-KIT-001", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "PIR Motion Sensor",
+    "canonical_name": "HC-SR501 passive infrared (PIR) motion sensor module",
+    "aliases": ["HC-SR501 PIR Sensor", "PIR motion detector"],
+    "category": "sensor",
+    "manufacturer": "Generic; HC-SR501 is a widely cloned, industry-standard design and no single named manufacturer was confirmed for ELEGOO's exact board",
+    "manufacturer_part_number": "HC-SR501 (board-level designation). The sensing chip on most HC-SR501 boards is a BISS0001 motion-detector IC, but this was not directly confirmed for ELEGOO's specific board by a source I fetched.",
+    "generic_equivalents": ["Adafruit PIR sensor (product 189), a functionally similar but not confirmed identical PIR module"],
+    "serial_number": "not_applicable",
+    "package": "module: a round white plastic lens dome (made of many small ridges instead of one thick piece of glass, which is why it looks segmented) mounted on a small round green PCB, with a 3-pin header"
+  },
+  "function": {
+    "one_sentence_plain_english": "A sensor that notices when a warm, moving body like a person walks nearby, the same basic idea as a security light's motion detector.",
+    "what_it_is_used_for": "Motion-activated lights, alarms, or any project that should react when someone walks by.",
+    "how_it_works_briefly": "The sensor has two halves, each of which senses a little bit of the infrared heat coming from the room. When a warm body passes by, it changes the heat hitting one half before the other, creating a brief difference between them. The onboard circuit turns that difference into a simple high signal on the output pin."
+  },
+  "pins": {
+    "pin_count": 3,
+    "pinout": [
+      { "pin": 1, "name": "VCC", "role": "power in", "notes": "5V to 20V DC accepted (ELEGOO's own tutorial); 5V is the typical supply used" },
+      { "pin": 2, "name": "OUT (Dout)", "role": "digital output", "notes": "low when idle, high (about 3.3V) when motion is detected" },
+      { "pin": 3, "name": "GND", "role": "ground", "notes": "" }
+    ],
+    "pin_1_identification": "With the sensor's white dome lens facing you and the 3-pin header at the bottom edge, the standard HC-SR501 layout (components101 and ELEGOO's own tutorial diagram) is VCC on the left, OUT in the middle, GND on the right.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "5V to 20V DC (ELEGOO's own tutorial: 'Power Pin: 5 to 20 VDC Supply input')",
+    "absolute_max_voltage": "20V DC (ELEGOO's own tutorial states the supply pin accepts up to 20 VDC)",
+    "typical_current": "65mA (components101 HC-SR501 page)",
+    "max_current": "not separately confirmed; only the single 65mA figure above was found in a source I fetched",
+    "logic_level": "output high is about 3.3V (components101 and ELEGOO's own tutorial); output low is 0V",
+    "interface": "digital"
+  },
+  "key_specs": {
+    "detection_range": "3 to 7 meters, adjustable with an onboard sensitivity potentiometer, a small adjustable resistor turned with a screwdriver (ELEGOO's own tutorial)",
+    "detection_angle": "about 110 to 120 degrees (ELEGOO's tutorial says 110 degrees; components101 and other sources commonly say about 120 degrees)",
+    "time_delay_adjustment": "about 3 seconds to 5 minutes, adjustable with a second onboard potentiometer (ELEGOO's own tutorial)",
+    "trigger_modes": "single trigger or repeatable trigger, chosen with a small onboard 3-pin jumper (ELEGOO's own tutorial)",
+    "initialization_time": "about 1 minute after power-up, during which false triggers can happen (ELEGOO's own tutorial)",
+    "block_time_after_trigger": "about a 3 second low period is enforced right after each time-delay period ends, during which new motion will not register (ELEGOO's own tutorial)"
+  },
+  "visual_identification": {
+    "shape_and_size": "A round white plastic lens dome, about the size of a large coin, mounted on a small round green PCB",
+    "color_and_markings": "White segmented dome lens; green PCB underneath with two small blue trimmer potentiometers (for sensitivity and time delay) and a small 3-pin jumper block for trigger mode; a 3-pin header sticks out from the edge of the board",
+    "printed_text_to_look_for": "Look for 'HC-SR501' printed on the PCB; the two adjustment potentiometers are sometimes labeled near the silkscreen for sensitivity and time",
+    "easily_confused_with": ["Other PIR modules with a different dome shape, for example the much smaller AM312 mini PIR sensor, which has no adjustment potentiometers"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "VCC", "uno_pin": "5V" },
+      { "part_pin": "OUT", "uno_pin": "D7 (ELEGOO's own tutorial wiring example)" },
+      { "part_pin": "GND", "uno_pin": "GND" }
+    ],
+    "required_extra_parts": ["3 female-to-male jumper wires (ELEGOO tutorial)"],
+    "arduino_library": "None required; ELEGOO's Lesson 17 example sketch reads the OUT pin with a simple digitalRead"
+  },
+  "safety": {
+    "hazards": ["None significant; low voltage sensor"],
+    "handling_notes": ["Allow about 1 minute after power-up before trusting readings, per ELEGOO's own tutorial", "Set the trigger jumper to the repeatable position for most uses, per ELEGOO's own tutorial", "Avoid touching or scratching the white lens dome, since this can affect how it senses infrared light"],
+    "common_mistakes": ["Expecting clean output immediately after power-up and ignoring the roughly 1-minute warm-up period", "Not accounting for the roughly 3-second blackout period that follows each detection cycle"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "Output never goes high even with motion nearby", "likely_cause": "Sensitivity potentiometer turned too low, or the sensor is still in its 1-minute warm-up window", "check": "Wait at least 60 seconds after power-up, then adjust the sensitivity potentiometer and retest" },
+      { "symptom": "Output triggers with no one around", "likely_cause": "The sensor is aimed at a heat source such as a window, heater, or direct sunlight, or the warm-up period has not finished", "check": "Reposition away from windows and heat sources and wait for the warm-up period to complete" }
+    ],
+    "how_to_test_with_a_multimeter": "With VCC and GND powered from a 5V source, measure DC voltage at the OUT pin. It should sit near 0V when idle and jump to roughly 3.3V when you wave a hand in front of the sensor, after the 1-minute warm-up period has passed."
+  },
+  "market": {
+    "unit_price_usd": 1.99,
+    "price_source_url": "https://robotpishop.com/products/hc-sr501-infrared-pir-motion-sensor",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Amazon (often sold in packs of 3 to 5)", "Robot Pi Shop", "Adafruit (sells a similar but not confirmed identical PIR sensor, product 189, at a higher price)", "Banggood"]
+  },
+  "sources": [
+    { "title": "THE MOST COMPLETE STARTER KIT TUTORIAL FOR UNO V1.0.19.01.23 (ELEGOO official tutorial PDF), Lesson 17 HC-SR501 PIR Sensor", "url": "https://m.media-amazon.com/images/I/C1wMkX1+N9L.pdf", "type": "tutorial", "used_for": "confirms quantity 1, pin roles and voltage range (VCC 5-20VDC, OUT, GND), detection range and angle, time delay and trigger jumper behavior, the roughly 1 minute warm-up period, and wiring (OUT to D7)" },
+    { "title": "ELEGOO UNO R3 Project Most Complete Starter Kit Instruction Manual (EL-KIT-001 parts list mirror)", "url": "https://manuals.plus/asin/B01CZTLHGE", "type": "wiki", "used_for": "confirms kit SKU EL-KIT-001 and that '1pcs HC-SR501 PIR Motion Sensor' is in the current parts list" },
+    { "title": "HC-SR501 PIR Sensor Working, Pinout and Datasheet (components101)", "url": "https://components101.com/sensors/hc-sr501-pir-sensor", "type": "datasheet", "used_for": "pin table and numbering (VCC, OUT, GND), output voltage level (3.3V), current draw (65mA), and corroboration of detection angle and range" },
+    { "title": "HC-SR501 Infrared PIR Motion Sensor, Robot Pi Shop", "url": "https://robotpishop.com/products/hc-sr501-infrared-pir-motion-sensor", "type": "retailer", "used_for": "market.unit_price_usd and corroborating voltage/output specs" }
+  ],
+  "confidence": {
+    "overall": "high",
+    "fields_uncertain": [
+      "identity.manufacturer_part_number (the underlying sensing IC, commonly BISS0001, was not directly confirmed for ELEGOO's specific board)",
+      "electrical.max_current (only one current figure was found, not explicitly labeled as typical versus max)"
+    ],
+    "notes": "Strong agreement across ELEGOO's own tutorial and two independent third-party sources on pinout, voltage range, and behavior. This sensor is confirmed present in the current EL-KIT-001 kit; note the seed record's own comment that it may only be in newer kit revisions turned out to match, since it is indeed included in the current listing."
+  }
+}

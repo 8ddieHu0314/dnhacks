@@ -1,0 +1,164 @@
+{
+  "id": "usb-cable",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "USB Cable",
+    "canonical_name": "USB A to B cable",
+    "aliases": [
+      "USB 2.0 printer-style cable",
+      "Arduino programming cable",
+      "USB A-B cable"
+    ],
+    "category": "wiring",
+    "manufacturer": "generic (unbranded, not a named manufacturer)",
+    "manufacturer_part_number": "not applicable, generic commodity cable with no confirmed manufacturer part number",
+    "generic_equivalents": [
+      "any USB 2.0 Type-A male to Type-B male cable"
+    ],
+    "serial_number": "not_applicable",
+    "package": "cable"
+  },
+  "function": {
+    "one_sentence_plain_english": "This is the cable that plugs the Arduino board into a computer so the computer can power it and load programs onto it.",
+    "what_it_is_used_for": "It connects a computer's USB port to the Arduino UNO board. Through this one cable, the computer both powers the board and sends it a new program (this is called 'uploading a sketch').",
+    "how_it_works_briefly": "Inside the cable are four wires. Two carry 5 volt power (one wire feeds power in, one is the return path called ground). The other two carry data back and forth as a pair, which is how the computer talks to the tiny chip on the Arduino board that manages the USB connection."
+  },
+  "pins": {
+    "pin_count": 4,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "VBUS",
+        "role": "power",
+        "notes": "Carries 5 volt power from the computer or USB power adapter to the Arduino board."
+      },
+      {
+        "pin": 2,
+        "name": "D-",
+        "role": "data (negative)",
+        "notes": "Paired with D+ as a twisted pair inside the cable to carry data while resisting electrical noise."
+      },
+      {
+        "pin": 3,
+        "name": "D+",
+        "role": "data (positive)",
+        "notes": "Paired with D- as a twisted pair inside the cable to carry data while resisting electrical noise."
+      },
+      {
+        "pin": 4,
+        "name": "GND",
+        "role": "ground / return",
+        "notes": "Common return path for both the power and the data signals."
+      }
+    ],
+    "pin_1_identification": "There is no separate step to find pin 1 by eye. The connector shells are shaped so the cable only fits one way: the flat, wide end (USB Type-A) plugs into the computer, and the squarish end with slightly rounded top corners (USB Type-B) plugs into the Arduino board. Because the plastic shell is keyed like this, it is physically impossible to insert either end backwards, unlike a battery where you must check + and -.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "5V nominal on the VBUS wire, supplied by whatever the Type-A end is plugged into (a computer port or USB power adapter)",
+    "absolute_max_voltage": "not a separate rating for the cable itself; the voltage is set by the host device's USB port, not by the cable",
+    "typical_current": "well under 500 mA for programming and running an Arduino UNO",
+    "max_current": "up to 500 mA (the standard USB 2.0 port limit that VBUS is designed to deliver)",
+    "logic_level": "not applicable, this is a passive cable and does not process logic signals itself",
+    "interface": "USB"
+  },
+  "key_specs": {
+    "usb_version": "USB 2.0 (also works for USB 1.1 devices)",
+    "connector_a_end": "USB Type-A male (flat, rectangular plug, goes into the computer)",
+    "connector_b_end": "USB Type-B male (squarish plug with two rounded top corners, goes into the Arduino board)",
+    "example_cable_length": "about 3 feet / 1 meter (from a generic retail USB A-B cable, see confidence.notes)",
+    "wire_count": "4 conductors (VBUS, D-, D+, GND)"
+  },
+  "visual_identification": {
+    "shape_and_size": "A cable roughly 3 to 6 feet long with two different plugs on each end. One end is a flat, wide plastic plug (USB Type-A). The other end is a smaller, squarish plug with two gently rounded top corners (USB Type-B).",
+    "color_and_markings": "Cable jacket is usually black, white, or grey. Connector shells are usually silver-grey metal. No polarity markings are needed because the shape prevents wrong-way insertion.",
+    "printed_text_to_look_for": "Cables rarely have printed text; occasionally 'USB 2.0' or 'Hi-Speed' is printed near one of the connectors or on the jacket.",
+    "easily_confused_with": [
+      "USB printer cables (identical Type-A to Type-B shape, this is the same cable style)",
+      "USB-A to Micro-USB or USB-A to USB-C cables, which have a much smaller, flatter connector on the device end instead of the squarish Type-B plug"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "Type-A plug",
+        "uno_pin": "computer or laptop USB port"
+      },
+      {
+        "part_pin": "Type-B plug",
+        "uno_pin": "UNO board's onboard USB connector"
+      }
+    ],
+    "required_extra_parts": [],
+    "arduino_library": "none, this is a physical cable; the Arduino IDE handles the USB communication in software"
+  },
+  "safety": {
+    "hazards": [
+      "Low voltage (5V), not a shock hazard under normal use.",
+      "Forcing a connector in upside down can bend or break the internal pins if someone tries to force a mismatched or misaligned plug."
+    ],
+    "handling_notes": [
+      "Never force the connector; if it does not slide in easily, check you have the right end and the right orientation.",
+      "Unplug by pulling the plastic shell, not the cable jacket, to avoid damaging the wires inside."
+    ],
+    "common_mistakes": [
+      "Trying to power the board from a phone charge-only cable that lacks the two data wires, which will power the board but prevent uploading a program.",
+      "Using a very long or low-quality cable, which can cause upload errors or an unrecognized device."
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "Board powers on (lights up) but the computer does not recognize it as a device",
+        "likely_cause": "The cable may be a charge-only cable missing the D+ and D- data wires, or the cable/port is faulty",
+        "check": "Try a different, known-good USB A-B cable and a different USB port on the computer"
+      },
+      {
+        "symptom": "Uploads fail partway through or are unreliable",
+        "likely_cause": "Poor quality or damaged cable, or a bad connection",
+        "check": "Reseat both ends firmly, try a shorter cable, and check for a 'device disconnected' message in the computer's device list while wiggling the cable gently"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "With one end unplugged, set a multimeter to continuity mode and touch one probe to the VBUS pin (pin 1) on the Type-A end and the other to the VBUS pin on the Type-B end; a beep or near-zero-ohm reading confirms that wire is intact. Repeat for GND (pin 4). The D+ and D- wires are hard to test this way for actual data function, since continuity alone does not prove they carry data correctly."
+  },
+  "market": {
+    "unit_price_usd": 3.95,
+    "price_source_url": "https://www.adafruit.com/product/62",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "Amazon",
+      "Adafruit",
+      "SparkFun",
+      "Monoprice",
+      "bundled with ELEGOO Arduino kits"
+    ]
+  },
+  "sources": [
+    {
+      "title": "USB cable schematic - AllPinouts",
+      "url": "https://allpinouts.org/pinouts/cables/serial/usb-cable-schematic/",
+      "type": "wiki",
+      "used_for": "pins.pinout pin order and names (VBUS, D-, D+, GND), electrical.operating_voltage, electrical.typical_current and max_current (500 mA VBUS rating)"
+    },
+    {
+      "title": "Adafruit USB Cable - A/B - 3ft Long (product #62)",
+      "url": "https://www.adafruit.com/product/62",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, market.price_source_url, key_specs.usb_version, key_specs.example_cable_length"
+    }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "exact cable length shipped inside this specific ELEGOO kit (ELEGOO's own product page and tutorial blog both failed to load in this session, returning HTTP 403; the length given is from a generic retail USB A-B cable, not the ELEGOO-bundled one)",
+      "confirmation that the UNO R3 board's onboard connector is specifically USB Type-B (this is standard, widely documented Arduino hardware knowledge, but no ELEGOO, Arduino, or datasheet source loaded successfully in this session to confirm it directly)",
+      "manufacturer_part_number (this is a generic, unbranded cable with no confirmable MPN)"
+    ],
+    "notes": "ELEGOO's product page (elegoo.com) and tutorial blog post both returned HTTP 403 Forbidden on fetch, and us.elegoo.com loaded but returned only site navigation with no product detail. Per the research budget rule, these were treated as dead sources and the record moved on to generic USB references and a general retailer listing instead of ELEGOO-specific ones. Price reflects a generic single-unit USB A-B cable, not necessarily the exact cable bundled in the kit; if the kit only ships the cable as part of a multi-item bundle, no per-unit split was needed here since this retailer sells the cable individually."
+  }
+}

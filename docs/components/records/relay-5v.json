@@ -1,0 +1,190 @@
+{
+  "id": "relay-5v",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "5V Relay",
+    "canonical_name": "5V SPDT relay",
+    "aliases": [
+      "Songle SRD-05VDC-SL-C",
+      "5V single-pole double-throw relay"
+    ],
+    "category": "actuator",
+    "manufacturer": "Songle Relay (Ningbo Songle Relay Co., Ltd)",
+    "manufacturer_part_number": "SRD-05VDC-SL-C",
+    "generic_equivalents": [
+      "JQC-3FF-05VDC-C",
+      "HK4100F-DC5V-SHG",
+      "other 5V-coil SPDT relays sharing the same 5-pin PCB footprint"
+    ],
+    "serial_number": "not_applicable",
+    "package": "through-hole, sealed plastic case approximately 19.2 x 15.6 x 15.8 mm, 5-pin PCB mount"
+  },
+  "function": {
+    "one_sentence_plain_english": "An electrically controlled switch: a small 5V signal flips an internal lever that opens or closes a completely separate, much bigger circuit.",
+    "what_it_is_used_for": "Turning higher-voltage or higher-current things, like a lamp, a fan, or a wall-powered appliance, on and off using a low-power signal from an Arduino, without ever wiring the Arduino directly into that higher-power circuit.",
+    "how_it_works_briefly": "Sending current through the relay's internal coil creates a small magnetic field that pulls a metal lever (the armature) from one contact to another, similar to a person flipping a switch by hand, except triggered electrically, with the coil side and the switched side kept electrically isolated from each other."
+  },
+  "pins": {
+    "pin_count": 5,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "Coil pin A",
+        "role": "coil",
+        "notes": "one coil terminal; the coil has no fixed positive/negative side"
+      },
+      {
+        "pin": 2,
+        "name": "Coil pin B",
+        "role": "coil",
+        "notes": "other coil terminal"
+      },
+      {
+        "pin": 3,
+        "name": "COM",
+        "role": "common switch contact",
+        "notes": "the moving contact; connects to whichever of NO or NC is currently closed"
+      },
+      {
+        "pin": 4,
+        "name": "NO",
+        "role": "normally open contact",
+        "notes": "connected to COM only while the coil is energized"
+      },
+      {
+        "pin": 5,
+        "name": "NC",
+        "role": "normally closed contact",
+        "notes": "connected to COM only while the coil is NOT energized"
+      }
+    ],
+    "pin_1_identification": "The two coil pins sit on one side of the case and the three switch pins (COM, NO, NC) sit on the opposite side; the datasheet's wiring diagram shows this layout but the case markings can wear off, so confirming with a multimeter continuity check is recommended before wiring.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "5V DC (coil)",
+    "absolute_max_voltage": "120% of nominal, i.e. about 6V max allowable coil voltage, per the Songle SRD datasheet; the switched side is separately rated up to 250VAC/30VDC depending on load type",
+    "typical_current": "71.4 mA nominal coil current, per the Songle SRD datasheet",
+    "max_current": "10A switched load (resistive, 125VAC or 28VDC, Form C rating) or 7A at 240VAC, per the Songle SRD datasheet; the coil itself is not meant to carry more than its rated ~71 mA",
+    "logic_level": "the coil needs its full 71 mA at 5V, which is more than a single Arduino pin should supply directly, so a transistor stage is normally used to switch it rather than driving it from a pin directly",
+    "interface": "digital, switched through a transistor driver stage rather than a microcontroller pin directly"
+  },
+  "key_specs": {
+    "coil_resistance": "70 ohm, per the Songle SRD datasheet",
+    "coil_power": "0.36 W, per the Songle SRD datasheet",
+    "contact_form": "SPDT / Form C (one common contact, one normally-open, one normally-closed)",
+    "contact_resistance": "100 milliohm max, per the Songle SRD datasheet",
+    "dielectric_strength_coil_to_contact": "1500 VAC for 1 minute, per the Songle SRD datasheet",
+    "operate_release_time": "operate time 10 ms max, release time 5 ms max, per the Songle SRD datasheet",
+    "mechanical_life": "10,000,000 operations minimum with no load, per the Songle SRD datasheet",
+    "electrical_life": "100,000 operations minimum at rated load, per the Songle SRD datasheet"
+  },
+  "visual_identification": {
+    "shape_and_size": "small blue rectangular plastic block roughly 19 mm x 16 mm x 16 mm, sitting on 5 metal pins that poke out the bottom",
+    "color_and_markings": "blue plastic housing, usually printed with 'SONGLE' and 'SRD-05VDC-SL-C', plus small print showing ratings like '10A 250VAC'; some versions have a small clear window on top showing the internal contacts",
+    "printed_text_to_look_for": "'SRD-05VDC-SL-C' or a similar part code printed on top; '5VDC' near one corner; UL/CUL/TUV certification marks near the ratings text",
+    "easily_confused_with": [
+      "other Songle relay voltage variants that look identical except for the printed voltage code (e.g. SRD-12VDC-SL-C, SRD-24VDC-SL-C)",
+      "at a glance, a large blue capacitor, though the relay is bigger and has 5 pins rather than 2 leads"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "Coil pin A",
+        "uno_pin": "5V supply (through the load side of a transistor switch, not wired straight to a digital pin)"
+      },
+      {
+        "part_pin": "Coil pin B",
+        "uno_pin": "transistor collector (e.g. PN2222), with the transistor's emitter to GND and its base driven from a digital pin through a resistor"
+      },
+      {
+        "part_pin": "COM",
+        "uno_pin": "one side of the external switched circuit; not connected to the Arduino"
+      },
+      {
+        "part_pin": "NO or NC",
+        "uno_pin": "other side of the external switched circuit, chosen based on whether the load should default to off (use NO) or on (use NC) when unpowered"
+      }
+    ],
+    "required_extra_parts": [
+      "an NPN transistor (e.g. PN2222) to switch the coil current, since an Arduino pin alone cannot safely supply the coil's ~71 mA",
+      "a flyback diode (e.g. 1N4007) across the coil to protect the transistor from the voltage spike created when the coil turns off",
+      "a base resistor (commonly around 1 kOhm) between the Arduino pin and the transistor base"
+    ],
+    "arduino_library": "none required; controlled with digitalWrite()"
+  },
+  "safety": {
+    "hazards": [
+      "if the switched (COM/NO/NC) side is wired to mains voltage, that side becomes genuinely dangerous and can shock or kill; treat any such wiring as a live circuit",
+      "without a flyback diode across the coil, switching it off can generate a voltage spike that damages the driving transistor or a microcontroller pin"
+    ],
+    "handling_notes": [
+      "never touch the COM/NO/NC pins or their wiring while the load side is connected to mains power",
+      "confirm which pins are coil versus switch contacts with a multimeter before wiring; they are electrically isolated but physically close together on the case"
+    ],
+    "common_mistakes": [
+      "trying to drive the coil directly from an Arduino digital pin without a transistor stage",
+      "omitting the flyback diode across the coil",
+      "wiring the load to NC when NO was intended, leaving the load powered on by default instead of off"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "relay never clicks",
+        "likely_cause": "the transistor isn't switching, or the coil wiring is broken",
+        "check": "measure DC voltage across the coil pins when the control signal is HIGH; it should read close to 5V"
+      },
+      {
+        "symptom": "relay clicks but the switched circuit doesn't turn on",
+        "likely_cause": "the load is wired to NC instead of NO, or there's a broken wire in the switched circuit",
+        "check": "with the coil unpowered, use continuity mode between COM and NC (should beep); with the coil powered, use continuity mode between COM and NO (should beep only then)"
+      },
+      {
+        "symptom": "the driving transistor or an Arduino pin gets warm or fails after repeated switching",
+        "likely_cause": "a missing flyback diode across the coil",
+        "check": "add a 1N4007 diode across the coil pins, with its cathode band toward the positive supply side"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "With no power connected, set the multimeter to resistance/continuity mode. Between the two coil pins you should read roughly 70 ohm. Between COM and NC you should read continuity (near 0 ohm) while unpowered; between COM and NO you should read continuity only once 5V is applied across the coil pins."
+  },
+  "market": {
+    "unit_price_usd": 0.44,
+    "price_source_url": "https://www.lcsc.com/product-detail/C35449.html",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "ELEGOO (bundled in kits)",
+      "LCSC",
+      "Amazon",
+      "AliExpress"
+    ]
+  },
+  "sources": [
+    {
+      "title": "Songle SRD-XXVDC-SL-C relay datasheet",
+      "url": "https://www.circuitbasics.com/wp-content/uploads/2015/11/SRD-05VDC-SL-C-Datasheet.pdf",
+      "type": "datasheet",
+      "used_for": "pins (coil/COM/NO/NC layout), electrical (coil voltage, current, resistance), key_specs (contact ratings, dielectric strength, operate/release time, life expectancy)"
+    },
+    {
+      "title": "SRD-05VDC-SL-C | Songle Relay | Price | In Stock",
+      "url": "https://www.lcsc.com/product-detail/C35449.html",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, package dimensions, contact form (SPDT) confirmation"
+    }
+  ],
+  "confidence": {
+    "overall": "high",
+    "fields_uncertain": [
+      "exact numbered pin order printed on this specific board footprint (the datasheet gives a dimensioned drawing and a wiring-diagram icon rather than explicit pin numbers 1-5)",
+      "coil pin non-polarity is confirmed from the datasheet's symmetric coil symbol, but silkscreen labeling can vary slightly between manufacturing batches"
+    ],
+    "notes": "Price was sourced from LCSC (a component distributor) rather than a kit-focused hobby retailer, because every Amazon product page attempted during this research returned repeated HTTP 500 errors from the fetch tool. The LCSC price is for the bare relay component alone, which matches this kit item (a standalone 5V relay, not a breakout module with its own driver transistor)."
+  }
+}

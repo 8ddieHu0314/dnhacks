@@ -1,0 +1,175 @@
+{
+  "id": "elegoo-uno-r3-kit/resistor-assorted",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 120
+  },
+  "identity": {
+    "name_on_kit": "Resistor",
+    "canonical_name": "1/4 W 5% resistor assortment (generic axial-lead fixed resistors)",
+    "aliases": [
+      "carbon film resistor",
+      "fixed resistor",
+      "resistor pack",
+      "resistor assortment kit"
+    ],
+    "category": "passive",
+    "manufacturer": "unbranded / generic (assorted OEM manufacturers, not identified on the kit)",
+    "manufacturer_part_number": "generic, no single MPN published for the bundled resistors",
+    "generic_equivalents": [
+      "Any 1/4 W, axial-lead carbon film or metal film resistor of the same ohm value, from any manufacturer (e.g. Yageo, Multicomp, Xicon); resistors of matching value and power rating are functionally interchangeable regardless of brand"
+    ],
+    "serial_number": "not_applicable",
+    "package": "axial-lead through-hole, cylindrical body"
+  },
+  "function": {
+    "one_sentence_plain_english": "A resistor is a small part that pushes back against electric current (the flow of electricity through a wire), letting less of it through.",
+    "what_it_is_used_for": "Protecting other parts by limiting how much current reaches them, for example placing one in series with an LED so it does not burn out; also used to set voltage levels and as pull-up or pull-down parts in digital circuits.",
+    "how_it_works_briefly": "The resistor's material resists the flow of electrons. Its resistance is measured in Ohms (symbol, the Greek letter Omega). By Ohm's Law (Voltage = Current x Resistance), a higher-value resistor allows less current to flow for a given voltage."
+  },
+  "pins": {
+    "pin_count": 2,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "Lead A",
+        "role": "circuit terminal, non-polarized",
+        "notes": "Either lead can connect to either side of the circuit; a resistor has no direction."
+      },
+      {
+        "pin": 2,
+        "name": "Lead B",
+        "role": "circuit terminal, non-polarized",
+        "notes": "Electrically identical to Lead A and interchangeable with it."
+      }
+    ],
+    "pin_1_identification": "Not applicable. A resistor has no pin 1 and no positive lead. Both wire leads are electrically identical and can be swapped without changing how the circuit works.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "Not applicable as a fixed rating. A resistor has no intrinsic operating voltage; it simply limits current per Ohm's Law within whatever voltage the surrounding circuit applies (safe at the Arduino UNO's 5V and 3.3V logic levels).",
+    "absolute_max_voltage": "not confirmed for this specific kit's resistors, see confidence notes",
+    "typical_current": "Not an intrinsic property; depends on the resistor's value and the circuit voltage (Current = Voltage / Resistance).",
+    "max_current": "Limited by the 1/4 W (0.25 watt) power rating; for a given resistance R, the maximum safe current is approximately the square root of (0.25 / R) amps. Exceeding this overheats the part.",
+    "logic_level": "not applicable, passive component with no logic output",
+    "interface": "none"
+  },
+  "key_specs": {
+    "power_rating_watts": 0.25,
+    "power_rating_note": "1/4 W is the standard rating for this size of through-hole resistor commonly bundled in beginner electronics kits.",
+    "resistance_range": "Assortments of this type typically span about 0 ohm up to 1 mega-ohm across many distinct values. The exact list of values included in this specific 120-piece ELEGOO bundle was not confirmed (see confidence notes).",
+    "tolerance_percent": "5% is the typical tolerance for this class of generic resistor assortment, corresponding to a gold 4th color band. Not independently confirmed for this exact ELEGOO kit.",
+    "band_code": "Standard 4-band color code: band 1 = first digit, band 2 = second digit, band 3 = multiplier (power of ten), band 4 = tolerance (gold = 5%, silver = 10%).",
+    "lead_type": "axial through-hole wire leads, one from each end of the body"
+  },
+  "visual_identification": {
+    "shape_and_size": "A small cylindrical body a few millimeters long, with one straight thin wire lead extending axially from each end.",
+    "color_and_markings": "The body is wrapped in 4 (sometimes 5) colored stripes painted around it near one end, encoding the resistance value and tolerance rather than printed numbers. Common digit colors run black, brown, red, orange, yellow, green, blue, violet, grey, white; the tolerance band is usually gold or silver.",
+    "printed_text_to_look_for": "None. Resistors in this kit are marked with color bands, not printed alphanumeric text.",
+    "easily_confused_with": [
+      "Diodes: also a small cylindrical body, but usually darker/glass and marked with a single band near one end that indicates the cathode (polarity), unlike a resistor's evenly spaced multi-color bands.",
+      "Small ceramic capacitors: similar tiny size but usually disc-shaped and printed with a number code rather than color bands."
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "Lead A",
+        "uno_pin": "typical usage: in series between a digital or PWM output pin and the anode of an LED, to limit current"
+      },
+      {
+        "part_pin": "Lead B",
+        "uno_pin": "typical usage: continues from the LED's cathode to GND, completing the current-limiting path"
+      }
+    ],
+    "required_extra_parts": [
+      "breadboard",
+      "jumper wires",
+      "an LED or other part the resistor is protecting"
+    ],
+    "arduino_library": "none, a resistor is a passive part and needs no software library"
+  },
+  "safety": {
+    "hazards": [
+      "Not a shock hazard at the low voltages (5V or 3.3V) used with an Arduino UNO.",
+      "Can become hot to the touch if driven beyond its 1/4 W power rating, or if a wire is accidentally shorted across it, risking a minor burn.",
+      "No toxic materials are released during normal handling."
+    ],
+    "handling_notes": [
+      "The wire leads are thin and can bend or snap if flexed back and forth repeatedly.",
+      "Trim leads with proper wire cutters, not scissors, to avoid an uneven cut or injury.",
+      "This class of part is rated for low-voltage electronics only, not mains/household AC voltage."
+    ],
+    "common_mistakes": [
+      "Skipping the resistor entirely when wiring an LED, which can burn out the LED or damage the Arduino pin driving it.",
+      "Choosing a resistance value that is too low for the voltage in the circuit, letting too much current flow.",
+      "Misreading the color bands and installing the wrong resistance value."
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "LED does not light, or is extremely dim",
+        "likely_cause": "Resistor value is too high, choking off too much current, or there is a broken connection.",
+        "check": "Measure the resistor's resistance with a multimeter and compare it to the value decoded from its color bands."
+      },
+      {
+        "symptom": "Resistor or the part it protects gets hot, or an LED burns out",
+        "likely_cause": "Resistor value is too low for the applied voltage, letting more current through than the part downstream (or the resistor itself) can handle.",
+        "check": "Calculate expected current and power (Power = Current squared x Resistance) and compare against the resistor's 1/4 W rating; swap in a higher-value or higher-wattage resistor if needed."
+      },
+      {
+        "symptom": "Multimeter reads open circuit or infinite resistance across the leads",
+        "likely_cause": "An internally broken lead, or a bad solder/breadboard connection.",
+        "check": "Remove the resistor from the circuit and measure resistance directly across its two leads with a multimeter."
+      }
+    ],
+    "how_to_test_with_a_multimeter": "Power off the circuit, set the multimeter to resistance (Ohms) mode, and touch one probe to each lead of the resistor (ideally with it removed from the circuit to avoid other parts affecting the reading). The displayed value should match the value decoded from the color bands, within the tolerance percentage."
+  },
+  "market": {
+    "unit_price_usd": 0.02,
+    "price_source_url": "https://www.sparkfun.com/resistor-kit-1-4w-500-total.html",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "SparkFun",
+      "DigiKey",
+      "Amazon",
+      "AliExpress"
+    ]
+  },
+  "sources": [
+    {
+      "title": "Elegoo Uno Project Super Starter Kit Unboxing & Review - The DIY Life",
+      "url": "https://the-diy-life.com/elegoo-uno-project-super-starter-kit-unboxing-review/",
+      "type": "tutorial",
+      "used_for": "Kit contents overview and confirming resistors are one of the bundled component types in this ELEGOO starter kit line; this edition's review reported 30 bundled resistors, a different count than this record's specified 120, flagged in confidence notes."
+    },
+    {
+      "title": "4 Band Resistor Color Code Calculator and Chart - DigiKey Electronics",
+      "url": "https://www.digikey.com/en/resources/conversion-calculators/conversion-calculator-resistor-color-code-4-band",
+      "type": "manufacturer",
+      "used_for": "pins.pin_count (two leads), pins.polarity_sensitive, key_specs.band_code, and visual_identification.color_and_markings (4-band color code table and meaning of each band)."
+    },
+    {
+      "title": "Resistor Kit - 1/4W (500 total) - SparkFun Electronics",
+      "url": "https://www.sparkfun.com/resistor-kit-1-4w-500-total.html",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd (computed as $9.95 / 500 pieces = $0.0199, rounded to $0.02), key_specs.power_rating_watts (1/4 W), key_specs.resistance_range, and identity.package (axial through-hole leads)."
+    }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "kit.sku",
+      "identity.manufacturer",
+      "identity.manufacturer_part_number",
+      "key_specs.tolerance_percent",
+      "key_specs.resistance_range (exact list of values in this specific 120-piece ELEGOO bundle)",
+      "electrical.absolute_max_voltage",
+      "electrical.max_current (exact figure, only the general formula is confirmed)"
+    ],
+    "notes": "market.unit_price_usd is not ELEGOO's own per-resistor price (ELEGOO does not sell single resistors); it is computed by dividing a comparable 1/4W resistor assortment's retail pack price by its piece count ($9.95 for 500 pieces at SparkFun = $0.0199/unit, rounded to $0.02), which matches the seed estimate. ELEGOO's own product page (elegoo.com/products/elegoo-uno-r3-super-starter-kit) and resistor-kit page (elegoo.com/products/elegoo-resistor-kit) both returned HTTP 403 Forbidden when fetched, and the ELEGOO tutorial PDF exceeded the fetch tool's size limit, so this record could not confirm ELEGOO's exact bundled resistor values, tolerance, or the kit's SKU directly from ELEGOO; those figures are inferred from what is typical for this class of generic resistor assortment and flagged in fields_uncertain rather than stated as confirmed. Separately, an independent unboxing review of a related-but-differently-named ELEGOO kit edition reported only 30 bundled resistors versus the 120 specified for this record, suggesting resistor count may vary by kit edition or revision; the 120 figure was taken as given per task instructions rather than independently re-derived."
+  }
+}

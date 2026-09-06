@@ -1,0 +1,139 @@
+{
+  "id": "battery-clip-9v",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "9V Battery with Snap-on Connector Clip",
+    "canonical_name": "9V battery snap connector with 2.1mm barrel jack plug",
+    "aliases": [
+      "9V battery clip",
+      "9V snap to DC barrel adapter",
+      "9V battery snap connector"
+    ],
+    "category": "power",
+    "manufacturer": "ELEGOO (kit private label); the underlying connector design is generic and sold unbranded by many electronics vendors",
+    "manufacturer_part_number": "not confirmed, ELEGOO does not publish a distinct part number for this accessory",
+    "generic_equivalents": [
+      "Adafruit 9V battery clip with 5.5mm/2.1mm barrel plug (PID 80)",
+      "SparkFun 9V to Barrel Jack Adapter (PRT-09518)"
+    ],
+    "serial_number": "not_applicable",
+    "package": "cable, battery snap connector molded to a coaxial barrel plug"
+  },
+  "function": {
+    "one_sentence_plain_english": "A short cable that snaps onto a 9V battery on one end and plugs into the UNO board's round power socket on the other end, so the board can run without a computer.",
+    "what_it_is_used_for": "Powers the Arduino UNO R3 from a 9V battery instead of the USB cable, useful for portable or battery-powered projects.",
+    "how_it_works_briefly": "The snap connector clips onto the two terminals on top of a standard 9V battery, one terminal shaped smaller than the other so it only clips on one way. Wires run from the snap to a cylindrical barrel plug, 2.1mm on the inside and 5.5mm on the outside, wired so the center pin is positive. That plug pushes into the UNO's DC power jack."
+  },
+  "pins": {
+    "pin_count": 2,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "positive (+)",
+        "role": "carries battery positive through to the barrel plug's center pin",
+        "notes": "On the 9V battery, this is the smaller of the two snap studs."
+      },
+      {
+        "pin": 2,
+        "name": "negative (-) / ground",
+        "role": "carries battery negative through to the barrel plug's outer sleeve",
+        "notes": "On the 9V battery, this is the larger of the two snap studs."
+      }
+    ],
+    "pin_1_identification": "The battery-end caps are molded plastic sized differently, like the battery's own terminals, so the snap only clips on one way. On the barrel-plug end, positive is the thin center pin and negative is the outer metal sleeve around it, the standard center-positive layout confirmed on the generic equivalent (Adafruit PID 80).",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "9V nominal, set by the battery clipped on, not by the cable",
+    "absolute_max_voltage": "not_applicable, this is a passive wire; the limit is whatever the connected battery and the UNO's power jack allow, not the cable itself",
+    "typical_current": "not confirmed for ELEGOO's exact cable or for the generic equivalent part checked; a 9V battery itself can only safely supply small currents (well under 1A) so treat this as light duty",
+    "max_current": "not confirmed, no source found rates this connector's wire for a maximum current",
+    "logic_level": "not_applicable, this is a power cable and carries no logic signal",
+    "interface": "none"
+  },
+  "key_specs": {
+    "barrel_jack_outer_diameter_mm": 5.5,
+    "barrel_jack_inner_diameter_mm": 2.1,
+    "barrel_jack_polarity": "center-positive",
+    "wire_length_cm_generic_equivalent": 17,
+    "connector_type": "9V battery snap clip wired to a coaxial DC barrel plug"
+  },
+  "visual_identification": {
+    "shape_and_size": "A short two-wire cable. One end has two small rectangular plastic caps sized to snap onto the two terminals on top of a 9V battery. The other end has a small black cylindrical plug, roughly the size of a pencil eraser, that pushes straight into a round socket.",
+    "color_and_markings": "Usually plain black wire insulation and black plastic housings; some versions use red insulation for the positive wire and black for negative.",
+    "printed_text_to_look_for": "Typically none, this is a small unbranded accessory with no printed markings.",
+    "easily_confused_with": [
+      "The barrel-plug end of a wall-wart AC power adapter (same size plug, but that one is not attached to a battery snap)",
+      "The ELEGOO Power Supply Module's own power input cable"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "barrel plug",
+        "uno_pin": "DC power jack (round barrel socket next to the USB port)"
+      }
+    ],
+    "required_extra_parts": [
+      "A 9V battery. Whether ELEGOO ships an actual battery in the box or only this connector could not be confirmed for certain, see confidence.notes."
+    ],
+    "arduino_library": "none, this is a power connection only and needs no code"
+  },
+  "safety": {
+    "hazards": [
+      "Touching the barrel plug's center pin and outer sleeve together while a battery is clipped on shorts the battery, which can make it hot",
+      "If the cable or the board's jack were ever wired backward, reversed polarity could damage the UNO, though standard manufactured parts are keyed to the same center-positive convention so this is unlikely in normal use"
+    ],
+    "handling_notes": [
+      "Unclip the battery when the project is not in use to save battery life",
+      "Do not leave a swollen, leaking, or damaged 9V battery clipped in"
+    ],
+    "common_mistakes": [
+      "Assuming this line item always includes an actual 9V battery in the box, some kit revisions ship the connector only",
+      "Treating it as a generic 2-wire jumper instead of the specific snap-to-barrel adapter it is molded as"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "UNO board does not power on from the battery",
+        "likely_cause": "dead battery, snap connector clipped on backward, or the barrel plug not fully seated in the jack",
+        "check": "Measure the battery with a multimeter and confirm the barrel plug clicks all the way into the UNO's jack"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "Set the multimeter to DC volts. With a 9V battery clipped on, touch the red probe to the barrel plug's center pin and the black probe to its outer sleeve. A good cable and battery should read close to positive 9V; a negative reading with the same probe placement would mean the wiring is reversed."
+  },
+  "market": {
+    "unit_price_usd": 2.95,
+    "price_source_url": "https://www.adafruit.com/product/80",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "Adafruit",
+      "SparkFun",
+      "bundled inside ELEGOO starter kits"
+    ]
+  },
+  "sources": [
+    {
+      "title": "9V battery clip with 5.5mm/2.1mm plug, Adafruit product 80",
+      "url": "https://www.adafruit.com/product/80",
+      "type": "retailer",
+      "used_for": "barrel jack size (5.5mm/2.1mm), center-positive polarity, wire length, unit price"
+    }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer_part_number (ELEGOO does not publish one for this accessory)",
+      "whether an actual 9V battery ships in the box (a search snippet of one Amazon listing title claims the kit includes a 9V battery, but a direct fetch of that page and of ELEGOO's own product page could not confirm the wording, and other sources note some kit revisions removed the battery)",
+      "electrical.typical_current and electrical.max_current (no source found rates this connector's wire)",
+      "key_specs.wire_length_cm (used a generic equivalent part's spec since ELEGOO's exact cable length could not be confirmed)"
+    ],
+    "notes": "Two attempts to fetch ELEGOO's own product/tutorial pages returned no usable kit-contents text (one page had no relevant content, the tutorial blog and a Tayda/Jameco spec page both returned HTTP 403), and an Amazon listing fetch returned only page scaffolding with no visible bullet text. All electrical and physical specs here are backed by a generic equivalent part (Adafruit PID 80), not ELEGOO's exact private-labeled cable, since no ELEGOO-specific datasheet exists for this accessory. Price is single-unit retail for that generic equivalent, not an ELEGOO-branded standalone sale (ELEGOO does not sell this piece separately)."
+  }
+}

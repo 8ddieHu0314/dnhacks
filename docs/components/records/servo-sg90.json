@@ -1,0 +1,169 @@
+{
+  "id": "servo-sg90",
+  "kit": {
+    "name": "ELEGOO UNO R3 Super Starter Kit",
+    "sku": "EL-KIT-003",
+    "quantity_in_kit": 1
+  },
+  "identity": {
+    "name_on_kit": "Servo Motor SG90",
+    "canonical_name": "SG90 micro servo",
+    "aliases": [
+      "TowerPro SG90",
+      "9g micro servo"
+    ],
+    "category": "actuator",
+    "manufacturer": "TowerPro (design origin); many ELEGOO-bundled units are third-party clones of the same design rather than boxed TowerPro-branded parts",
+    "manufacturer_part_number": "SG90",
+    "generic_equivalents": [
+      "Unbranded 'SG90' clones from various factories",
+      "MG90S (metal-gear variant, heavier, not a drop-in mechanical twin)"
+    ],
+    "serial_number": "not_applicable",
+    "package": "module, plastic-cased gear motor with a 3-wire cable and connector"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small motor that moves to whatever angle you tell it and holds that position, instead of spinning continuously like a normal motor.",
+    "what_it_is_used_for": "Robot arms, steering for small RC cars, pan/tilt camera mounts, and any project that needs something to swing to a precise position and stay there.",
+    "how_it_works_briefly": "Inside the plastic case is a small DC motor, a set of reduction gears, and a tiny circuit board with a position sensor (a potentiometer). The circuit compares the angle you asked for, which is encoded as a repeating electrical pulse, against the actual position, and drives the motor until the two match."
+  },
+  "pins": {
+    "pin_count": 3,
+    "pinout": [
+      {
+        "pin": 1,
+        "name": "Ground",
+        "role": "GND",
+        "notes": "brown wire on the ELEGOO/generic cable; negative supply return"
+      },
+      {
+        "pin": 2,
+        "name": "+V Power",
+        "role": "VCC",
+        "notes": "red wire; 4.8-6V supply"
+      },
+      {
+        "pin": 3,
+        "name": "Signal",
+        "role": "PWM signal",
+        "notes": "orange or yellow wire; pulse width of 500-2400 microseconds sets the target angle"
+      }
+    ],
+    "pin_1_identification": "On the 3-pin connector, the wire order printed in the handsontec datasheet's connector diagram, reading from the edge, is Ground, +V Power, Signal; the Signal wire is usually the odd color out (orange/yellow) against two darker wires (red and brown/black).",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "4.8-6V DC",
+    "absolute_max_voltage": "6V DC, per the handsontec SG90 datasheet",
+    "typical_current": "not separately listed for no-load operation in the sources fetched",
+    "max_current": "under 500 mA working current, per the tinyosshop retailer listing (stall current under load was not found in a source that loaded)",
+    "logic_level": "5V PWM signal, per the datasheet's control-signal diagram",
+    "interface": "PWM"
+  },
+  "key_specs": {
+    "stall_torque_at_4_8v": "1.8 kgf*cm (25 oz-in), per the handsontec datasheet",
+    "operating_speed_at_4_8v": "0.12 sec / 60 degrees, per the handsontec datasheet",
+    "rotation_range": "approximately 180 degrees total (about 90 degrees each direction from center)",
+    "weight": "9.0 g, per the handsontec datasheet (tinyosshop's page also lists similar dimensions, cross-checked)",
+    "dimensions_mm": "23.0 (L) x 12.2 (W) x 29.0 (H), per the handsontec datasheet",
+    "pulse_width_range_us": "500-2400",
+    "neutral_pulse_us": "approximately 1500 (center position)",
+    "gear_type": "plastic",
+    "motor_type": "3-pole DC"
+  },
+  "visual_identification": {
+    "shape_and_size": "small rectangular plastic-cased motor about the size of a matchbox, with a white plastic splined output shaft on top and mounting tabs with rubber grommets on the sides",
+    "color_and_markings": "blue plastic case with white lettering, typically reading 'TowerPro' and 'SG90' on the side label; ships with a white output horn/arm and small mounting screws",
+    "printed_text_to_look_for": "'TowerPro' and 'SG90' printed on the case; the word 'DIGITAL' should NOT appear (this is an analog servo; a similar blue case marked 'SG90 Digital' or 'MG90S' is a different part)",
+    "easily_confused_with": [
+      "SG90 Digital (different internal control electronics despite a nearly identical case)",
+      "MG90S (metal-gear version, heavier, visually similar blue case)"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      {
+        "part_pin": "Ground (Brown)",
+        "uno_pin": "GND"
+      },
+      {
+        "part_pin": "+V Power (Red)",
+        "uno_pin": "5V"
+      },
+      {
+        "part_pin": "Signal (Orange)",
+        "uno_pin": "Digital pin 9, per the handsontec application example"
+      }
+    ],
+    "required_extra_parts": [],
+    "arduino_library": "Servo.h (built into the Arduino IDE)"
+  },
+  "safety": {
+    "hazards": [
+      "low voltage, no shock risk",
+      "internal plastic gears can strip if the arm is forced or the servo is stalled against a mechanical obstruction for an extended time"
+    ],
+    "handling_notes": [
+      "power the servo once and let it center itself before attaching the arm/horn, so the arm's neutral position lines up with the intended range of motion",
+      "avoid running many SG90 servos off the Arduino's own 5V pin at once; each one can briefly draw close to 500 mA, which can brown out the board"
+    ],
+    "common_mistakes": [
+      "swapping the Signal and +V Power wires, which can damage the servo's internal control circuit",
+      "forgetting that attaching Servo.h disables PWM output on certain pins (commonly pins 9 and 10) on many Arduino boards while a servo object is attached"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      {
+        "symptom": "servo jitters or buzzes while holding one position",
+        "likely_cause": "weak or noisy power supply, or a poor ground connection",
+        "check": "measure voltage at the servo's power pins while it is under load; it should stay close to 4.8-6V without sagging"
+      },
+      {
+        "symptom": "servo doesn't move at all",
+        "likely_cause": "the Signal wire is on the wrong pin, or the code never calls attach() on that pin",
+        "check": "confirm the sketch's myservo.attach() call uses the same pin number as the physical Signal wire"
+      },
+      {
+        "symptom": "servo moves the opposite direction from what's expected",
+        "likely_cause": "the horn/arm was attached at the wrong starting position",
+        "check": "detach the horn, command the servo to 90 degrees (center), then reattach the horn pointing straight"
+      }
+    ],
+    "how_to_test_with_a_multimeter": "With the servo powered and idle, measure DC voltage between the Red and Brown wires; it should read close to the supply voltage (4.8-6V). A basic multimeter cannot usefully read the fast-changing Signal wire's pulse shape; that needs an oscilloscope or logic analyzer."
+  },
+  "market": {
+    "unit_price_usd": 2.0,
+    "price_source_url": "https://www.tinyosshop.com/sg90-micro-servo",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": [
+      "ELEGOO (bundled in kits)",
+      "TinyOSShop",
+      "Amazon",
+      "AliExpress"
+    ]
+  },
+  "sources": [
+    {
+      "title": "SG90 TowerPro Micro Servo Motor user guide / datasheet",
+      "url": "https://handsontec.com/dataspecs/motor_fan/SG90-Servo.pdf",
+      "type": "datasheet",
+      "used_for": "pins (pinout and wire colors), electrical (operating voltage, absolute max voltage), key_specs (torque, speed, weight, dimensions, pulse width range), wiring_to_uno example"
+    },
+    {
+      "title": "SG90 9g Micro Servo product page",
+      "url": "https://www.tinyosshop.com/sg90-micro-servo",
+      "type": "retailer",
+      "used_for": "market.unit_price_usd, cross-check of dimensions and working current"
+    }
+  ],
+  "confidence": {
+    "overall": "high",
+    "fields_uncertain": [
+      "exact stall current (no fetched source gave a specific number)",
+      "whether the specific unit ELEGOO bundles is a genuine TowerPro part or a compatible clone"
+    ],
+    "notes": "ELEGOO's own product/wiki page for this servo could not be reached with a working fetch during research (a referenced Scribd spec sheet and ELEGOO wiki page were not successfully retrieved), so specs instead come from the widely used handsontec datasheet PDF (fetched and read directly) and the tinyosshop retailer listing (fetched directly)."
+  }
+}

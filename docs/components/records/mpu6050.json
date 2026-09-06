@@ -1,0 +1,101 @@
+{
+  "id": "mpu6050",
+  "kit": { "name": "ELEGOO UNO R3 Most Complete Starter Kit", "sku": "EL-KIT-001 (confirmed)", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "GY-521 Module",
+    "canonical_name": "GY-521 accelerometer and gyroscope breakout module",
+    "aliases": ["MPU-6050 module", "MPU6050 6-axis IMU", "GY-521 breakout board"],
+    "category": "sensor",
+    "manufacturer": "Onboard sensor chip normally by InvenSense/TDK (MPU-6050); breakout board manufacturer is a generic, unconfirmed clone-board maker",
+    "manufacturer_part_number": "MPU-6050 is named by ELEGOO's own kit tutorial (component introduction calls it \"The InvenSense GY-521 sensor\"). However, the same tutorial's lesson title is printed \"Lesson 16 (GY-521 / QMI8658) Module\" and shows two labeled example pictures, one \"GY-521\" and one \"QMI-8568\" (a typo for QMI8658, a QST Corp chip sold as a register-compatible substitute for the MPU-6050). This means current-production kit units may carry either chip under the same GY-521 board name; which one ships in kits sold today could not be confirmed from a fetched source.",
+    "generic_equivalents": ["Any GY-521-labeled breakout board", "MPU-6050 breakout modules from HiLetgo, Adafruit, SparkFun, etc (electrically similar, board layout not identical)"],
+    "serial_number": "not_applicable",
+    "package": "module (small breakout PCB, roughly 2.1 cm x 1.6 cm, sensor chip in a small QFN package soldered near the board's center)"
+  },
+  "function": {
+    "one_sentence_plain_english": "This is a small circuit board that senses how it is tilted, how fast it is spinning, and how fast it is accelerating in any direction.",
+    "what_it_is_used_for": "Used in projects that need to know orientation or motion, like self-balancing robots, drones, and tilt-controlled games.",
+    "how_it_works_briefly": "The chip contains a tiny mechanical structure (called MEMS) for sensing acceleration and another for sensing rotation. Both sensor types are built into one chip, and it reports the readings to the Arduino over a two-wire I2C connection."
+  },
+  "pins": {
+    "pin_count": 8,
+    "pinout": [
+      { "pin": 1, "name": "VCC", "role": "power in", "notes": "Module power input. On the bare MPU-6050 chip this maps to the VDD pin (chip pin 13), which needs 2.375-3.46V; this breakout is commonly wired straight to a 5V Arduino pin by sellers, but a module-level regulator or level shift was not independently confirmed from a fetched source." },
+      { "pin": 2, "name": "GND", "role": "ground", "notes": "Maps to the chip's GND pin (chip pin 18)." },
+      { "pin": 3, "name": "SCL", "role": "I2C clock", "notes": "Wire to the Arduino Uno's analog pin 5 (SCL), per ELEGOO's own tutorial. Maps to the chip's SCL pin (chip pin 23)." },
+      { "pin": 4, "name": "SDA", "role": "I2C data", "notes": "Wire to the Arduino Uno's analog pin 4 (SDA), per ELEGOO's own tutorial. Maps to the chip's SDA pin (chip pin 24)." },
+      { "pin": 5, "name": "XDA", "role": "auxiliary I2C data", "notes": "Maps to the chip's AUX_DA pin (chip pin 6). Lets the MPU-6050 act as an I2C master to a second sensor, like an external magnetometer. Leave unconnected for basic accelerometer/gyro use." },
+      { "pin": 6, "name": "XCL", "role": "auxiliary I2C clock", "notes": "Maps to the chip's AUX_CL pin (chip pin 7). Pairs with XDA above. Leave unconnected for basic use." },
+      { "pin": 7, "name": "AD0", "role": "I2C address select", "notes": "Maps to the chip's AD0 pin (chip pin 9). Leave unconnected or tie low for I2C address 0x68 (default); tie high for 0x69, useful when two of these modules share a bus." },
+      { "pin": 8, "name": "INT", "role": "interrupt output", "notes": "Maps to the chip's INT pin (chip pin 12). Goes high (or low, depending on configuration) when new sensor data is ready, if enabled in software. Optional for basic polling use." }
+    ],
+    "pin_1_identification": "No numbered pin 1. Find the single row of 8 pin holes along one edge of the board, printed left to right VCC GND SCL SDA XDA XCL AD0 INT on the standard GY-521 breakout silkscreen. The small square sensor chip sits near the center of the board, often mounted at a slight diagonal angle.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "Bare MPU-6050 chip: VDD 2.375V-3.46V (InvenSense/TDK Product Specification Rev 3.4). Module-level input voltage as wired by sellers is commonly described as 3-5V tolerant thanks to an onboard regulator, but this was not independently confirmed from a fetched source for this specific board.",
+    "absolute_max_voltage": "-0.5V to +6V on the VDD pin, and -0.5V to VDD+0.5V on VLOGIC and the digital I/O pins (InvenSense/TDK Product Specification Rev 3.4, bare chip). Module-level absolute maximum not independently confirmed.",
+    "typical_current": "3.9 mA with gyroscope, accelerometer, and Digital Motion Processor (DMP) all enabled; 3.8 mA with DMP disabled (InvenSense/TDK Product Specification Rev 3.4, bare chip)",
+    "max_current": "not confirmed beyond the typical operating-current figures above; no explicit maximum current spec was found in the fetched datasheet's electrical tables",
+    "logic_level": "VLOGIC reference is 1.71V to VDD on the bare chip (InvenSense/TDK datasheet); this breakout module commonly ties VLOGIC internally to its own VCC per typical GY-521 board design, which was not independently confirmed from a fetched source",
+    "interface": "I2C"
+  },
+  "key_specs": {
+    "sensor_type": "6-axis: 3-axis MEMS gyroscope + 3-axis MEMS accelerometer, plus an onboard temperature sensor (InvenSense/TDK datasheet)",
+    "gyroscope_full_scale_range": "selectable +/-250, +/-500, +/-1000, or +/-2000 degrees/second (InvenSense/TDK datasheet)",
+    "accelerometer_full_scale_range": "selectable +/-2g, +/-4g, +/-8g, or +/-16g (InvenSense/TDK datasheet)",
+    "adc_resolution": "16-bit for both the gyroscope and accelerometer channels (InvenSense/TDK datasheet)",
+    "i2c_address": "0x68 with AD0 pin low (default), 0x69 with AD0 pin high (InvenSense/TDK datasheet)",
+    "onboard_dmp": "Yes on the true MPU-6050 (Digital Motion Processor does sensor fusion in hardware); not confirmed whether the alternate QMI8658 chip mentioned in ELEGOO's tutorial has an equivalent feature"
+  },
+  "visual_identification": {
+    "shape_and_size": "Small rectangular PCB, about 2.1 cm x 1.6 cm, with a single row of 8 pin holes along one long edge.",
+    "color_and_markings": "Commonly sold with a blue PCB; exact color as bundled in this specific ELEGOO kit was not independently confirmed from a fetched photo source. A small square chip (roughly 4mm x 4mm) sits near the center of the board, often mounted at a slight diagonal.",
+    "printed_text_to_look_for": "\"GY-521\" printed on the board silkscreen, plus pin labels VCC GND SCL SDA XDA XCL AD0 INT along the header edge. Check the tiny text printed on the chip itself to tell an MPU-6050 apart from a QMI8658.",
+    "easily_confused_with": ["Other small blue I2C breakout boards of similar size (for example a BMP280 barometric pressure breakout)", "GY-521 boards built around a QMI8658 chip instead of an MPU-6050 (identical board silkscreen and pin labels, different chip inside)"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "VCC", "uno_pin": "5V" },
+      { "part_pin": "GND", "uno_pin": "GND" },
+      { "part_pin": "SCL", "uno_pin": "A5 (SCL)" },
+      { "part_pin": "SDA", "uno_pin": "A4 (SDA)" }
+    ],
+    "required_extra_parts": ["4 female-to-male Dupont wires (per ELEGOO's own kit tutorial)"],
+    "arduino_library": "ELEGOO's tutorial calls for installing a library it labels \"GY-521\"; commonly this is fulfilled by an MPU6050 library such as the one from Jeff Rowberg's I2Cdevlib or Electronic Cats"
+  },
+  "safety": {
+    "hazards": ["Reversing VCC and GND can damage the chip", "Static discharge can damage the exposed I2C header pins"],
+    "handling_notes": ["Handle the board by its edges", "Double-check wire orientation against the printed pin labels before powering on"],
+    "common_mistakes": ["Wiring SDA and SCL swapped", "Assuming a 5V-safe onboard regulator without checking, since the bare chip itself only tolerates up to 3.46V on VDD"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "I2C device not found", "likely_cause": "Wrong I2C address, or SDA/SCL swapped", "check": "Run an I2C scanner sketch; expect to see address 0x68 (or 0x69 if AD0 is tied high)" },
+      { "symptom": "Garbage or noisy readings", "likely_cause": "Loose Dupont wiring or vibration during a reading", "check": "Reseat all wires and hold the sensor still while checking baseline values" }
+    ],
+    "how_to_test_with_a_multimeter": "With power applied, measure between the VCC and GND pins; expect a reading close to the supply voltage you wired in (commonly 5V from the Uno). A multimeter cannot verify I2C communication; use an I2C scanner sketch for that."
+  },
+  "market": {
+    "unit_price_usd": 1.40,
+    "price_source_url": "https://www.hotmcu.com/gy521-mpu6050-3axis-acceleration-gyroscope-6dof-module-p-83.html",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Amazon", "HiLetgo", "HAOYU Electronics (hotmcu.com)", "generic Chinese electronics resellers"]
+  },
+  "sources": [
+    { "title": "THE MOST COMPLETE STARTER KIT TUTORIAL FOR UNO (ELEGOO, V1.0.19.01.23), Lesson 16 (GY-521 / QMI8658) Module", "url": "https://m.media-amazon.com/images/I/C1wMkX1+N9L.pdf", "type": "tutorial", "used_for": "identity (confirms the GY-521 module ships in this kit; lesson title and dual example pictures flag the possible MPU-6050/QMI8658 chip substitution), function, wiring_to_uno SDA/SCL pin mapping, arduino_library name" },
+    { "title": "MPU-6000 and MPU-6050 Product Specification, Revision 3.4 (InvenSense/TDK, mirrored by Mikroe)", "url": "https://download.mikroe.com/documents/datasheets/MPU_6050.pdf", "type": "datasheet", "used_for": "pins (chip-level pin table and pin-to-module mapping), electrical (VDD operating range, absolute maximum ratings, typical operating current), key_specs (gyroscope/accelerometer full-scale ranges, ADC resolution, I2C address)" },
+    { "title": "GY-521 MPU6050 3-Axis Acceleration Gyroscope 6DOF Module product page (HAOYU Electronics / hotmcu.com)", "url": "https://www.hotmcu.com/gy521-mpu6050-3axis-acceleration-gyroscope-6dof-module-p-83.html", "type": "retailer", "used_for": "market.unit_price_usd" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer_part_number (MPU-6050 vs QMI8658, both apparently used under the same \"GY-521\" board name per ELEGOO's own current tutorial)",
+      "electrical.operating_voltage and absolute_max_voltage at the module level (only the bare-chip VDD figures were independently confirmed)",
+      "electrical.max_current",
+      "visual_identification.color_and_markings (exact PCB color as shipped by ELEGOO not independently confirmed)"
+    ],
+    "notes": "The single biggest open question for this part is which chip is actually inside the box today. ELEGOO's own tutorial names the InvenSense GY-521/MPU-6050 sensor in its prose, but the same tutorial's lesson title and example pictures explicitly mention a QMI8658 alternative, which is a known low-cost, register-compatible substitute chip used when MPU-6050 supply is constrained. We could not find a fetched source that pins down which chip ships in kits sold today, so this should be treated as a genuine open question rather than a settled fact."
+  }
+}
