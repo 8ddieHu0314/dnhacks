@@ -32,6 +32,7 @@ def main():
     ap.add_argument("--universe", default="")
     ap.add_argument("--name", required=True)
     ap.add_argument("--base", default="weights/yolov8n.pt")
+    ap.add_argument("--patience", type=int, default=8)
     ap.add_argument("--epochs", type=int, default=25)
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--batch", type=int, default=16)
@@ -52,11 +53,11 @@ def main():
     from ultralytics import YOLO
     model = YOLO(a.base)
     model.train(data=str(merged / "data.yaml"), epochs=a.epochs, imgsz=a.imgsz, batch=a.batch, device=a.device,
-                project="runs/components", name=a.name, exist_ok=True, patience=8,
+                project="runs/components", name=a.name, exist_ok=True, patience=a.patience,
                 # webcam footage: parts are small, hands move, colour is not the cue
                 mosaic=1.0, scale=0.6, degrees=15, fliplr=0.5, flipud=0.2, hsv_h=0.03, hsv_s=0.6, hsv_v=0.5,
                 lr0=0.005, workers=4, plots=True, verbose=True)
-    best = Path("runs/components") / a.name / "weights" / "best.pt"
+    best = next(Path("runs").rglob(f"components/{a.name}/weights/best.pt"))  # ultralytics nests project under runs/detect/
     print("best:", best, flush=True)
     onnx = YOLO(str(best)).export(format="onnx", imgsz=a.imgsz, opset=12, simplify=True, dynamic=False)
     out = Path("weights") / f"{a.name}.onnx"
