@@ -1,0 +1,116 @@
+{
+  "id": "lcd1602",
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "LCD1602 Module (with pin header)",
+    "canonical_name": "16x2 character LCD display module (HD44780-type)",
+    "aliases": ["1602 LCD", "1602A LCD", "16x2 LCD"],
+    "category": "display",
+    "manufacturer": "generic; no single named manufacturer confirmed. Sold under many OEM brands, all built around the HD44780 controller or a pin/command-compatible clone",
+    "manufacturer_part_number": "1602A (generic industry-standard model designation); controller commonly HD44780U or a compatible clone (e.g. ST7066U, KS0066U)",
+    "generic_equivalents": ["any 16x2 parallel character LCD with an HD44780-compatible controller", "SunFounder / DIYables / Adafruit 16x2 LCD modules"],
+    "serial_number": "not_applicable",
+    "package": "module (PCB-mounted glass LCD panel with a 16-pin header)"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small screen that displays two lines of up to 16 letters or numbers, so your project can show text instead of just blinking lights.",
+    "what_it_is_used_for": "Showing sensor readings, menus, a clock, or status messages from your Arduino program.",
+    "how_it_works_briefly": "A controller chip on the back of the display (the HD44780 or a compatible clone) receives commands and character codes from the Arduino over a set of data and control lines, and lights up the correct dot-matrix pixels to form each character."
+  },
+  "pins": {
+    "pin_count": 16,
+    "pinout": [
+      { "pin": 1, "name": "VSS", "role": "power", "notes": "Ground" },
+      { "pin": 2, "name": "VDD", "role": "power", "notes": "+5V supply" },
+      { "pin": 3, "name": "V0 (VE)", "role": "control", "notes": "Contrast adjustment voltage, normally fed from a potentiometer wiper" },
+      { "pin": 4, "name": "RS", "role": "digital in", "notes": "Register select: 0 = command register, 1 = data register" },
+      { "pin": 5, "name": "RW", "role": "digital in", "notes": "Read/write select; normally tied to GND to force write-only mode" },
+      { "pin": 6, "name": "E", "role": "digital in", "notes": "Enable strobe, toggled to latch data" },
+      { "pin": 7, "name": "D0", "role": "digital I/O", "notes": "Data bit 0; unused in 4-bit mode" },
+      { "pin": 8, "name": "D1", "role": "digital I/O", "notes": "Data bit 1; unused in 4-bit mode" },
+      { "pin": 9, "name": "D2", "role": "digital I/O", "notes": "Data bit 2; unused in 4-bit mode" },
+      { "pin": 10, "name": "D3", "role": "digital I/O", "notes": "Data bit 3; unused in 4-bit mode" },
+      { "pin": 11, "name": "D4", "role": "digital I/O", "notes": "Data bit 4" },
+      { "pin": 12, "name": "D5", "role": "digital I/O", "notes": "Data bit 5" },
+      { "pin": 13, "name": "D6", "role": "digital I/O", "notes": "Data bit 6" },
+      { "pin": 14, "name": "D7", "role": "digital I/O", "notes": "Data bit 7; also carries the busy flag when RW=1, RS=0" },
+      { "pin": 15, "name": "A (LED+)", "role": "power", "notes": "Backlight LED anode, usually through a current-limiting resistor to +5V" },
+      { "pin": 16, "name": "K (LED-)", "role": "power", "notes": "Backlight LED cathode, to GND" }
+    ],
+    "pin_1_identification": "Pin 1 (VSS/ground) is the end of the 16-hole header nearest the display's mounting corner; confirm against the printed pin numbers or a dot marker next to the header, since header orientation can vary slightly by board revision.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "4.7V to 5.3V (module VDD, per common 1602 module datasheets); the underlying HD44780 controller IC itself is rated 2.7V-5.5V (VCC) per the Hitachi/Renesas datasheet",
+    "absolute_max_voltage": "",
+    "typical_current": "about 1 mA for the logic/controller alone, not including the backlight",
+    "max_current": "backlight LED typically draws roughly 80-120 mA at 5V through a series resistor (reference figure only; not confirmed from a fetched datasheet for this exact module)",
+    "logic_level": "5V TTL",
+    "interface": "parallel (digital, 4-bit or 8-bit mode)"
+  },
+  "key_specs": {
+    "display": "16 characters x 2 lines",
+    "character_font": "5x8 dot matrix",
+    "controller_ic": "HD44780 or a pin-compatible clone",
+    "backlight_color": "blue (white-on-blue is the common variant; yellow-green also common)",
+    "contrast_control": "external potentiometer required, wired to the V0 pin"
+  },
+  "visual_identification": {
+    "shape_and_size": "A rectangular glass display window (roughly 80mm x 36mm) mounted on a slightly larger PCB, with a single row of 16 pin holes along the bottom edge. The kit's \"with pin header\" label means a straight breakaway male header ships either pre-soldered or loose alongside it.",
+    "color_and_markings": "Screen background is usually solid blue or blue-green with white or black characters when lit; the PCB is typically green or blue.",
+    "printed_text_to_look_for": "Silkscreen near the header often reads \"1602A\" or similar, with pin numbers 1-16 printed above or below the header holes.",
+    "easily_confused_with": ["16x2 LCD with an I2C backpack (only 4 pins: GND, VCC, SDA, SCL, plus a small blue potentiometer on a separate small board)", "20x4 LCD modules (larger, 4 lines)", "monochrome graphic LCDs (128x64, no visible character grid lines)"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "VSS", "uno_pin": "GND" },
+      { "part_pin": "VDD", "uno_pin": "5V" },
+      { "part_pin": "V0", "uno_pin": "potentiometer wiper (contrast)" },
+      { "part_pin": "RS", "uno_pin": "D12 (any digital pin, per sketch)" },
+      { "part_pin": "RW", "uno_pin": "GND" },
+      { "part_pin": "E", "uno_pin": "D11" },
+      { "part_pin": "D4", "uno_pin": "D5" },
+      { "part_pin": "D5", "uno_pin": "D4" },
+      { "part_pin": "D6", "uno_pin": "D3" },
+      { "part_pin": "D7", "uno_pin": "D2" },
+      { "part_pin": "A (LED+)", "uno_pin": "5V (through a resistor)" },
+      { "part_pin": "K (LED-)", "uno_pin": "GND" }
+    ],
+    "required_extra_parts": ["10K potentiometer (for contrast)", "current-limiting resistor for the backlight if not already on the module (commonly around 220 ohm)"],
+    "arduino_library": "LiquidCrystal (built into the Arduino IDE)"
+  },
+  "safety": {
+    "hazards": ["Backlight can get warm with prolonged use", "Reversing VDD/VSS can damage the controller chip", "Forcing current through the backlight the wrong way can damage the LED"],
+    "handling_notes": ["Handle by the PCB edges, avoid pressing on the glass display area", "Keep RW tied to GND unless your code actually reads the busy flag"],
+    "common_mistakes": ["Forgetting the contrast potentiometer, which makes the screen look blank or full of black boxes", "Wiring RS and E backwards", "Leaving RW floating instead of grounded, which can cause erratic behavior"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "Screen is blank but backlight is on", "likely_cause": "Contrast (V0) not adjusted, or wrong pin numbers in code", "check": "Turn the contrast potentiometer while the board is powered; you should see rows of black boxes appear" },
+      { "symptom": "Backlight does not light at all", "likely_cause": "No power reaching VDD/VSS or the backlight pins, or reversed backlight polarity", "check": "Measure voltage between VDD and VSS with a multimeter; expect about 5V" },
+      { "symptom": "Garbled or random characters", "likely_cause": "Wrong wiring on the data pins (D4-D7) or RS/E, or the sketch is set up for the wrong pin mapping", "check": "Double check each data pin against the sketch's LiquidCrystal() constructor pin list" }
+    ],
+    "how_to_test_with_a_multimeter": "With the module powered, measure DC voltage between VDD (pin 2) and VSS (pin 1); expect about 5V. Measure between A (pin 15) and K (pin 16) for the backlight supply; expect close to the supply voltage minus the resistor's voltage drop."
+  },
+  "market": {
+    "unit_price_usd": 9.95,
+    "price_source_url": "https://www.adafruit.com/product/181",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Adafruit", "Amazon", "SparkFun", "generic electronics retailers"]
+  },
+  "sources": [
+    { "title": "16x2 LCD Display Module Pinout, Features, Description & Datasheet", "url": "https://components101.com/16x2-lcd-pinout-datasheet", "type": "wiki", "used_for": "pins.pinout (all 16 pin names/functions), electrical.operating_voltage, electrical.typical_current" },
+    { "title": "HD44780U (LCD-II) Dot Matrix Liquid Crystal Display Controller/Driver datasheet", "url": "https://cdn.sparkfun.com/assets/9/5/f/7/b/HD44780.pdf", "type": "datasheet", "used_for": "confirming the HD44780U controller's VCC operating range (2.7V-5.5V) and parallel data-bus behavior" },
+    { "title": "Standard LCD 16x2 + extras - white on blue (Adafruit)", "url": "https://www.adafruit.com/product/181", "type": "retailer", "used_for": "market.unit_price_usd, visual_identification backlight color (blue)" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "electrical.absolute_max_voltage (not found in a fetched source)",
+      "backlight max current draw for this exact module (figure given is a typical reference value, not from a fetched datasheet for the ELEGOO-bundled unit)",
+      "exact controller IC (HD44780 vs a pin-compatible clone) for the specific unit ELEGOO ships, since kit-bundled LCDs are commonly unbranded"
+    ],
+    "notes": "The 16-pin header pinout is the de facto industry standard used by essentially every 16x2 character LCD module regardless of brand, so it is a safe fit for the ELEGOO-bundled part even though a separate ELEGOO product page for this exact module could not be located (it appears to be sold only bundled inside kits). Price is from a name-brand single-unit listing (Adafruit) rather than the exact ELEGOO/generic unit, since no separate ELEGOO retail listing for this module was found."
+  }
+}

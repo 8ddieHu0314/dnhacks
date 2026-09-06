@@ -1,0 +1,84 @@
+{
+  "id": "proto-shield",
+  "kit": { "name": "ELEGOO UNO R3 Super Starter Kit", "sku": "EL-KIT-003 (verify)", "quantity_in_kit": 1 },
+  "identity": {
+    "name_on_kit": "Prototype Expansion Module",
+    "canonical_name": "UNO prototype shield with SYB-170 mini breadboard",
+    "aliases": ["proto shield", "prototyping shield", "expansion board"],
+    "category": "tool",
+    "manufacturer": "generic; no single named manufacturer confirmed. Sold under many OEM brands (HiLetgo and similar) with an essentially identical design; ELEGOO does not sell this piece as its own standalone SKU",
+    "manufacturer_part_number": "generic proto shield with SYB-170 mini breadboard (no standardized MPN found)",
+    "generic_equivalents": ["HiLetgo UNO R3 Proto Shield", "any \"SYB-170 mini breadboard\" prototype shield for Arduino Uno"],
+    "serial_number": "not_applicable",
+    "package": "module (shield PCB that stacks on the Uno via pin headers, with a mini breadboard stuck to the top)"
+  },
+  "function": {
+    "one_sentence_plain_english": "A blank circuit board that plugs on top of the UNO and gives you a small breadboard and solder pads, so you can build a circuit without a tangle of loose wires.",
+    "what_it_is_used_for": "Building semi-permanent or compact circuits: stick components onto the small breadboard on top for a solderless build, or solder parts directly onto the prototyping grid underneath for something sturdier.",
+    "how_it_works_briefly": "The shield's header pins on the underside plug straight into the Uno's own headers, extending every Uno pin up to a matching row of holes on top of the shield right next to the mini breadboard, so wiring a part is a short hop instead of a long wire run."
+  },
+  "pins": {
+    "pin_count": 0,
+    "pinout": [],
+    "pin_1_identification": "There is no dedicated pin 1. Orientation is fixed because the header spacing only stacks onto an Uno one way, keyed against the USB/power-jack end of the Uno like any other shield.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "same as whatever the Uno underneath supplies (5V logic at the shield's header)",
+    "absolute_max_voltage": "",
+    "typical_current": "negligible; the shield's own onboard LED circuit draws a few mA when used",
+    "max_current": "",
+    "logic_level": "5V TTL (inherited from the Uno)",
+    "interface": "none (passive pass-through board, no chip of its own)"
+  },
+  "key_specs": {
+    "breadboard_tie_points": 170,
+    "board_dimensions_mm": "70 x 54",
+    "breadboard_dimensions_mm": "48 x 34",
+    "onboard_extras": "2 LEDs (red, green) each with a matching resistor, 1 reset button, 1 general-purpose push button, two 0.1uF capacitors, a surface-mount pad area for chips up to 14-pin SOIC, gold-plated header pads, 0.1in x 0.1in prototyping grid, and a pass-through ICSP header so another shield can stack on top"
+  },
+  "visual_identification": {
+    "shape_and_size": "A rectangular PCB the same footprint as the Uno (about 7cm x 5.5cm) with two rows of female header sockets on the underside that plug straight down onto the Uno's pins, and a small breadboard (about 4.8cm x 3.4cm) stuck on top with its own grid of tiny insertion holes.",
+    "color_and_markings": "PCB color usually matches other boards in the kit (commonly blue or red); the mini breadboard on top is white plastic with a printed red stripe (positive rail) and blue stripe (negative rail) along its edges.",
+    "printed_text_to_look_for": "A grid of prototyping pads near the header edges, plus a small reset button and an unlabeled general-purpose push button near one corner.",
+    "easily_confused_with": ["A full-size solderless breadboard (much bigger, no header pins to plug into a board)", "A bare Uno shield with no breadboard on top", "A perfboard/stripboard (bare copper pads, no adhesive breadboard on top)"]
+  },
+  "wiring_to_uno": {
+    "example_connections": [],
+    "required_extra_parts": ["jumper wires or direct component leads to use the mini breadboard or solder pads"],
+    "arduino_library": "none; it is a passive board"
+  },
+  "safety": {
+    "hazards": ["Misaligning the header pins when pressing the shield onto the Uno can bend a pin", "Careless soldering on the prototyping grid can bridge adjacent pads and short a signal to power or ground"],
+    "handling_notes": ["Line up the header sockets carefully before pressing down; press evenly, not on one corner", "Unplug USB power before attaching or removing the shield"],
+    "common_mistakes": ["Assuming the mini breadboard's power rails are automatically connected to the Uno's 5V/GND (they are not, until you jumper them yourself)", "Forgetting the shield adds height, which can make some enclosures not fit"]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "Nothing on the shield's breadboard works", "likely_cause": "The breadboard's power rails were never jumpered to the Uno's 5V/GND pins", "check": "Run a jumper wire from a 5V pin on the shield header to the breadboard's + rail, and GND to the - rail, then re-check" },
+      { "symptom": "Uno stops responding after attaching the shield", "likely_cause": "A bent or misaligned header pin is shorting two signals together", "check": "Remove the shield and inspect the header pins for bending before reseating" }
+    ],
+    "how_to_test_with_a_multimeter": "With the shield seated and the Uno powered, measure continuity between any GND point on the shield's header and the Uno's own GND pin; you should read near 0 ohm, confirming a solid connection."
+  },
+  "market": {
+    "unit_price_usd": 3.99,
+    "price_source_url": "https://robotpishop.com/products/uno-proto-shield-prototype-expansion-board-with-syb-170-mini-breadboard",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Amazon (HiLetgo and similar generic brands)", "Robot Pi Shop", "eBay"]
+  },
+  "sources": [
+    { "title": "Elegoo Uno Project Super Starter Kit Unboxing & Review", "url": "https://the-diy-life.com/elegoo-uno-project-super-starter-kit-unboxing-review/", "type": "tutorial", "used_for": "function, confirming the ELEGOO kit's proto shield has a mini breadboard on top with labeled header pin strips" },
+    { "title": "UNO Proto Shield Prototype Expansion Board with SYB-170 Mini Breadboard - Robot Pi Shop", "url": "https://robotpishop.com/products/uno-proto-shield-prototype-expansion-board-with-syb-170-mini-breadboard", "type": "retailer", "used_for": "market.unit_price_usd, key_specs (breadboard tie points, board and breadboard dimensions, onboard LEDs/buttons/capacitors, ICSP pass-through header)" }
+  ],
+  "confidence": {
+    "overall": "low",
+    "fields_uncertain": [
+      "pins.pinout (no separate pin-by-pin table confirmed; the shield is understood to mirror the Uno's own header 1:1 based on product descriptions, but this was not verified against a diagram, so pin_count is left at 0 and pinout empty rather than guessed)",
+      "electrical.absolute_max_voltage and max_current (the shield has no rating of its own beyond the Uno underneath it)",
+      "exact manufacturer / part number (ELEGOO does not sell this piece as a standalone SKU, so pricing and specs are sourced from a generic equivalent rather than an ELEGOO-branded listing)",
+      "no manufacturer or datasheet-type source exists for this generic passive tool; both cited sources are a tutorial and a retailer listing"
+    ],
+    "notes": "ELEGOO does not appear to sell this exact prototype shield as a separate product outside the kit, so price and detailed specs come from a generic-brand equivalent (Robot Pi Shop / HiLetgo-style SYB-170 proto shield) that matches the kit's description (mini breadboard, 170 tie points), per the brief's rule for kit-specific generic parts. This is a passive pass-through board with no chip of its own, so its header pins are treated as mirroring the uno-r3 record rather than re-deriving a separate confirmed table."
+  }
+}
