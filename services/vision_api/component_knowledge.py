@@ -460,7 +460,11 @@ Before suggesting a fix, reconstruct the observed circuit as components and pair
 Mark every edge visible, inferred, or unclear and cite image evidence. Then compare that graph with
 every configured target connection and safety invariant. Do not treat a component's presence as proof
 of a connection. Use visual_clarification when an essential endpoint, relay pin, or breadboard row is
-not readable. The observed_circuit and comparison objects are mandatory even when uncertain."""
+not readable. Return one checks entry for every configured verification check. A check passes only
+when this frame or the user's current report supplies its required evidence type; never convert a
+visual guess into user_report or measurement evidence. Keep the phase unpowered and
+safe_to_energize=false until every blocks_power check passes. Do not propose connecting power before
+that gate opens. The observed_circuit and comparison objects are mandatory even when uncertain."""
         output = VisionOutput.model_validate(await self._debugger._complete(
             system=system, text=task,
             frame=debug_frame, schema=self._debugger._guidance_schema(ids),
