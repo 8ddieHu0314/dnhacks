@@ -36,6 +36,8 @@ class FrameIngestTests(unittest.TestCase):
         page = self.client.get("/webcam")
         self.assertEqual(page.status_code, 200)
         self.assertIn("Component knowledge webcam test", page.text)
+        self.assertIn('id="diagram"', page.text)
+        self.assertIn("renderCircuit(latest.analysis)", page.text)
         self.assertIn("latestResult", page.text)
         self.assertIn("latestResult(frameId)", page.text)
         self.assertIn("payload.frame_id===frameId", page.text)
