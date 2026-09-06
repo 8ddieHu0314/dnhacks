@@ -176,7 +176,8 @@ image cannot distinguish them, identify none and ask a short clarifying question
 a specification, component id, or connection. Image evidence cannot prove a wire is electrically
 connected, correct, or safe: state uncertainty and propose a human-confirmed check. Do not direct
 mains/high-voltage work. Every proposed action requires_confirmation=true. Put component evidence,
-wiring feedback, questions, and caveats in analysis.component_guidance.\n\nWorkflow:\n{instruction_for(frame)}
+wiring feedback, questions, and caveats in analysis.component_guidance. Keep every list to three
+brief items or fewer.\n\nWorkflow:\n{instruction_for(frame)}
 \n\nUser request: {frame.metadata.user_request or 'identify the part and give safe context.'}
 \n\nCandidate records:\n{json.dumps(records, ensure_ascii=True)}"""
 
@@ -199,11 +200,17 @@ wiring feedback, questions, and caveats in analysis.component_guidance.\n\nWorkf
         })
         return output.model_copy(update={"analysis": analysis.model_copy(update={"component_guidance": guidance})})
 
-    async def analyze(self, frame: Frame) -> VisionOutput:
+    async def _matches_for(self, frame: Frame) -> list[ComponentMatch]:
+        matches = self._knowledge_base.search(frame.metadata.user_request or "", limit=self._top_k)
+        if matches:
+            return matches
         scene = SceneDescription.model_validate(await self._complete(
             system=self._scene_prompt(frame.metadata.user_request), text="Describe this frame for retrieval.", frame=frame,
         ))
-        matches = self._knowledge_base.search(scene.query(frame.metadata.user_request), limit=self._top_k)
+        return self._knowledge_base.search(scene.query(frame.metadata.user_request), limit=self._top_k)
+
+    async def analyze(self, frame: Frame) -> VisionOutput:
+        matches = await self._matches_for(frame)
         records = self._knowledge_base.prompt_records(matches)
         output = VisionOutput.model_validate(await self._complete(
             system=self._guidance_prompt(frame, records), text="Give grounded component guidance.", frame=frame,
@@ -223,7 +230,7 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
     def _body(self, *, system: str, text: str, frame: Frame,
               schema: dict[str, Any] | None = None) -> dict[str, Any]:
         image = base64.b64encode(frame.image_bytes).decode("ascii")
-        body = {"model": self._model, "max_tokens": 2_048, "temperature": 0, "system": system,
+        body = {"model": self._model, "max_tokens": 1_024, "temperature": 0, "system": system,
                 "messages": [{"role": "user", "content": [
                     {"type": "text", "text": text},
                     {"type": "image", "source": {"type": "base64",
@@ -244,7 +251,7 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
 
     @staticmethod
     def _guidance_schema(ids: list[str]) -> dict[str, Any]:
-        string_list = {"type": "array", "items": {"type": "string"}}
+        string_list = {"type": "array", "items": {"type": "string"}, "maxItems": 3}
         identification = {"type": "object", "properties": {
             "component_id": {"type": "string", "enum": ids}, "confidence": {"type": "number"},
             "observed_evidence": string_list, "uncertainty": {"type": ["string", "null"]},
@@ -284,11 +291,13 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
             raise VisionModelError("Anthropic response did not contain a valid JSON object") from exc
 
     async def analyze(self, frame: Frame) -> VisionOutput:
-        scene = SceneDescription.model_validate(await self._complete(
-            system=self._scene_prompt(frame.metadata.user_request), text="Describe this frame for retrieval.",
-            frame=frame, schema=SceneDescription.model_json_schema(),
-        ))
-        matches = self._knowledge_base.search(scene.query(frame.metadata.user_request), limit=self._top_k)
+        matches = self._knowledge_base.search(frame.metadata.user_request or "", limit=self._top_k)
+        if not matches:
+            scene = SceneDescription.model_validate(await self._complete(
+                system=self._scene_prompt(frame.metadata.user_request), text="Describe this frame for retrieval.",
+                frame=frame, schema=SceneDescription.model_json_schema(),
+            ))
+            matches = self._knowledge_base.search(scene.query(frame.metadata.user_request), limit=self._top_k)
         records = self._knowledge_base.prompt_records(matches)
         output = VisionOutput.model_validate(await self._complete(
             system=self._guidance_prompt(frame, records),

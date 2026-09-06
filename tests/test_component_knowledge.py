@@ -40,12 +40,12 @@ class ComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         engine = ComponentKnowledgeVLM(base_url="https://model.example/v1", api_key=None,
             model="test-vlm", timeout_seconds=1, knowledge_base=self.knowledge,
             transport=httpx.MockTransport(handler))
-        frame = Frame("session", FrameMetadata(frame_id="frame", width=2, height=2,
-            user_request="What is this sensor?"), b"x", datetime.now(timezone.utc))
+        frame = Frame("session", FrameMetadata(frame_id="frame", width=2, height=2),
+                      b"x", datetime.now(timezone.utc))
         output = await engine.analyze(frame)
 
         self.assertEqual(len(calls), 2)
-        self.assertIn("What is this sensor?", calls[0]["messages"][0]["content"])
+        self.assertIn("Describe this frame for retrieval.", calls[0]["messages"][1]["content"][0]["text"])
         self.assertIn("hc-sr04", calls[1]["messages"][0]["content"])
         self.assertIn("sources", calls[1]["messages"][0]["content"])
         self.assertEqual(output.analysis.component_guidance.retrieved_components[0].component_id, "hc-sr04")
