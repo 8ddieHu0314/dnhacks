@@ -65,7 +65,13 @@ class ComponentKnowledgeBase:
             return []
         scores = [sum(self._idf.get(term, 0.0) * counts[term] / (counts[term] + 1) for term in terms) for counts in self._term_counts]
         exact = [index for index, record in enumerate(self._records) if record["id"] in query.lower()]
-        order = exact + sorted((i for i, score in enumerate(scores) if score and i not in exact), key=scores.__getitem__, reverse=True)
+        named = [index for index, record in enumerate(self._records) if index not in exact
+                 and terms.intersection(_tokens(str(record["id"])))]
+        canonical = sorted((index for index, record in enumerate(self._records) if index not in exact + named
+                            and terms.intersection(_tokens(str(record["canonical_name"])))),
+                           key=lambda index: len(terms.intersection(_tokens(str(self._records[index]["canonical_name"])))), reverse=True)
+        selected = set(exact + named + canonical)
+        order = exact + named + canonical + sorted((i for i, score in enumerate(scores) if score and i not in selected), key=scores.__getitem__, reverse=True)
         return [ComponentMatch(self._records[index], max(float(scores[index]), 100.0 if index in exact else 0.0)) for index in order[:limit]]
 
     @staticmethod

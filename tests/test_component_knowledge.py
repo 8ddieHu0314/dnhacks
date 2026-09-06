@@ -19,6 +19,11 @@ class ComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(scene.visible_text, ["HC-SR04"])
         self.assertEqual(scene.likely_component_terms, ["sensor"])
 
+    def test_prefers_components_named_in_a_typed_cue(self) -> None:
+        ids = [match.record["id"] for match in self.knowledge.search("breadboard and jumper wires")]
+        self.assertIn("breadboard-830", ids)
+        self.assertIn("jumper-wire", ids)
+
     def setUp(self) -> None:
         self.knowledge = ComponentKnowledgeBase.from_path(
             Path(__file__).parents[1] / "docs/components/components.json"
