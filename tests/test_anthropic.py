@@ -39,7 +39,11 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(calls[0].headers["anthropic-version"], "2023-06-01")
         self.assertEqual(payload["messages"][0]["content"][1]["source"]["data"], "aW1hZ2U=")
         self.assertEqual(payload["tool_choice"]["type"], "tool")
-        self.assertEqual(json.loads(calls[1].content)["tools"][0]["input_schema"]["required"], ["analysis"])
+        guidance_body = json.loads(calls[1].content)
+        schema = guidance_body["tools"][0]["input_schema"]
+        self.assertEqual(schema["required"], ["analysis"])
+        self.assertEqual(schema["properties"]["analysis"]["properties"]["debug_guidance"]["properties"]["steps"]["maxItems"], 8)
+        self.assertEqual(guidance_body["max_tokens"], 1400)
         self.assertEqual(output.analysis.component_guidance.identified_components[0].component_id, "hc-sr04")
 
     async def test_uses_typed_cue_without_a_scene_round_trip(self) -> None:
