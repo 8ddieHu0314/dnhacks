@@ -623,7 +623,7 @@ final class FrameRelay {
   var handsFreeMode: String {
     didSet {
       UserDefaults.standard.set(handsFreeMode, forKey: "handsFreeMode")
-      sendCommand(["type": "reactive", "enabled": handsFreeMode != "off", "mode": handsFreeMode == "off" ? "parts" : handsFreeMode])
+      sendCommand(reactiveCommand())
     }
   }
   /// Voice the Mac should use for speech: "apple" (on the phone) or "elevenlabs" (streamed from the Mac).
@@ -631,6 +631,13 @@ final class FrameRelay {
     didSet {
       UserDefaults.standard.set(voiceProvider, forKey: "voiceProvider")
       sendCommand(["type": "voice", "provider": voiceProvider])
+    }
+  }
+  /// Speak the local detector's guess the instant a part is spotted, before Claude confirms.
+  var preannounce: Bool {
+    didSet {
+      UserDefaults.standard.set(preannounce, forKey: "preannounce")
+      sendCommand(reactiveCommand())
     }
   }
   private(set) var reactiveEnabled: Bool = false
@@ -649,6 +656,7 @@ final class FrameRelay {
     targetFPS = d.object(forKey: Self.fpsKey) as? Double ?? 15
     jpegQuality = d.object(forKey: Self.qualityKey) as? Double ?? 0.6
     speakEnabled = d.object(forKey: "relaySpeak") as? Bool ?? true
+    preannounce = d.object(forKey: "preannounce") as? Bool ?? true
     handsFreeMode = d.string(forKey: "handsFreeMode") ?? "off"
     voiceProvider = d.string(forKey: "voiceProvider") ?? "elevenlabs"
     browser.onUpdate = { [weak self] in self?.applyTarget() }
@@ -753,9 +761,14 @@ final class FrameRelay {
 
   /// Re-assert the phone's preferences after a (re)connect; the Mac's hello triggers this.
   private var announcedPrefs = false
+  private func reactiveCommand() -> [String: Any] {
+    ["type": "reactive", "enabled": handsFreeMode != "off",
+     "mode": handsFreeMode == "off" ? "parts" : handsFreeMode, "preannounce": preannounce]
+  }
+
   private func announcePrefs() {
     sendCommand(["type": "voice", "provider": voiceProvider])
-    sendCommand(["type": "reactive", "enabled": handsFreeMode != "off", "mode": handsFreeMode == "off" ? "parts" : handsFreeMode])
+    sendCommand(reactiveCommand())
   }
 
   private func sendCommand(_ msg: [String: Any]) {

@@ -444,7 +444,7 @@ async def handle_phone_command(msg: dict):
         set_narration(msg.get("enabled", False), msg.get("interval"))
         await _send_all(phones, {"type": "narration", "enabled": narration["enabled"], "interval": narration["interval"]})
     elif kind == "reactive":
-        set_reactive(msg.get("enabled", False), mode=msg.get("mode"))
+        set_reactive(msg.get("enabled", False), mode=msg.get("mode"), preannounce=msg.get("preannounce"))
         await _send_all(phones, {"type": "reactive", **_reactive_public()})
     elif kind == "voice":
         if msg.get("provider") in ("apple", "elevenlabs"):

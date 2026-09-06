@@ -689,6 +689,9 @@ struct RelaySettingsView: View {
           .pickerStyle(.segmented)
           Text("Parts: names the catalog part when a new one settles in view. Scene: narrates what changed in view. Both fire on change only; the Mac remembers the mode across reconnects.")
             .font(.caption).foregroundStyle(.secondary)
+          Toggle("Pre-announce detector guess", isOn: $relay.preannounce)
+          Text("On: the glasses say the kit name the instant the local detector spots a part, then Claude's line follows. Off: only Claude's confirmed line is spoken.")
+            .font(.caption).foregroundStyle(.secondary)
           Text("Mac: \(relay.reactiveEnabled ? "\(relay.reactiveMode) · \(relay.reactiveStatus)" : "off")")
             .font(.caption.monospaced()).foregroundStyle(.secondary)
         }
