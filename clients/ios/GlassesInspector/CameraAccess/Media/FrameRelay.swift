@@ -646,6 +646,15 @@ final class FrameRelay {
     ["type": "models", "identify": partsModel, "scene": sceneModel]
   }
 
+  /// Judges' session report page on the Mac (/report.html). Default off.
+  var reportPageEnabled: Bool {
+    didSet {
+      UserDefaults.standard.set(reportPageEnabled, forKey: "reportPage")
+      sendCommand(["type": "report_page", "enabled": reportPageEnabled])
+    }
+  }
+  private(set) var reportPageActive: Bool = false
+
   /// Speak the local detector's guess the instant a part is spotted, before Claude confirms.
   var preannounce: Bool {
     didSet {
@@ -670,6 +679,7 @@ final class FrameRelay {
     jpegQuality = d.object(forKey: Self.qualityKey) as? Double ?? 0.6
     speakEnabled = d.object(forKey: "relaySpeak") as? Bool ?? true
     preannounce = d.object(forKey: "preannounce") as? Bool ?? true
+    reportPageEnabled = d.object(forKey: "reportPage") as? Bool ?? false
     partsModel = d.string(forKey: "partsModel") ?? "sonnet"
     sceneModel = d.string(forKey: "sceneModel") ?? "sonnet"
     handsFreeMode = d.string(forKey: "handsFreeMode") ?? "off"
@@ -784,6 +794,7 @@ final class FrameRelay {
   private func announcePrefs() {
     sendCommand(["type": "voice", "provider": voiceProvider])
     sendCommand(modelsCommand())
+    sendCommand(["type": "report_page", "enabled": reportPageEnabled])
     sendCommand(reactiveCommand())
   }
 
@@ -837,6 +848,7 @@ final class FrameRelay {
       reactiveLastID = obj["last_id"] as? String
       activeVoice = obj["voice"] as? String ?? activeVoice
       if let m = obj["models"] as? [String: String] { activeModels = m }
+      if let r = obj["report_page"] as? Bool { reportPageActive = r }
     case "narration":
       narrationEnabled = obj["enabled"] as? Bool ?? false
       narrationInterval = obj["interval"] as? Double ?? narrationInterval

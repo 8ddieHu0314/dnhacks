@@ -208,7 +208,7 @@ def _stats():
             "reactive": identify.state["enabled"], "reactive_status": identify.state["status"], "last_id": identify.state["last_id"],
             "catalog_parts": len(identify.catalog), "identify_model": identify.MODEL,
             "models": {"identify": "fake" if FAKE else identify.state["model"], "scene": "fake" if FAKE else models["scene"], "describe": "fake" if FAKE else models["describe"]},
-            "reactive_mode": identify.state["mode"],
+            "reactive_mode": identify.state["mode"], "report_page": report_page["enabled"],
             "triggers": identify.state["triggers"], "agreement": identify.state["agreement"],
             "preannounce": identify.state["preannounce"],
             "detector": {"available": detect.state["available"], "model": detect.state["model"], "reason": detect.state["reason"],
@@ -468,6 +468,10 @@ async def handle_phone_command(msg: dict):
     elif kind == "models":
         set_models(**{k: msg.get(k) for k in ("identify", "scene", "describe")})
         await _send_all(phones, {"type": "reactive", **_reactive_public()})
+    elif kind == "report_page":
+        report_page["enabled"] = bool(msg.get("enabled", False))
+        await _send_all(phones, {"type": "reactive", **_reactive_public()})
+        await _send_all(viewer_sockets, {"type": "report_page", "enabled": report_page["enabled"]})
     elif kind == "voice":
         if msg.get("provider") in ("apple", "elevenlabs"):
             voice["provider"] = msg["provider"]
@@ -588,6 +592,7 @@ def _reactive_public():
     st = identify.state
     return {"enabled": st["enabled"], "mode": st["mode"], "voice": _voice_active(), "status": st["status"], "last_id": st["last_id"],
             "models": {"identify": st["model"], "scene": models["scene"], "describe": models["describe"]},
+            "report_page": report_page["enabled"],
             "last_result": st["last_result"], "calls": st["calls"], "catalog": identify.catalog_source,
             "parts": len(identify.catalog), "min_confidence": st["min_confidence"],
             "detector": detect.state["available"], "det_min_conf": st["det_min_conf"], "stable_frames": st["stable_frames"],
@@ -729,9 +734,24 @@ def report():
     return list(reversed(state["report"]))
 
 
+report_page = {"enabled": False}   # judges' view; switched from the phone's gear menu, default off
+
+
+@app.post("/report_page")
+async def set_report_page(request: Request):
+    body = await request.json()
+    report_page["enabled"] = bool(body.get("enabled", False))
+    await _send_all(phones, {"type": "reactive", **_reactive_public()})
+    await _send_all(viewer_sockets, {"type": "report_page", "enabled": report_page["enabled"]})
+    return report_page
+
+
 @app.get("/report.html", response_class=HTMLResponse)
-def report_page():
+def report_page_view():
     """Judges' view: what the glasses saw and said this session, newest first."""
+    if not report_page["enabled"]:
+        return HTMLResponse("<!doctype html><html><body style='font-family:system-ui;background:#0f0f0f;color:#eee;padding:40px'>"
+                            "<h2>Session report is off</h2><p>Turn on “Session report page” in the Glasses Inspector gear menu on the phone.</p></body></html>", status_code=404)
     rows = list(reversed(state["report"]))
     def esc(x):
         return (str(x or "")).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -824,7 +844,7 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 <div id=card style="display:none;margin-top:10px;padding:10px;background:#1c1c1c;border:1px solid #333;border-radius:8px;font-size:13px"></div>
 
 <div id=out></div>
-<h3>Report <a href="/report.html" target=_blank style="font-size:13px;font-weight:normal">open judges' view</a></h3><div id=rep></div></aside>
+<h3>Report <a id=replink href="/report.html" target=_blank style="font-size:13px;font-weight:normal;display:none">open judges' view</a></h3><div id=rep></div></aside>
 <script>
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),hud=document.getElementById('hud'),stage=document.getElementById('stage');
 let bmp=null,rot=0,fit=true,stats={},shown=0,lastShown=performance.now(),dispFps=0;
@@ -875,10 +895,12 @@ function connect(){
         const c=document.getElementById('card');c.style.display='block';
         c.innerHTML=`<b>${m.name||'?'}</b> <span style="color:#888">id=${m.id} · ${Math.round((m.confidence||0)*100)}% · id in ${m.timing?m.timing.id_at_ms:'?'} ms, done ${m.timing?m.timing.total_ms:'?'} ms</span> <span style="color:#6cf;font-size:12px">${m.trigger==='detector'?'⚡ via detector: '+m.det.display+' '+Math.round(m.det.conf*100)+'%'+(m.agrees===true?' ✓ agrees':m.agrees===false?' ✗ disagrees':''):'via settle'}</span><div>${m.spoken||''}</div><div style="color:#888;font-size:12px">${m.evidence||''}</div>`+
         (m.record?`<pre style="white-space:pre-wrap;font-size:11px;color:#bbb;margin:6px 0 0">${JSON.stringify(m.record,null,1).slice(0,1200)}</pre>`:'');return;}
+      if(m.type==='report_page'){document.getElementById('replink').style.display=m.enabled?'inline':'none';return;}
       if(m.type==='caption'){const out=document.getElementById('out');out.textContent=m.text||(m.final?'':'thinking…');out.style.opacity=m.final?1:0.7;if(m.final&&m.text)loadReport();return;}
       stats=m;renderHud();renderDetbar();
       if(document.activeElement.id!=='mode')document.getElementById('mode').value=m.reactive?(m.reactive_mode||'parts'):'off';
       if(document.activeElement.id!=='voice')document.getElementById('voice').value=(m.tts&&m.tts.provider)||'apple';
+      if(m.report_page!==undefined)document.getElementById('replink').style.display=m.report_page?'inline':'none';
       if(m.models){if(document.activeElement.id!=='m_identify')document.getElementById('m_identify').value=m.models.identify;if(document.activeElement.id!=='m_scene')document.getElementById('m_scene').value=m.models.scene;}
       if(m.preannounce!==undefined)document.getElementById('pre').checked=!!m.preannounce;document.getElementById('rstat').textContent=m.reactive?`${m.reactive_status} · last ${m.last_id??'-'} · catalog ${m.catalog_parts} parts`:`catalog ${m.catalog_parts} parts`;return;}
     try{const b=await createImageBitmap(e.data);if(bmp)bmp.close();bmp=b;draw();

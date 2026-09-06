@@ -721,6 +721,11 @@ struct RelaySettingsView: View {
           Text("Narration runs on the Mac; needs ANTHROPIC_API_KEY there, or INSPECT_FAKE=1 to test the audio path.")
             .font(.caption).foregroundStyle(.secondary)
         }
+        Section("Report") {
+          Toggle("Session report page", isOn: $relay.reportPageEnabled)
+          Text("When on, the Mac serves a judges' view of everything identified or narrated this session at /report.html (frame, spoken line, confidence, model). Mac: \(relay.reportPageActive ? "on" : "off").")
+            .font(.caption).foregroundStyle(.secondary)
+        }
         Section("Diagnostics") {
           if relay.diagnostics.isEmpty {
             Text("no events yet").font(.caption).foregroundStyle(.secondary)
