@@ -90,7 +90,7 @@ class ComponentKnowledgeBase:
     @staticmethod
     def prompt_records(matches: list[ComponentMatch]) -> list[dict[str, Any]]:
         fields = ("identity", "function", "visual_identification", "pins", "electrical", "key_specs",
-                  "wiring_to_uno", "safety", "troubleshooting", "sources")
+                  "wiring_to_uno", "safety", "troubleshooting")
         records = []
         for match in matches:
             record, details = match.record, match.record.get("details", {})
@@ -236,7 +236,7 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
     def _body(self, *, system: str, text: str, frame: Frame,
               schema: dict[str, Any] | None = None) -> dict[str, Any]:
         image = base64.b64encode(frame.image_bytes).decode("ascii")
-        body = {"model": self._model, "max_tokens": 1_024, "temperature": 0, "system": system,
+        body = {"model": self._model, "max_tokens": 768, "temperature": 0, "system": system,
                 "messages": [{"role": "user", "content": [
                     {"type": "text", "text": text},
                     {"type": "image", "source": {"type": "base64",
@@ -257,7 +257,7 @@ class AnthropicComponentKnowledgeVLM(ComponentKnowledgeVLM):
 
     @staticmethod
     def _guidance_schema(ids: list[str]) -> dict[str, Any]:
-        string_list = {"type": "array", "items": {"type": "string"}, "maxItems": 3}
+        string_list = {"type": "array", "items": {"type": "string"}, "maxItems": 2}
         identification = {"type": "object", "properties": {
             "component_id": {"type": "string", "enum": ids}, "confidence": {"type": "number"},
             "observed_evidence": string_list, "uncertainty": {"type": ["string", "null"]},
