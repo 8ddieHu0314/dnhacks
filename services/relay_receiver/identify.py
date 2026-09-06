@@ -36,10 +36,12 @@ state = {
     "enabled": False,
     "status": "idle",            # idle | moving | settled | identifying
     "min_confidence": 0.6,
-    "settle_seconds": 0.4,
+    "settle_seconds": 0.3,       # wait this long after motion unless the frame is already sharp
     "motion_threshold": 0.035,   # mean abs diff between consecutive thumbnails
     "change_threshold": 0.06,    # diff vs the last identified scene
-    "cooldown_seconds": 1.5,
+    "sharp_threshold": 0.010,    # Laplacian variance on a 96px gray; above = usable without settling
+    "cooldown_seconds": 0.8,
+    "short_spoken": True,        # announce name + one spec; full line stays on Describe
     "last_id": None,
     "last_result": None,
     "last_spoken_at": 0.0,
@@ -164,13 +166,13 @@ def spoken_for(rec: dict, fallback: str) -> str:
 
 def system_prompt() -> str:
     base = ("You identify electronic components seen through a technician's smart glasses, matching against a catalog. "
-            "Read any printed markings first; markings beat shape. Never invent specifications. "
-            "Reply with JSON only, keys in this order: "
-            '{"id": "<catalog id, or null if no catalog part is clearly in view>", "confidence": <0..1>, '
-            '"name": "<short name>", "evidence": "<at most 12 words>"}')
+            "Read any printed markings first; markings beat shape. Never invent specifications.\n"
+            "Answer in exactly two lines and nothing else:\n"
+            "line 1: <catalog id, or none> <confidence 0-1>\n"
+            "line 2: <at most 12 words of evidence: markings, shape, color, pins>")
     if catalog_index:
         return base + "\n\nCatalog:\n" + catalog_index
-    return base + "\n\nNo catalog is loaded: set id to null and name the part generically."
+    return base + "\n\nNo catalog is loaded: answer 'none 0' and name the part on line 2."
 
 
 def _downscale(data: bytes, max_side: int = MAX_SIDE) -> bytes:
@@ -181,24 +183,38 @@ def _downscale(data: bytes, max_side: int = MAX_SIDE) -> bytes:
     return out.getvalue()
 
 
+_LINE1 = re.compile(r"^\s*([A-Za-z0-9_\-\.]+)\s+([01](?:\.\d+)?)\s*$")
+
+
+def _parse_line1(line: str):
+    m = _LINE1.match(line)
+    if not m:
+        return None
+    pid, conf = m.group(1), float(m.group(2))
+    if pid.lower() in ("none", "null", "unknown", "-"):
+        pid = None
+    return pid, conf
+
+
 def _parse(text: str) -> dict:
-    m = re.search(r"\{.*\}", text, re.S)
-    try:
-        obj = json.loads(m.group(0) if m else text)
-    except Exception:
-        obj = {"id": None, "name": "unknown", "confidence": 0.0, "evidence": text[:200], "spoken": ""}
-    obj.setdefault("id", None)
-    obj.setdefault("confidence", 0.0)
-    obj.setdefault("spoken", "")
-    return obj
+    lines = [l for l in text.strip().splitlines() if l.strip()]
+    first = _parse_line1(lines[0]) if lines else None
+    if first is None:
+        # tolerate the old JSON shape
+        m = re.search(r"\{.*\}", text, re.S)
+        try:
+            obj = json.loads(m.group(0) if m else text)
+            obj.setdefault("id", None); obj.setdefault("confidence", 0.0); obj.setdefault("evidence", "")
+            return obj
+        except Exception:
+            return {"id": None, "confidence": 0.0, "name": "unknown", "evidence": text[:120]}
+    pid, conf = first
+    return {"id": pid, "confidence": conf, "evidence": " ".join(lines[1:2]).strip()[:160]}
 
 
-async def _call_model(model: str, data: bytes, max_tokens: int = 160):
-    """One vision call with the cached catalog prompt. Kwargs are assembled so the
-    fallbacks parameter is only sent to models that accept it."""
-    import anthropic
+def _kwargs(model: str, data: bytes, max_tokens: int = 60):
+    """Request kwargs; the fallbacks parameter is only sent to models that accept it."""
     from typing import Any
-    client = anthropic.AsyncAnthropic()
     b64 = base64.standard_b64encode(_downscale(data)).decode()
     kwargs: dict[str, Any] = {
         "model": model, "max_tokens": max_tokens,
@@ -210,51 +226,123 @@ async def _call_model(model: str, data: bytes, max_tokens: int = 160):
     if _supports_fallbacks(model):
         kwargs["betas"] = ["server-side-fallback-2026-07-01"]
         kwargs["fallbacks"] = "default"
-    return await client.beta.messages.create(**kwargs)
+    return kwargs
+
+
+async def _call_model(model: str, data: bytes, max_tokens: int = 60):
+    import anthropic
+    client = anthropic.AsyncAnthropic()
+    return await client.beta.messages.create(**_kwargs(model, data, max_tokens))
+
+
+async def _stream_model(model: str, data: bytes, on_first_line, max_tokens: int = 60) -> tuple[str, object]:
+    """Stream the answer; call on_first_line(pid, conf) as soon as line 1 is complete."""
+    import anthropic
+    client = anthropic.AsyncAnthropic()
+    text, fired = "", False
+    async with client.beta.messages.stream(**_kwargs(model, data, max_tokens)) as stream:
+        async for piece in stream.text_stream:
+            text += piece
+            if not fired and "\n" in text:
+                parsed = _parse_line1(text.split("\n", 1)[0])
+                if parsed:
+                    fired = True
+                    await on_first_line(*parsed)
+        final = await stream.get_final_message()
+    if not fired:
+        parsed = _parse_line1(text.strip().split("\n", 1)[0]) if text.strip() else None
+        if parsed:
+            await on_first_line(*parsed)
+    return text, final
 
 
 _fake_cycle = ["hc-sr04", "rtc-ds3231", "relay-5v"]
 
 
-async def identify_frame(data: bytes) -> dict:
-    """One identification call on a frame. Returns the parsed JSON plus the catalog record."""
-    state["calls"] += 1
-    if FAKE:
-        await asyncio.sleep(1.2)
-        pid = _fake_cycle[state["calls"] % len(_fake_cycle)]
-        obj = {"id": pid, "name": pid.upper(), "confidence": 0.9, "evidence": "fake mode",
-               "spoken": f"This looks like the {pid.upper()} module. Fake mode."}
-    else:
-        import anthropic
-        resp = await _call_model(MODEL, data)
-        text = "".join(b.text for b in resp.content if b.type == "text")
-        obj = _parse(text) if resp.stop_reason != "refusal" else {"id": None, "name": "declined", "confidence": 0, "spoken": ""}
-        obj["usage"] = {"cache_read": getattr(resp.usage, "cache_read_input_tokens", 0), "out": resp.usage.output_tokens}
-    rec = catalog.get(str(obj.get("id"))) if obj.get("id") else None
-    if not rec and obj.get("id"):
-        # tolerate near-miss ids (e.g. "ds3231" for "rtc-ds3231")
-        want = str(obj["id"]).lower()
-        for k in catalog:
-            if want in k or k in want:
-                rec = catalog[k]; obj["id"] = k; break
-    obj.setdefault("spoken", "")
+def resolve(pid):
+    """Catalog record for an id, tolerating near misses ("ds3231" -> "rtc-ds3231")."""
+    if not pid:
+        return None, None
+    rec = catalog.get(str(pid))
     if rec:
-        obj["spoken"] = spoken_for(rec, obj.get("spoken") or f"This is the {rec.get('name', obj['id'])}.")
+        return pid, rec
+    want = str(pid).lower()
+    for k in catalog:
+        if want in k or k in want:
+            return k, catalog[k]
+    return pid, None
+
+
+def spoken_short(rec: dict) -> str:
+    d = rec.get("details") or {}
+    name = _words(str(rec.get("canonical_name") or rec.get("name") or rec.get("id")).split(",")[0].split(" (")[0], 50)
+    bits = []
+    pc = rec.get("pin_count") or (d.get("pins") or {}).get("pin_count")
+    if pc:
+        bits.append(f"{pc} pins")
+    v = _sq(rec.get("voltage") or (d.get("electrical") or {}).get("operating_voltage"), 200)
+    if v and len(v) <= 20 and not v.lower().startswith(("not applicable", "depends", "n/a")):
+        bits.append(v)
+    return f"{name}." + (f" {', '.join(bits)}." if bits else "")
+
+
+async def identify_frame(data: bytes, on_early=None) -> dict:
+    """One identification call on a frame. `on_early(pid, conf, rec)` fires as soon as the id
+    is known (before the evidence line finishes). Returns the parsed result plus the record."""
+    state["calls"] += 1
+    t0 = time.time()
+    early = {"pid": None, "conf": 0.0, "rec": None, "at": None}
+
+    async def first_line(pid, conf):
+        pid, rec = resolve(pid)
+        early.update(pid=pid, conf=conf, rec=rec, at=time.time() - t0)
+        if on_early:
+            await on_early(pid, conf, rec)
+
+    if FAKE:
+        await asyncio.sleep(0.6)
+        pid = _fake_cycle[state["calls"] % len(_fake_cycle)]
+        await first_line(pid, 0.9)
+        obj = {"id": pid, "confidence": 0.9, "evidence": "fake mode"}
+        usage = None
+    else:
+        text, final = await _stream_model(MODEL, data, first_line)
+        obj = _parse(text) if final.stop_reason != "refusal" else {"id": None, "confidence": 0, "evidence": "declined"}
+        usage = {"cache_read": getattr(final.usage, "cache_read_input_tokens", 0), "out": final.usage.output_tokens}
+    pid, rec = resolve(obj.get("id"))
+    obj["id"] = pid
+    obj["name"] = (rec or {}).get("canonical_name") or (rec or {}).get("name") or (pid or "no catalog part")
+    obj["spoken"] = spoken_for(rec, "") if rec else ""
+    obj["spoken_short"] = spoken_short(rec) if rec else ""
+    if rec:
         d = rec.get("details") or {}
         obj["record"] = {k: rec.get(k) for k in ("id", "canonical_name", "name_on_kit", "mpn", "category", "pin_count",
                                                   "pins", "interface", "voltage", "key_specs", "function", "price_usd",
                                                   "confidence") if rec.get(k) is not None}
         obj["record"]["safety"] = (d.get("safety") or {}).get("hazards")
         obj["record"]["wiring"] = ((d.get("wiring_to_uno") or {}).get("example_connections"))
+    obj["usage"] = usage
+    obj["timing"] = {"id_at_ms": int((early["at"] or 0) * 1000), "total_ms": int((time.time() - t0) * 1000)}
     obj["ts"] = time.time()
     return obj
 
 
 # ---------------------------------------------------------------- reactive loop
 
-def _thumb(data: bytes) -> np.ndarray:
-    img = Image.open(io.BytesIO(data)).convert("L").resize((32, 32))
+def _gray(data: bytes, size: int) -> np.ndarray:
+    img = Image.open(io.BytesIO(data)).convert("L").resize((size, size))
     return np.asarray(img, dtype=np.float32) / 255.0
+
+
+def _thumb(data: bytes) -> np.ndarray:
+    return _gray(data, 32)
+
+
+def _sharpness(data: bytes) -> float:
+    """Variance of a Laplacian on a 96px gray image; motion blur drives it toward zero."""
+    g = _gray(data, 96)
+    lap = -4 * g[1:-1, 1:-1] + g[:-2, 1:-1] + g[2:, 1:-1] + g[1:-1, :-2] + g[1:-1, 2:]
+    return float(lap.var())
 
 
 def _diff(a, b) -> float:
@@ -264,10 +352,10 @@ def _diff(a, b) -> float:
 
 
 async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption):
-    """get_latest() -> (bytes, ts) | (None, 0); on_result(obj); speak(text); speak_stop(); set_caption(text)."""
+    """get_latest() -> (bytes, ts) | (None, 0); on_result(obj); speak(text); speak_stop(); set_caption(text, final)."""
     global _prev_thumb, _prev_frame_ts, _last_motion_at, _identified_thumb, _busy
     while state["enabled"]:
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.05)
         data, ts = get_latest()
         now = time.time()
         if not data or ts == _prev_frame_ts or now - ts > 2:
@@ -279,31 +367,40 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption):
         if motion > state["motion_threshold"]:
             _last_motion_at = now
             state["status"] = "moving"
+        changed = _diff(thumb, _identified_thumb) >= state["change_threshold"]
+        if not changed or _busy or now - state["last_spoken_at"] < state["cooldown_seconds"]:
+            if motion <= state["motion_threshold"]:
+                state["status"] = "settled"
             continue
-        if now - _last_motion_at < state["settle_seconds"]:
-            continue
-        state["status"] = "settled"
-        if _busy or _diff(thumb, _identified_thumb) < state["change_threshold"]:
-            continue
-        if now - state["last_spoken_at"] < state["cooldown_seconds"]:
+        # New scene: go immediately if the frame is sharp, otherwise wait for it to settle.
+        settled = now - _last_motion_at >= state["settle_seconds"]
+        if not settled and _sharpness(data) < state["sharp_threshold"]:
             continue
         _busy = True
         state["status"] = "identifying"
         await set_caption("Looking…", False)
+        spoke = {"done": False}
+
+        async def on_early(pid, conf, rec):
+            # Speak the instant the id is known; evidence keeps streaming for the dashboard.
+            if pid and rec and conf >= state["min_confidence"] and pid != state["last_id"]:
+                state["last_id"] = pid
+                state["last_spoken_at"] = time.time()
+                spoke["done"] = True
+                await speak_stop()
+                line = spoken_short(rec) if state["short_spoken"] else spoken_for(rec, "")
+                await speak(line)
+                await set_caption(line, True)
+
         try:
-            obj = await identify_frame(data)
+            obj = await identify_frame(data, on_early=on_early)
             _identified_thumb = thumb
             state["last_result"] = obj
             obj["_frame"] = data
             await on_result(obj)
-            pid = obj.get("id")
-            conf = float(obj.get("confidence") or 0)
-            if pid and conf >= state["min_confidence"] and pid != state["last_id"]:
-                state["last_id"] = pid
-                state["last_spoken_at"] = time.time()
-                await speak_stop()
-                await speak(obj.get("spoken") or f"This is {obj.get('name')}.")
-                await set_caption(obj.get("spoken") or obj.get("name", ""), True)
+            pid, conf = obj.get("id"), float(obj.get("confidence") or 0)
+            if spoke["done"]:
+                pass
             elif pid and pid == state["last_id"]:
                 await set_caption(f"Still {obj.get('name')}.", True)
             else:
@@ -318,10 +415,24 @@ async def reactive_loop(get_latest, on_result, speak, speak_stop, set_caption):
 
 def set_enabled(enabled: bool, **kw):
     global _identified_thumb
-    for k in ("min_confidence", "settle_seconds", "motion_threshold", "change_threshold", "cooldown_seconds"):
+    for k in ("min_confidence", "settle_seconds", "motion_threshold", "change_threshold", "cooldown_seconds", "sharp_threshold"):
         if kw.get(k) is not None:
             state[k] = float(kw[k])
+    if kw.get("short_spoken") is not None:
+        state["short_spoken"] = bool(kw["short_spoken"])
     state["enabled"] = bool(enabled)
     if enabled:
         state["last_id"] = None
         _identified_thumb = None
+
+
+async def warm_cache():
+    """One tiny call so the first real identification finds the catalog prompt cached."""
+    if FAKE or not os.environ.get("ANTHROPIC_API_KEY") or not catalog_index:
+        return "skipped"
+    img = Image.new("RGB", (64, 64), (0, 0, 0)); out = io.BytesIO(); img.save(out, "JPEG")
+    try:
+        resp = await _call_model(MODEL, out.getvalue(), max_tokens=8)
+        return f"cache_write={getattr(resp.usage, 'cache_creation_input_tokens', 0)} cache_read={getattr(resp.usage, 'cache_read_input_tokens', 0)}"
+    except Exception as e:
+        return f"failed: {e}"

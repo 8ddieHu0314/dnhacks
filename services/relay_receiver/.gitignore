@@ -3,3 +3,4 @@
 frames/
 report.jsonl
 server.log
+tts_cache/

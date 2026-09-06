@@ -54,10 +54,25 @@ def _lan_ips() -> list[str]:
 
 _zc = None
 _refresh_task = None
+_warm_task = None
+
+
+async def _warm():
+    """Warm the identification prompt cache and pre-render every catalog spoken line."""
+    print("Prompt cache:", await identify.warm_cache(), flush=True)
+    if tts.enabled():
+        lines = []
+        for rec in identify.catalog.values():
+            lines.append(identify.spoken_short(rec))
+            lines.append(identify.spoken_for(rec, ""))
+        r, c = await tts.prerender(lines)
+        print(f"Voice cache: rendered {r}, already cached {c}", flush=True)
 
 
 @app.on_event("startup")
 async def _advertise():
+    global _warm_task
+    _warm_task = asyncio.create_task(_warm())
     """Advertise this receiver over Bonjour so the phone app can find it without typing an IP."""
     global _zc
     try:
@@ -167,7 +182,8 @@ def _stats():
             "reactive": identify.state["enabled"], "reactive_status": identify.state["status"], "last_id": identify.state["last_id"],
             "catalog_parts": len(identify.catalog), "identify_model": identify.MODEL,
             "tts": {"provider": "elevenlabs" if tts.enabled() else "apple", "chars": speech["chars"],
-                    "errors": speech["errors"], "last_error": speech["last_error"]}}
+                    "errors": speech["errors"], "last_error": speech["last_error"],
+                    "cache_hits": speech.get("cache_hits", 0), "speed": tts.SPEED}}
 
 
 async def _send_all(sockets: set[WebSocket], msg: dict):
@@ -225,12 +241,26 @@ async def _tts_worker():
         sent = 0
         t0 = time.time()
         try:
+            pre = tts.cached(text)
+            if pre is not None:
+                # pre-rendered (catalog line or previously spoken): push it all, no API round trip
+                for chunk in tts.chunks(pre):
+                    await _send_all(phones, {"type": "audio", "id": uid, "rate": tts.SAMPLE_RATE,
+                                             "pcm": base64.b64encode(chunk).decode()})
+                    sent += 1
+                speech["cache_hits"] = speech.get("cache_hits", 0) + 1
+                await _send_all(phones, {"type": "audio_end", "id": uid, "ms": int((time.time() - t0) * 1000), "cached": True})
+                q.task_done()
+                continue
+            buf = b""
             async for chunk in tts.stream_pcm(text):
                 if sent == 0:
                     speech["chars"] += len(text)
+                buf += chunk
                 await _send_all(phones, {"type": "audio", "id": uid, "rate": tts.SAMPLE_RATE,
                                          "pcm": base64.b64encode(chunk).decode()})
                 sent += 1
+            tts.store(text, buf)
             await _send_all(phones, {"type": "audio_end", "id": uid, "ms": int((time.time() - t0) * 1000)})
         except Exception as e:
             speech["errors"] += 1
@@ -511,7 +541,7 @@ def set_reactive(enabled: bool, **kw):
 @app.post("/reactive")
 async def reactive(request: Request):
     body = await request.json()
-    set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds")})
+    set_reactive(body.get("enabled", False), **{k: body.get(k) for k in ("min_confidence", "settle_seconds", "cooldown_seconds", "short_spoken")})
     await _send_all(phones, {"type": "reactive", **_reactive_public()})
     return _reactive_public()
 
@@ -609,7 +639,7 @@ function connect(){
   ws.onmessage=async e=>{
     if(typeof e.data==='string'){const m=JSON.parse(e.data);
       if(m.type==='identified'){const c=document.getElementById('card');c.style.display='block';
-        c.innerHTML=`<b>${m.name||'?'}</b> <span style="color:#888">id=${m.id} · ${Math.round((m.confidence||0)*100)}%</span><div>${m.spoken||''}</div><div style="color:#888;font-size:12px">${m.evidence||''}</div>`+
+        c.innerHTML=`<b>${m.name||'?'}</b> <span style="color:#888">id=${m.id} · ${Math.round((m.confidence||0)*100)}% · id in ${m.timing?m.timing.id_at_ms:'?'} ms, done ${m.timing?m.timing.total_ms:'?'} ms</span><div>${m.spoken||''}</div><div style="color:#888;font-size:12px">${m.evidence||''}</div>`+
         (m.record?`<pre style="white-space:pre-wrap;font-size:11px;color:#bbb;margin:6px 0 0">${JSON.stringify(m.record,null,1).slice(0,1200)}</pre>`:'');return;}
       if(m.type==='caption'){const out=document.getElementById('out');out.textContent=m.text||(m.final?'':'thinking…');out.style.opacity=m.final?1:0.7;if(m.final&&m.text)loadReport();return;}
       stats=m;renderHud();document.getElementById('narr').checked=!!m.narration;
