@@ -4,8 +4,10 @@ import unittest
 
 from fastapi.testclient import TestClient
 
+from vision_api import main
 from vision_api.glasses_bridge import decode_relay_frame, jpeg_dimensions
 from vision_api.main import app
+from vision_api.models import VisionAnalysis, VisionOutput
 
 
 JPEG = b"\xff\xd8\xff\xc0\x00\x11\x08\x01\xe0\x02\x80"
@@ -41,6 +43,28 @@ class GlassesBridgeTests(unittest.TestCase):
                     time.sleep(0.01)
         self.assertEqual(hello["type"], "relay_session")
         self.assertEqual(latest.json()["captured_at"], "2023-11-14T22:13:20.125000Z")
+
+    def test_analysis_speech_returns_on_the_same_ios_socket(self) -> None:
+        class SpeakingEngine:
+            name = "speaking"
+
+            async def analyze(self, _frame):
+                return VisionOutput(analysis=VisionAnalysis(summary="Breadboard visible."))
+
+        prior_mode, prior_engine = main.speech._mode, main.pipeline._engine
+        main.speech._mode, main.pipeline._engine = "glasses", SpeakingEngine()
+        try:
+            with TestClient(app) as client:
+                with client.websocket_connect("/ws/ingest") as socket:
+                    socket.receive_json()
+                    socket.send_bytes(JPEG)
+                    spoken = socket.receive_json()
+                    finished = socket.receive_json()
+        finally:
+            main.speech._mode, main.pipeline._engine = prior_mode, prior_engine
+        self.assertEqual(spoken["type"], "speak")
+        self.assertEqual(spoken["text"], "Breadboard visible.")
+        self.assertEqual(finished["type"], "speak_end")
 
 
 if __name__ == "__main__":
