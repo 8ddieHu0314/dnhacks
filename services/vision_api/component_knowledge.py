@@ -424,7 +424,8 @@ class AnthropicCatalogIdentificationVLM(AnthropicComponentKnowledgeVLM):
         submitted = self._debug_evidence.get(session_id, {})
         safe = all((result := reported.get(item["id"])) is not None
                    and result.status == "pass" and result.evidence_source == item["required_evidence"]
-                   and (item["required_evidence"] == "visual" or item["id"] in submitted)
+                   and (item["required_evidence"] == "visual"
+                        or submitted.get(item["id"], {}).get("evidence_source") == item["required_evidence"])
                    for item in blocking)
         steps = debug.steps
         if not safe:
