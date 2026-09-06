@@ -22,10 +22,10 @@ async function start(){
   const created=await fetch("/v1/sessions",{method:"POST"}).then(response=>response.json());
   sessionId=created.session_id; running=true; status.textContent=`Streaming to session ${sessionId}.`; tick();
 }
-async function latestResult(){
+async function latestResult(frameId){
   for(let attempt=0;attempt<90;attempt++){
     const response=await fetch(`/v1/sessions/${sessionId}/results/latest`);
-    if(response.status===200)return response.json();
+    if(response.status===200){const payload=await response.json();if(payload.frame_id===frameId)return payload;}
     await pause(1000);
   }
   throw new Error("Timed out waiting for model result");
@@ -37,10 +37,10 @@ async function tick(){
     canvas.width=width; canvas.height=height; canvas.getContext("2d").drawImage(video,0,0,width,height);
     const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.8));
     if(sentUrl)URL.revokeObjectURL(sentUrl); sentUrl=URL.createObjectURL(blob); sent.src=sentUrl;
-    const metadata={frame_id:crypto.randomUUID(),captured_at:new Date().toISOString(),width,height,encoding:"jpeg",user_request:$("question").value||null};
+    const frameId=crypto.randomUUID(), metadata={frame_id:frameId,captured_at:new Date().toISOString(),width,height,encoding:"jpeg",user_request:$("question").value||null};
     const frameResponse=await fetch(`/v1/sessions/${sessionId}/frames`,{method:"POST",headers:{"x-frame-metadata":JSON.stringify(metadata)},body:blob});
     if(!frameResponse.ok) throw new Error(await frameResponse.text());
-    const latest=await latestResult(); result.textContent=JSON.stringify(latest.analysis,null,2);
+    const latest=await latestResult(frameId); result.textContent=JSON.stringify(latest.analysis,null,2);
   }catch(error){status.textContent=`Camera test error: ${error.message}`;running=false;return;}
   setTimeout(tick,1000);
 }
