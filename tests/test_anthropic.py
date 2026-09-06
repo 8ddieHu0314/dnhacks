@@ -29,6 +29,7 @@ class AnthropicComponentKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         knowledge = ComponentKnowledgeBase.from_path(Path(__file__).parents[1] / "docs/components/components.json")
         engine = AnthropicComponentKnowledgeVLM(base_url="https://model.example", api_key="test-key",
             model="claude-test", timeout_seconds=1, knowledge_base=knowledge, transport=httpx.MockTransport(handler))
+        self.assertEqual(engine._timeout, 45.0)
         frame = Frame("session", FrameMetadata(frame_id="frame", width=2, height=2), b"image", datetime.now(timezone.utc))
         output = await engine.analyze(frame)
 
