@@ -1,0 +1,98 @@
+{
+  "id": "elegoo-uno-r3-kit/cap-ceramic-104",
+  "kit": { "name": "ELEGOO UNO R3 Project Most Complete Starter Kit", "sku": "EL-KIT-001", "quantity_in_kit": 5 },
+  "identity": {
+    "name_on_kit": "Ceramic Capacitor 104",
+    "canonical_name": "100 nF (0.1 uF) ceramic disc capacitor",
+    "aliases": ["104 capacitor", "0.1uF capacitor", "bypass capacitor", "decoupling capacitor"],
+    "category": "passive",
+    "manufacturer": "unbranded / generic (no manufacturer markings printed on the part)",
+    "manufacturer_part_number": "not specified by ELEGOO, generic part; comparable retail part is SparkFun COM-08375",
+    "generic_equivalents": ["SparkFun COM-08375 (0.1uF 50V ceramic capacitor)"],
+    "serial_number": "not_applicable",
+    "package": "ceramic disc, through-hole, radial leads, 0.1 in lead spacing"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small capacitor that soaks up tiny, fast voltage bumps on a power line, usually placed right next to the chip that needs clean power.",
+    "what_it_is_used_for": "Commonly called a decoupling or bypass capacitor. Placed as close as possible to the power pins of a chip, such as the ATmega328 on the UNO or any IC added on the breadboard, to absorb quick voltage spikes and switching noise so the chip runs reliably.",
+    "how_it_works_briefly": "It is a small reservoir of charge that reacts almost instantly, much faster than a battery or a larger electrolytic capacitor. When a chip suddenly needs a brief burst of current, this capacitor supplies it locally instead of forcing the current to travel all the way back from the main power supply, which reduces noise and voltage dips."
+  },
+  "pins": {
+    "pin_count": 2,
+    "pinout": [
+      { "pin": 1, "name": "Lead A", "role": "circuit terminal, non-polarized", "notes": "Either lead can connect to either side of the circuit; no polarity." },
+      { "pin": 2, "name": "Lead B", "role": "circuit terminal, non-polarized", "notes": "Electrically identical to Lead A and interchangeable with it." }
+    ],
+    "pin_1_identification": "Not applicable. There is no positive lead. Both leads are electrically identical and can be swapped without changing the circuit.",
+    "polarity_sensitive": false
+  },
+  "electrical": {
+    "operating_voltage": "0-50V DC (rated maximum, per SparkFun COM-08375)",
+    "absolute_max_voltage": "50V DC (per SparkFun COM-08375; ELEGOO's exact unit is not independently datasheet-confirmed)",
+    "typical_current": "not applicable, passive component with no intrinsic current draw",
+    "max_current": "not applicable",
+    "logic_level": "not applicable",
+    "interface": "none"
+  },
+  "key_specs": {
+    "capacitance": "100 nF (0.1 uF)",
+    "voltage_rating": "50V",
+    "lead_spacing": "0.1 in (2.54 mm), per SparkFun COM-08375",
+    "marking_code": "Printed as '104': the first two digits (10) are the significant figures, and the third digit (4) is the power-of-ten multiplier in picofarads, so 10 x 10^4 pF = 100,000 pF = 100 nF."
+  },
+  "visual_identification": {
+    "shape_and_size": "A small flat disc, slightly larger than the 22pF part, roughly 5-7 mm across, with two straight wire leads about 0.1 inch apart.",
+    "color_and_markings": "Body color varies by supplier, commonly blue or yellow/tan. Printed with '104'.",
+    "printed_text_to_look_for": "104",
+    "easily_confused_with": [
+      "22pF ceramic capacitor: same disc shape but marked '22' instead of '104' and usually a visibly smaller body",
+      "other 3-digit-coded ceramic capacitors such as 103 (10 nF) or 105 (1 uF), distinguished only by the printed number"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "Lead A", "uno_pin": "5V or a chip's power pin, wired as close to the chip as possible" },
+      { "part_pin": "Lead B", "uno_pin": "GND, forming a short path directly across the chip's power and ground pins" }
+    ],
+    "required_extra_parts": [],
+    "arduino_library": "none"
+  },
+  "safety": {
+    "hazards": ["none under normal use within its 50V rating"],
+    "handling_notes": ["no polarity to worry about", "keep lead lengths short when using it as a decoupling capacitor; long leads add inductance that reduces how well it filters fast noise"],
+    "common_mistakes": [
+      "confusing it with the visually similar 22pF capacitor since both are small ceramic discs",
+      "expecting it to smooth slow, large power dips the way a bigger electrolytic capacitor does; 100 nF only helps with fast, high-frequency noise"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "a chip resets randomly, glitches, or misbehaves only under load", "likely_cause": "missing decoupling capacitor, or one placed too far from the chip's power pins", "check": "confirm a 104 capacitor sits close to the chip's power pins; measure with a multimeter's capacitance mode and expect a reading close to 100 nF (often shown as 0.10 on a uF-range meter)" }
+    ],
+    "how_to_test_with_a_multimeter": "Set the multimeter to capacitance mode and read across the two leads; expect roughly 100 nF (0.1 uF)."
+  },
+  "market": {
+    "unit_price_usd": 0.32,
+    "price_source_url": "https://www.sparkfun.com/capacitor-ceramic-0-1uf.html",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["SparkFun", "Adafruit", "Tayda Electronics", "Amazon", "Jameco"]
+  },
+  "sources": [
+    { "title": "Elegoo For Arduino UNO R3 Project Most Complete Starter Kit (EL-KIT-001) - Newegg", "url": "https://www.newegg.com/elegoo-el-kit-001-accessories/p/293-001C-00001", "type": "retailer", "used_for": "kit.name, kit.sku, and kit.quantity_in_kit (parts list confirms 5x 104 ceramic capacitors)" },
+    { "title": "ELEGOO UNO R3 Project Most Complete Starter Kit Instruction Manual", "url": "https://manuals.plus/asin/B01CZTLHGE", "type": "manufacturer", "used_for": "corroborates kit.quantity_in_kit from ELEGOO's own instruction manual parts list ('5pcs 104 Ceramic Capacitor')" },
+    { "title": "Capacitor Ceramic 0.1uF - SparkFun Electronics (COM-08375)", "url": "https://www.sparkfun.com/capacitor-ceramic-0-1uf.html", "type": "retailer", "used_for": "key_specs.voltage_rating, key_specs.lead_spacing, electrical.absolute_max_voltage, market.unit_price_usd, and function.what_it_is_used_for (page describes it as commonly used for decoupling ICs from power supplies)" },
+    { "title": "Ceramic Capacitor Code Chart - CircuitsPedia", "url": "https://circuitspedia.com/how-to-read-ceramic-capacitor-code-value-104-chart/", "type": "wiki", "used_for": "key_specs.marking_code (3-digit EIA code decode for '104')" },
+    { "title": "Capacitor Kit Identification Guide - SparkFun Learn", "url": "https://learn.sparkfun.com/tutorials/capacitor-kit-identification-guide/all", "type": "tutorial", "used_for": "visual_identification.color_and_markings (ceramic disc general appearance)" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer",
+      "identity.manufacturer_part_number",
+      "electrical.absolute_max_voltage (confirmed only for a comparable retail part, not ELEGOO's exact unit)",
+      "wiring_to_uno.example_connections (generic decoupling wiring; ELEGOO does not appear to dedicate a standalone tutorial lesson to this part on its own)"
+    ],
+    "notes": "This corrects the seed's quantity_in_kit from 10 to 5: three independently fetched sources (Newegg's EL-KIT-001 listing and ELEGOO's own instruction manual, hosted on manuals.plus) all state 5pcs of the 104 ceramic capacitor, not 10. ELEGOO's own website (elegoo.com and us.elegoo.com product/tutorial pages) returned HTTP 403 Forbidden on every fetch attempt, so this record relies on a third-party retailer listing and a third-party host of ELEGOO's own instruction manual instead. ELEGOO ships a generic, unbranded part and publishes no datasheet, manufacturer name, or MPN for it; the voltage rating and lead spacing are from a comparable retail part (SparkFun COM-08375), not ELEGOO's exact unit."
+  }
+}

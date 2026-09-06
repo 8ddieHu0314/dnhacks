@@ -1,0 +1,102 @@
+{
+  "id": "elegoo-uno-r3-kit/cap-electrolytic-100uf",
+  "kit": { "name": "ELEGOO UNO R3 Project Most Complete Starter Kit", "sku": "EL-KIT-001", "quantity_in_kit": 2 },
+  "identity": {
+    "name_on_kit": "Electrolytic Capacitor 100uF",
+    "canonical_name": "100 uF 50V electrolytic capacitor",
+    "aliases": ["100uF cap", "100uF/50V radial electrolytic capacitor"],
+    "category": "passive",
+    "manufacturer": "unbranded / generic (no manufacturer markings printed on the part)",
+    "manufacturer_part_number": "not specified by ELEGOO, generic part; comparable retail part is Circuit Specialists CEM50-0100",
+    "generic_equivalents": ["Circuit Specialists CEM50-0100 (100uF 50V miniature radial electrolytic capacitor)"],
+    "serial_number": "not_applicable",
+    "package": "radial through-hole electrolytic can, larger body than the kit's 10uF capacitor"
+  },
+  "function": {
+    "one_sentence_plain_english": "A bigger version of the kit's 10uF capacitor. It stores more charge and smooths out bigger, slower dips in power, like the ones a motor or servo causes when it suddenly draws current.",
+    "what_it_is_used_for": "Placed across a motor's or servo's power leads, or right after a battery or power module, to act as a small local reserve of charge so a sudden current draw does not drag down the whole board's voltage.",
+    "how_it_works_briefly": "Same rolled-electrolyte construction as the kit's 10uF capacitor, just with ten times more capacitance, so it can supply a bigger and slightly longer burst of current before it runs low. It is still polarized and must be wired the correct way around."
+  },
+  "pins": {
+    "pin_count": 2,
+    "pinout": [
+      { "pin": 1, "name": "positive lead (anode)", "role": "positive", "notes": "the longer of the two leads" },
+      { "pin": 2, "name": "negative lead (cathode)", "role": "negative", "notes": "the shorter lead, on the side marked with a printed stripe down the can" }
+    ],
+    "pin_1_identification": "The longer lead is positive. The lead next to the printed stripe on the side of the can is negative.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "0-50V DC (rated maximum)",
+    "absolute_max_voltage": "50V DC",
+    "typical_current": "not applicable, passive component with no intrinsic current draw",
+    "max_current": "not applicable",
+    "logic_level": "not applicable",
+    "interface": "none"
+  },
+  "key_specs": {
+    "capacitance": "100 uF",
+    "voltage_rating": "50V",
+    "note": "ELEGOO's own instruction manual confirms the printed capacitance (100uF) and voltage (50V); detailed tolerance and case dimensions below are from a comparable retail part, not ELEGOO's exact unit."
+  },
+  "visual_identification": {
+    "shape_and_size": "A cylindrical aluminum can, noticeably taller and fatter than the kit's 10uF capacitor, closer to the size of a small watch battery in diameter.",
+    "color_and_markings": "Body usually black or dark blue, with white printed text showing the capacitance and voltage directly on the can (for example '100uF 50V'). A pale stripe runs down one side marking the negative lead.",
+    "printed_text_to_look_for": "100uF, 50V, printed directly rather than as a 3-digit code",
+    "easily_confused_with": [
+      "10uF electrolytic capacitor: same cylindrical shape and stripe marking, but a visibly smaller body and a different printed value"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "positive lead", "uno_pin": "5V, or a motor/servo power rail" },
+      { "part_pin": "negative lead", "uno_pin": "GND" }
+    ],
+    "required_extra_parts": [],
+    "arduino_library": "none"
+  },
+  "safety": {
+    "hazards": [
+      "installing it backwards (reverse polarity) or exceeding its 50V rating can cause it to heat up, bulge, vent, or in rare cases pop",
+      "do not touch a hot or visibly bulging capacitor"
+    ],
+    "handling_notes": [
+      "always check the negative stripe before powering the circuit",
+      "bend leads gently, not sharply right at the body, to avoid cracking the internal seal"
+    ],
+    "common_mistakes": [
+      "reversing polarity",
+      "confusing it with the visually similar but smaller 10uF capacitor and using the wrong value"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "capacitor feels warm, the top bulges, or there is a small pop or hiss", "likely_cause": "installed backwards or exposed to more than 50V", "check": "power off immediately, verify orientation against the negative stripe, and replace the part if the top is domed or leaking" },
+      { "symptom": "a servo or motor still causes the board to reset or brown out under load", "likely_cause": "capacitor installed backwards, a bad connection, or too small a capacitance for the load", "check": "use a multimeter's capacitance mode, expect a reading close to 100uF, and confirm it is wired directly across the motor's or servo's power leads, close to the load" }
+    ],
+    "how_to_test_with_a_multimeter": "Discharge the capacitor first by briefly connecting a resistor across its leads, then set the multimeter to capacitance mode; expect a reading close to 100uF."
+  },
+  "market": {
+    "unit_price_usd": 0.79,
+    "price_source_url": "https://www.circuitspecialists.com/cem50-0100",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Circuit Specialists", "Adafruit", "SparkFun", "Amazon", "DigiKey"]
+  },
+  "sources": [
+    { "title": "Elegoo For Arduino UNO R3 Project Most Complete Starter Kit (EL-KIT-001) - Newegg", "url": "https://www.newegg.com/elegoo-el-kit-001-accessories/p/293-001C-00001", "type": "retailer", "used_for": "kit.name, kit.sku, and kit.quantity_in_kit (parts list confirms 2x 100uF 50V electrolytic capacitors)" },
+    { "title": "ELEGOO UNO R3 Project Most Complete Starter Kit Instruction Manual", "url": "https://manuals.plus/asin/B01CZTLHGE", "type": "manufacturer", "used_for": "corroborates kit.quantity_in_kit from ELEGOO's own instruction manual parts list ('2pcs Electrolytic Capacitor (100UF 50V)')" },
+    { "title": "100 uF, 50V Miniature Radial Electrolytic Capacitor - Circuit Specialists (CEM50-0100)", "url": "https://www.circuitspecialists.com/cem50-0100", "type": "retailer", "used_for": "key_specs.capacitance, key_specs.voltage_rating, market.unit_price_usd" },
+    { "title": "Capacitor Kit Identification Guide - SparkFun Learn", "url": "https://learn.sparkfun.com/tutorials/capacitor-kit-identification-guide/all", "type": "tutorial", "used_for": "pins.pin_1_identification and visual_identification (cylindrical 'soda can' body, negative stripe, longer positive lead) and safety.hazards (risk of exploding if installed backwards or overvoltage)" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer",
+      "identity.manufacturer_part_number",
+      "key_specs.tolerance_percent (not published for this exact part; omitted rather than guessed)",
+      "identity.package (exact case size not independently confirmed for ELEGOO's unit)"
+    ],
+    "notes": "quantity_in_kit of 2 matches the seed and is confirmed by two independently fetched sources (Newegg's EL-KIT-001 listing and ELEGOO's own instruction manual, hosted on manuals.plus). ELEGOO's own website (elegoo.com and us.elegoo.com product/tutorial pages) returned HTTP 403 Forbidden on every fetch attempt, so this record relies on a third-party retailer listing and a third-party host of ELEGOO's own instruction manual instead. ELEGOO ships a generic, unbranded part and publishes no datasheet, manufacturer name, or MPN for it; price is a comparable single-unit retail price (Circuit Specialists), not ELEGOO's own per-unit price."
+  }
+}

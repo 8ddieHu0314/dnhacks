@@ -1,0 +1,105 @@
+{
+  "id": "elegoo-uno-r3-kit/cap-electrolytic-10uf",
+  "kit": { "name": "ELEGOO UNO R3 Project Most Complete Starter Kit", "sku": "EL-KIT-001", "quantity_in_kit": 2 },
+  "identity": {
+    "name_on_kit": "Electrolytic Capacitor 10uF",
+    "canonical_name": "10 uF 50V electrolytic capacitor",
+    "aliases": ["10uF cap", "10uF/50V radial electrolytic capacitor"],
+    "category": "passive",
+    "manufacturer": "unbranded / generic (no manufacturer markings printed on the part)",
+    "manufacturer_part_number": "not specified by ELEGOO, generic part; comparable retail part is Adafruit product 2195",
+    "generic_equivalents": ["Adafruit 10uF 50V electrolytic capacitor, product 2195, sold as a 10-pack"],
+    "serial_number": "not_applicable",
+    "package": "radial through-hole electrolytic can, about 5mm diameter x 12mm tall (per Adafruit's comparable part)"
+  },
+  "function": {
+    "one_sentence_plain_english": "A small can-shaped capacitor that stores much more charge than a ceramic capacitor and smooths out slower power dips, but only works if wired the correct way around.",
+    "what_it_is_used_for": "Filtering and smoothing power-supply ripple or voltage dips, for example after a voltage regulator or near a part that pulls current in short bursts.",
+    "how_it_works_briefly": "Like the ceramic capacitors in this kit, it stores charge on two plates, but the plates are rolled up with a chemical electrolyte between them, letting it hold roughly 100,000 times more charge than the kit's 22pF ceramic capacitor in a similar-sized package. That chemical construction is also why it only works with current flowing one direction; it is polarized."
+  },
+  "pins": {
+    "pin_count": 2,
+    "pinout": [
+      { "pin": 1, "name": "positive lead (anode)", "role": "positive", "notes": "the longer of the two leads" },
+      { "pin": 2, "name": "negative lead (cathode)", "role": "negative", "notes": "the shorter lead, on the side marked with a printed stripe down the can" }
+    ],
+    "pin_1_identification": "The longer lead is positive. The lead next to the printed stripe on the side of the can is negative.",
+    "polarity_sensitive": true
+  },
+  "electrical": {
+    "operating_voltage": "0-50V DC (rated maximum)",
+    "absolute_max_voltage": "50V DC",
+    "typical_current": "not applicable, passive component with no intrinsic current draw",
+    "max_current": "not applicable",
+    "logic_level": "not applicable",
+    "interface": "none"
+  },
+  "key_specs": {
+    "capacitance": "10 uF",
+    "voltage_rating": "50V",
+    "tolerance_percent": "approximately +/-20%, typical for this class of general-purpose electrolytic capacitor per Adafruit product 2195; ELEGOO's exact tolerance is not independently confirmed",
+    "case_size": "about 5mm diameter x 12mm tall body, positive lead extends to about 25mm total, per Adafruit product 2195",
+    "polarity": "positive lead longer; negative side marked with a printed stripe"
+  },
+  "visual_identification": {
+    "shape_and_size": "A small cylindrical 'can', noticeably fatter and taller than either ceramic disc capacitor in this kit, roughly the size of a pencil eraser or smaller.",
+    "color_and_markings": "Body usually black or dark blue, with white printed text showing the capacitance and voltage directly on the can (for example '10uF 50V'). A pale stripe runs down one side marking the negative lead.",
+    "printed_text_to_look_for": "10uF, 50V, printed directly rather than as a 3-digit code",
+    "easily_confused_with": [
+      "100uF electrolytic capacitor: same cylindrical shape and stripe marking, but a visibly larger body and a different printed value",
+      "other small electrolytic capacitors of different voltage or capacitance rating, distinguished by the printed text"
+    ]
+  },
+  "wiring_to_uno": {
+    "example_connections": [
+      { "part_pin": "positive lead", "uno_pin": "5V, or a voltage regulator's output" },
+      { "part_pin": "negative lead", "uno_pin": "GND" }
+    ],
+    "required_extra_parts": [],
+    "arduino_library": "none"
+  },
+  "safety": {
+    "hazards": [
+      "installing it backwards (reverse polarity) or exceeding its 50V rating can cause it to heat up, bulge, vent, or in rare cases pop",
+      "do not touch a hot or visibly bulging capacitor"
+    ],
+    "handling_notes": [
+      "always check the negative stripe before powering the circuit",
+      "bend leads gently, not sharply right at the body, to avoid cracking the internal seal"
+    ],
+    "common_mistakes": [
+      "reversing polarity",
+      "confusing it with the visually similar but larger 100uF capacitor and using the wrong value"
+    ]
+  },
+  "troubleshooting": {
+    "symptoms_and_causes": [
+      { "symptom": "capacitor feels warm, the top bulges, or there is a small pop or hiss", "likely_cause": "installed backwards or exposed to more than 50V", "check": "power off immediately, verify orientation against the negative stripe, and replace the part if the top is domed or leaking" },
+      { "symptom": "circuit does not get the expected power smoothing", "likely_cause": "capacitor installed backwards, a bad solder or breadboard connection, or the wrong part substituted", "check": "use a multimeter's capacitance mode; expect a reading close to 10uF, and check continuity of both leads" }
+    ],
+    "how_to_test_with_a_multimeter": "Discharge the capacitor first by briefly connecting a resistor across its leads, then set the multimeter to capacitance mode; expect a reading close to 10uF. Do not test an electrolytic on a diode or continuity setting expecting a simple short or open reading, since it will show a brief charging blip instead."
+  },
+  "market": {
+    "unit_price_usd": 0.195,
+    "price_source_url": "https://www.adafruit.com/product/2195",
+    "price_checked_on": "2026-09-05",
+    "lifecycle_status": "active",
+    "typical_suppliers": ["Adafruit", "SparkFun", "Amazon", "DigiKey"]
+  },
+  "sources": [
+    { "title": "Elegoo For Arduino UNO R3 Project Most Complete Starter Kit (EL-KIT-001) - Newegg", "url": "https://www.newegg.com/elegoo-el-kit-001-accessories/p/293-001C-00001", "type": "retailer", "used_for": "kit.name, kit.sku, and kit.quantity_in_kit (parts list confirms 2x 10uF 50V electrolytic capacitors)" },
+    { "title": "ELEGOO UNO R3 Project Most Complete Starter Kit Instruction Manual", "url": "https://manuals.plus/asin/B01CZTLHGE", "type": "manufacturer", "used_for": "corroborates kit.quantity_in_kit from ELEGOO's own instruction manual parts list ('2pcs Electrolytic Capacitor (10UF 50V)')" },
+    { "title": "10uF 50V Electrolytic Capacitors - Pack of 10, product 2195 - Adafruit", "url": "https://www.adafruit.com/product/2195", "type": "retailer", "used_for": "key_specs.tolerance_percent, key_specs.case_size, market.unit_price_usd (computed as $1.95 for a 10-pack, divided to $0.195/unit)" },
+    { "title": "Capacitor Kit Identification Guide - SparkFun Learn", "url": "https://learn.sparkfun.com/tutorials/capacitor-kit-identification-guide/all", "type": "tutorial", "used_for": "pins.pin_1_identification and visual_identification (cylindrical 'soda can' body, negative stripe, longer positive lead) and safety.hazards (risk of exploding if installed backwards or overvoltage)" }
+  ],
+  "confidence": {
+    "overall": "medium",
+    "fields_uncertain": [
+      "identity.manufacturer",
+      "identity.manufacturer_part_number",
+      "key_specs.tolerance_percent (from a comparable retail part, not ELEGOO's exact unit)",
+      "key_specs.case_size (same caveat)"
+    ],
+    "notes": "quantity_in_kit of 2 matches the seed and is confirmed by two independently fetched sources (Newegg's EL-KIT-001 listing and ELEGOO's own instruction manual, hosted on manuals.plus). ELEGOO's own website (elegoo.com and us.elegoo.com product/tutorial pages) returned HTTP 403 Forbidden on every fetch attempt, so this record relies on a third-party retailer listing and a third-party host of ELEGOO's own instruction manual instead. ELEGOO ships a generic, unbranded part and publishes no datasheet, manufacturer name, or MPN for it. market.unit_price_usd is computed by dividing Adafruit's comparable 10-pack price ($1.95) by 10, not a confirmed ELEGOO or single-unit retail price."
+  }
+}
