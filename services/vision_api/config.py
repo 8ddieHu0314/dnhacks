@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +21,7 @@ class Settings(BaseSettings):
     component_knowledge_path: str | None = None
     component_knowledge_top_k: int = 3
     workflow_definitions_dir: str | None = None
+    speech_mode: Literal["off", "computer", "glasses", "both"] = "off"
 
 
 settings = Settings()
