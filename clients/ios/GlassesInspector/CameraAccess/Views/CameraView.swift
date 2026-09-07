@@ -707,6 +707,9 @@ struct RelaySettingsView: View {
           Toggle("Detector boxes on the dashboard", isOn: $relay.detectorEnabled)
           Text("A local YOLO model draws boxes on the Mac's video for the audience. It never triggers Claude and costs the Mac about a tenth of a second per frame. Mac: \(relay.detectorActive.map { $0 ? "on" : "off" } ?? "?").")
             .font(.caption).foregroundStyle(.secondary)
+          Toggle("Demo mode", isOn: $relay.demoMode)
+          Text("On: the Mac loads the breadboard build (button to fan) into Claude's context, and saying you want to build or wire the circuit starts the step-by-step guide. Off: nothing about the breadboard is injected. Flipping it ends any build in progress and clears the conversation. Mac: \(relay.demoModeActive.map { $0 ? "on" : "off" } ?? "?").")
+            .font(.caption).foregroundStyle(.secondary)
         }
         Section("Voice") {
           Picker("Voice", selection: $relay.voiceProvider) {
@@ -717,6 +720,9 @@ struct RelaySettingsView: View {
           Text("Active on Mac: \(relay.activeVoice). ElevenLabs needs its key on the Mac and falls back to Apple otherwise.")
             .font(.caption).foregroundStyle(.secondary)
           Toggle("Speak results through glasses", isOn: $relay.speakEnabled)
+          Toggle("Also read aloud on the Mac", isOn: $relay.macSpeak)
+          Text("The Mac speaks each sentence through its own speaker as it streams, for the people around the bench; the glasses still speak too, and Hush stops both. Mac: \(relay.macSpeakActive.map { $0 ? "on" : "off" } ?? "?").")
+            .font(.caption).foregroundStyle(.secondary)
           Button("Test voice on glasses") { relay.speaker.speak("Glasses audio link is live. Claude will speak here.") }
           Button("Stop speaking") { relay.speaker.stop() }
           Text("Narration runs on the Mac; needs ANTHROPIC_API_KEY there, or INSPECT_FAKE=1 to test the audio path.")

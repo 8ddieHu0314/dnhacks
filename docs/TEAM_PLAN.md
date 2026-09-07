@@ -12,13 +12,18 @@ The three layers meet at fixed interfaces, so they can be worked in parallel:
   commands `{"type":"inspect"}`, `{"type":"narrate","enabled":bool,"interval":s}`,
   `{"type":"voice",...}`, `{"type":"detector",...}`, `{"type":"report_page",...}`, and since Sept 6
   `{"type":"ask","text":...,"heard_at":ms}` (a sentence the wearer said, recognized on the phone)
-  and `{"type":"hush"}` (stop talking, drop queued sentences). On the reactive branch the Mac's
+  and `{"type":"hush"}` (stop talking, drop queued sentences); since Sept 6 afternoon
+  `{"type":"session","id":...}` (one id per app launch, sent with the preferences; a new id resets
+  the Mac's conversation memory and any guided build, a repeat keeps them), and
+  `{"type":"demo","enabled":bool}` (Demo mode: the breadboard build in Claude's prompt; the Mac
+  echoes it as `demo_mode` in its status), and `{"type":"mac_speak","enabled":bool}` (read every
+  sentence aloud on the Mac's speaker too; echoed as `mac_speak`). On the reactive branch the Mac's
   hello and status message is `{"type":"status",...}`; `reactive`, `narrate` and `models` are
   gone. The full list is in CLAUDE.md.
 - Mac -> phone (same socket): `{"type":"speak","text":...}` per sentence, then
   `{"type":"speak_end"}`; `{"type":"narration","enabled":..,"interval":..}`; `{"type":"reactive",...}`
   status; ElevenLabs PCM as `audio` / `audio_end`; `speak_stop` after a hush.
-- Mac HTTP: `POST /inspect {question}`, `POST /ask {text}`, `POST/GET /narrate`, `GET /report`, `GET /health`,
+- Mac HTTP: `POST /reset` (new conversation), `POST /demo {enabled}`, `POST /mac_speak {enabled}`, `POST /inspect {question}`, `POST /ask {text}`, `POST/GET /narrate`, `GET /report`, `GET /health`,
   dashboard on `/`. Report rows land in `services/relay_receiver/report.jsonl`.
 
 Change an interface only with the other side's owner in the loop, and update this file.

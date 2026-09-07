@@ -24,6 +24,7 @@ from pathlib import Path
 
 import catalog
 import detect
+import guide
 import numpy as np
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -33,7 +34,8 @@ import tts_elevenlabs as tts
 
 MODEL = os.environ.get("MODEL", os.environ.get("ASK_MODEL", "claude-sonnet-5"))   # one model for everything
 ADVERTISE = os.environ.get("ADVERTISE", "1") == "1"   # ADVERTISE=0: no Bonjour, for a second test instance on another port
-SPEAK = os.environ.get("SPEAK", "0") == "1"           # also `say` answers on the Mac speaker
+SPEAK = os.environ.get("SPEAK", "0") == "1"           # Mac read-aloud on from the start (the phone's toggle wins)
+MAC_SAY = os.environ.get("MAC_SAY", "say").split()    # the command that reads a sentence aloud on the Mac, e.g. "say -v Samantha"
 FAKE = os.environ.get("INSPECT_FAKE", "0") == "1"      # canned answers (no API key needed) to test the audio path
 FRAMES_PER_ASK = int(os.environ.get("FRAMES_PER_ASK", "3"))   # sharpest frames sent with each question
 STALE_SECONDS = float(os.environ.get("STALE_SECONDS", "8"))    # newest frame older than this: say so instead of answering
@@ -76,7 +78,7 @@ _warm_task = None
 def _system_blocks() -> list[dict]:
     """The cached prefix: teaching rules plus the whole catalog. Identical bytes every call, so
     Anthropic's prompt cache serves it after the first request."""
-    text = TEACH_PROMPT
+    text = TEACH_PROMPT + ("\n\n" + guide.PROMPT if demo["enabled"] else "")   # two variants, each cached on its own
     if catalog.prompt_text:
         text += ("\n\nQuick index of the catalog (match what you see here first):\n" + catalog.index_text
                  + "\n\nFull catalog records (ground truth):\n\n" + catalog.prompt_text)
@@ -197,7 +199,7 @@ state = {
     "lat_window": [],      # phone->mac latency samples (ms)
     "report": [],
     "busy": False,         # one answer at a time
-    "last_qa": None,       # (ts, question, answer): short-term memory for follow-ups ("does it need a driver?")
+    "qa": deque(maxlen=8), # (ts, question, answer): short-term memory for follow-ups ("does it need a driver?"); the guide reads more of it
     "gaps": [],            # recent frame gaps > 2 s: {"at", "gap_s", "while_speaking"}; freeze telemetry
     "speaking_until": 0.0, # when the last spoken sentence is expected to finish playing
 }
@@ -210,7 +212,103 @@ detector = {"task": None, "last_ts": 0.0, "enabled": os.environ.get("DETECT_DEFA
 speech = {"queue": None, "task": None, "next_id": 0, "chars": 0, "errors": 0, "last_error": "",
           "stop_gen": 0}   # bumped by hush(): cuts the answer being streamed and the sentence being rendered
 voice_in = {"asks": 0, "last": None, "intents": {"hush": 0, "answer": 0, "no_frame": 0}}
+session = {"id": None, "since": 0.0, "resets": 0}   # the phone's conversation id: one per app launch
+mac_speak = {"enabled": SPEAK, "queue": None, "task": None, "proc": None, "spoken": 0}   # read every sentence aloud on the Mac too
+
+
+async def reset_conversation(reason: str):
+    """Forget everything conversational: the exchange memory, a build in progress, queued speech.
+    A new phone session (app launch) and POST /reset land here; a reconnect with the same id
+    does not, so a socket flap mid-build keeps the build."""
+    state["qa"].clear()
+    guide.stop()
+    voice_in["last"] = None
+    session["resets"] += 1
+    await hush()
+    await _caption("", final=True)
+    await _send_all(phones, _status_msg())
+    print(f"conversation reset ({reason})", flush=True)
+
+
+async def _mac_say_worker():
+    """Reads sentences aloud on the Mac's own speaker, one at a time, with the MAC_SAY command, for
+    the people around the bench who are not wearing the glasses. A hush kills the sentence being
+    spoken and drops the rest."""
+    q = mac_speak["queue"]
+    while True:
+        gen, text = await q.get()
+        try:
+            if gen != speech["stop_gen"] or not mac_speak["enabled"]:
+                continue
+            try:
+                proc = await asyncio.create_subprocess_exec(*MAC_SAY, text)
+            except Exception as e:
+                print("mac say failed:", e, flush=True)
+                continue
+            mac_speak["proc"] = proc
+            await proc.wait()
+            mac_speak["proc"] = None
+            mac_speak["spoken"] += 1
+        finally:
+            q.task_done()
+
+
+def _mac_say_enqueue(text: str):
+    if not mac_speak["enabled"]:
+        return
+    if mac_speak["queue"] is None:
+        mac_speak["queue"] = asyncio.Queue()
+        mac_speak["task"] = asyncio.create_task(_mac_say_worker())
+    mac_speak["queue"].put_nowait((speech["stop_gen"], text))
+
+
+def _mac_say_stop():
+    """Cut the sentence being read on the Mac and forget the queued ones."""
+    q = mac_speak.get("queue")
+    while q is not None and not q.empty():
+        try:
+            q.get_nowait()
+            q.task_done()
+        except Exception:
+            break
+    proc = mac_speak.get("proc")
+    if proc is not None and proc.returncode is None:
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+
+
+async def set_mac_speak(enabled: bool):
+    """The phone's "Also read aloud on the Mac" toggle, the dashboard checkbox and POST /mac_speak."""
+    mac_speak["enabled"] = bool(enabled)
+    if not mac_speak["enabled"]:
+        _mac_say_stop()
+    await _send_all(phones, _status_msg())
+
+
+async def _warm_now():
+    try:
+        print("Prompt cache:", await _warm_once(), flush=True)
+    except Exception as e:
+        print("Prompt cache warm failed:", e, flush=True)
+
+
+async def set_demo(enabled: bool):
+    """Demo mode. On: the breadboard build is in Claude's prompt and the build phrases are live.
+    Off: nothing breadboard-related is injected. Flipping it either way ends any build and clears
+    the exchange memory, so no breadboard talk lingers, and warms the cache for the new prompt."""
+    changed = demo["enabled"] != bool(enabled)
+    demo["enabled"] = bool(enabled)
+    if changed:
+        guide.stop()
+        state["qa"].clear()
+        print(f"demo mode {'on' if demo['enabled'] else 'off'}", flush=True)
+        if not FAKE and os.environ.get("ANTHROPIC_API_KEY"):
+            asyncio.create_task(_warm_now())
+    await _send_all(phones, _status_msg())
 voice = {"provider": "apple"}   # phone or dashboard can switch to elevenlabs
+demo = {"enabled": os.environ.get("DEMO_DEFAULT", "0") == "1"}   # Demo mode: the breadboard build in the prompt; the phone's toggle wins
 report_page = {"enabled": False}   # judges' view; switched from the phone's gear menu, default off
 
 if REPORT_PATH.exists():
@@ -318,7 +416,9 @@ def _stats():
             "frames_per_ask": FRAMES_PER_ASK, "busy": state["busy"],
             "inspections": len(state["report"]),
             "catalog_parts": len(catalog.records), "catalog_kb": len(catalog.prompt_text) // 1024,
-            "voice_in": voice_in, "report_page": report_page["enabled"],
+            "voice_in": voice_in, "report_page": report_page["enabled"], "guide": guide.info(), "demo_mode": demo["enabled"],
+            "mac_speak": {"enabled": mac_speak["enabled"], "spoken": mac_speak["spoken"], "cmd": " ".join(MAC_SAY)},
+            "session": {"id": (session["id"] or "")[:8] or None, "resets": session["resets"], "memory": len(state["qa"])},
             "detector": {"available": detect.state["available"], "enabled": detector["enabled"], "model": detect.state["model"],
                          "reason": detect.state["reason"], "ms": detect.state["ms"], "boxes": len(detect.state["latest"]),
                          "frames": detect.state["frames"]},
@@ -329,10 +429,11 @@ def _stats():
 
 def _status_msg() -> dict:
     """What the phone needs to know; sent on connect (its hello) and after every change."""
-    return {"type": "status", "prompt_version": 7, "thinking": THINKING_MODE, "effort": EFFORT if OUTPUT_CONFIG else None,
+    return {"type": "status", "prompt_version": 8, "thinking": THINKING_MODE, "effort": EFFORT if OUTPUT_CONFIG else None,
             "voice": _voice_active(), "detector_enabled": detector["enabled"],
             "detector": detect.state["available"], "report_page": report_page["enabled"],
-            "model": "fake" if FAKE else MODEL, "catalog_parts": len(catalog.records), "busy": state["busy"]}
+            "model": "fake" if FAKE else MODEL, "catalog_parts": len(catalog.records), "busy": state["busy"],
+            "demo_mode": demo["enabled"], "mac_speak": mac_speak["enabled"]}
 
 
 async def _send_all(sockets: set[WebSocket], msg: dict):
@@ -352,6 +453,8 @@ async def _caption(text: str, final: bool):
 # ---------------------------------------------------------------- speech out
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+_VERDICT = re.compile(r"(DONE|STAY)\b[\s:.,;\-\u2013\u2014]+", re.I)      # guided build: the reply's first word, once its separator has arrived
+_VERDICT_END = re.compile(r"(DONE|STAY)\b[\s:.,;\-\u2013\u2014]*", re.I)  # the same when the stream ends right after the word
 
 
 def _voice_active() -> str:
@@ -374,6 +477,7 @@ async def _say(text: str) -> float:
     speaks the text with Apple's voice."""
     secs = speech_seconds(text)
     state["speaking_until"] = max(state["speaking_until"], time.time()) + secs
+    _mac_say_enqueue(text)   # the Mac's own speaker too, when that toggle is on
     if _voice_active() != "elevenlabs":
         await _send_all(phones, {"type": "speak", "text": text})
         return secs
@@ -457,15 +561,26 @@ async def hush():
     drop queued sentences, stop playback on the phone."""
     speech["stop_gen"] += 1
     _drop_pending_speech()
+    _mac_say_stop()
     await _send_all(phones, {"type": "speak_stop"})
 
 
 # ---------------------------------------------------------------- the question
 
-async def _fake_stream(question: str, n_frames: int):
-    for chunk in [f"I can see {n_frames} frames of a table with a couple of parts. ",
-                  "The one on the left is an ultrasonic sensor with four pins. ",
-                  "Power it from five volts and keep the wiring short."]:
+async def _fake_stream(question: str, n_frames: int, guide_kind: str | None = None):
+    chunks = [f"I can see {n_frames} frames of a table with a couple of parts. ",
+              "The one on the left is an ultrasonic sensor with four pins. ",
+              "Power it from five volts and keep the wiring short."]
+    if guide.active():
+        # The guided build without a key: "done" or "next" counts the step done, anything else stays.
+        i = guide.state["step"]
+        if guide_kind in ("start", "restart"):
+            chunks = ["STAY " + guide.INTRO + " ", guide.STEPS[0]["say"]]
+        elif re.search(r"\b(done|next|did it|finished|ready|ok|okay)\b", question.lower()):
+            chunks = ["DONE Good. ", guide.STEPS[i]["say"] if i < len(guide.STEPS) else guide.FINISH]
+        else:
+            chunks = ["STAY I cannot see that wire yet. ", guide.STEPS[i - 1]["say"]]
+    for chunk in chunks:
         for word in chunk.split(" "):
             yield word + " "
             await asyncio.sleep(0.08)
@@ -495,7 +610,8 @@ def _closeup(frames: list[bytes]) -> tuple[bytes | None, dict | None]:
         detect.state.update(saved)
 
 
-async def _claude_stream(question: str, frames: list[bytes], closeup: bytes | None = None, det: dict | None = None):
+async def _claude_stream(question: str, frames: list[bytes], closeup: bytes | None = None, det: dict | None = None,
+                         guide_kind: str | None = None):
     import anthropic
     client = anthropic.AsyncAnthropic()
     content = []
@@ -509,13 +625,19 @@ async def _claude_stream(question: str, frames: list[bytes], closeup: bytes | No
                                                     "data": base64.standard_b64encode(closeup).decode()}})
         note = (f" The final image is a close-up crop of the part a local detector found in the sharpest frame"
                 f" ({det['conf']:.0%} confidence); use it to read shape, markings and wires.")
-    content.append({"type": "text", "text": f"({when}.{note})\nThe wearer asked: {question}"})
+    guiding = demo["enabled"] and guide.active()
+    text = f"({when}.{note})\nThe wearer asked: {question}"
+    if guiding:
+        text += "\n" + guide.turn_note(guide_kind)   # the current step: dynamic, so here and never in the cached system block
+    content.append({"type": "text", "text": text})
     messages = []
-    last = state.get("last_qa")
-    if last and time.time() - last[0] < MEMORY_SECONDS and last[2]:
-        # The previous exchange, text only (no frames), so "it" resolves and names are not repeated.
-        messages += [{"role": "user", "content": f"(Earlier, {int(time.time() - last[0])} seconds ago.)\nThe wearer asked: {last[1]}"},
-                     {"role": "assistant", "content": last[2]}]
+    # Earlier exchanges, text only (no frames), so "it" resolves and names are not repeated: the
+    # last one within MEMORY_SECONDS, or the whole build so far while guiding.
+    now = time.time()
+    earlier = [qa for qa in state["qa"] if now - qa[0] < (guide.MEMORY_SECONDS if guiding else MEMORY_SECONDS) and qa[2]]
+    for qts, q, a in (earlier if guiding else earlier[-1:]):
+        messages += [{"role": "user", "content": f"(Earlier, {int(now - qts)} seconds ago.)\nThe wearer asked: {q}"},
+                     {"role": "assistant", "content": a}]
     messages.append({"role": "user", "content": content})
     kw = {"output_config": OUTPUT_CONFIG} if OUTPUT_CONFIG else {}
     async with client.messages.stream(model=MODEL, max_tokens=MAX_TOKENS, system=_system_blocks(), thinking=THINKING,
@@ -527,7 +649,8 @@ async def _claude_stream(question: str, frames: list[bytes], closeup: bytes | No
             yield " I cannot answer that one."
 
 
-async def answer(question: str, *, since: float | None = None, source: str = "phone") -> dict:
+async def answer(question: str, *, since: float | None = None, source: str = "phone",
+                 guide_kind: str | None = None) -> dict:
     """Answer one spoken question from the frames the wearer was looking at, speaking each
     sentence as it lands. Returns the report entry."""
     if not FAKE and not os.environ.get("ANTHROPIC_API_KEY"):
@@ -548,7 +671,13 @@ async def answer(question: str, *, since: float | None = None, source: str = "ph
     full, pending, secs = "", "", 0.0
     stop_gen = speech["stop_gen"]      # a hush() while streaming ends this answer early
     stopped = False
-    stream = _fake_stream(question, len(frames)) if FAKE else _claude_stream(question, frames, closeup, det)
+    guiding = demo["enabled"] and guide.active()
+    guide_step = guide.state["step"] if guiding else 0
+    # Guided build: the reply's first word is DONE or STAY and is never spoken. Stripped on every
+    # answer, not only while guiding, so a stray verdict (the model deciding on its own that a
+    # build is on) cannot reach the glasses; it only advances the step while a build is active.
+    expect_verdict, verdict = True, None
+    stream = _fake_stream(question, len(frames), guide_kind) if FAKE else _claude_stream(question, frames, closeup, det, guide_kind)
     t_first = None
     async for piece in stream:
         if speech["stop_gen"] != stop_gen:
@@ -558,6 +687,18 @@ async def answer(question: str, *, since: float | None = None, source: str = "ph
             t_first = time.time()
         full += piece
         pending += piece
+        if expect_verdict:
+            # Nothing has been spoken yet, so pending == full. Wait for the whole verdict word and
+            # its separator before speaking; a reply that starts with anything else counts as STAY.
+            head = full.lstrip()
+            m = _VERDICT.match(head)
+            if m:
+                verdict, expect_verdict = m.group(1).upper(), False
+                full = pending = head[m.end():]
+            elif len(head) >= 6 and not ("DONE".startswith(head[:4].upper()) or "STAY".startswith(head[:4].upper())):
+                verdict, expect_verdict = "STAY", False
+            else:
+                continue
         await _caption(full, final=False)
         parts = _SENTENCE_END.split(pending)
         if len(parts) > 1:
@@ -566,13 +707,22 @@ async def answer(question: str, *, since: float | None = None, source: str = "ph
                 if sentence:
                     secs += await _say(sentence)
             pending = parts[-1]
+    if expect_verdict:                 # the stream ended right after the verdict word
+        head = full.lstrip()
+        m = _VERDICT_END.match(head)
+        if m:
+            verdict = m.group(1).upper()
+            full = pending = head[m.end():]
+        else:
+            verdict = "STAY"
     tail = pending.strip()
     if tail and not stopped:
         secs += await _say(tail)
     await _send_all(phones, {"type": "speak_end"})
     text = full.strip()
     if text and not stopped:
-        state["last_qa"] = (time.time(), question, text)
+        state["qa"].append((time.time(), question, text))
+    finished = bool(guiding and verdict == "DONE" and guide.advance())
     await _caption(text + (" [stopped]" if stopped else ""), final=True)
     entry = {"ts": ts, "kind": "ask", "question": question, "result": text, "frame": names[0] if names else None,
              "frames": names, "frame_span_s": round(picked[-1][0] - picked[0][0], 2) if len(picked) > 1 else 0.0,
@@ -580,13 +730,13 @@ async def answer(question: str, *, since: float | None = None, source: str = "ph
              "model": "fake" if FAKE else MODEL, "source": source, "speech_s": round(secs, 1),
              "first_token_ms": int((t_first - ts) * 1000) if t_first else None,
              "total_ms": int((time.time() - ts) * 1000)}
+    if guiding:
+        entry["guide"] = {"step": guide_step, "verdict": verdict, "finished": finished}
     if stopped:
         entry["stopped"] = True
     state["report"].append(entry)
     with REPORT_PATH.open("a") as f:
         f.write(json.dumps(entry) + "\n")
-    if SPEAK and text:
-        subprocess.Popen(["say", text])
     return entry
 
 
@@ -624,11 +774,16 @@ async def handle_ask(text: str, source: str = "phone", heard_at: float | None = 
         await _say("One moment, still answering the last one.")
         await _send_all(phones, {"type": "speak_end"})
         return {"intent": "busy", "text": text}
+    kind = guide.route(low) if demo["enabled"] else None   # the guided build (Demo mode only): start, restart or quit on the wearer's words
+    if kind == "quit":
+        await _say("Okay, leaving the build. Ask how to get the fan working to pick it up again.")
+        await _send_all(phones, {"type": "speak_end"})
+        return {"intent": "guide_quit", "text": text}
     state["busy"] = True
     await _send_all(phones, _status_msg())
     try:
         voice_in["intents"]["answer"] += 1
-        entry = await answer(text, since=heard_at, source=source)
+        entry = await answer(text, since=heard_at, source=source, guide_kind=kind)
     except Exception as e:
         await _say(f"Sorry, that failed: {e}")
         await _send_all(phones, {"type": "speak_end"})
@@ -703,6 +858,15 @@ async def handle_phone_command(msg: dict):
         if msg.get("provider") in ("apple", "elevenlabs"):
             voice["provider"] = msg["provider"]
         await _send_all(phones, _status_msg())
+    elif kind == "demo":
+        await set_demo(msg.get("enabled", False))
+    elif kind == "mac_speak":
+        await set_mac_speak(msg.get("enabled", False))
+    elif kind == "session":
+        sid = str(msg.get("id") or "")
+        if sid and sid != session["id"]:
+            session.update(id=sid, since=time.time())
+            await reset_conversation(f"phone session {sid[:8]}")
 
 
 @app.websocket("/")
@@ -857,6 +1021,47 @@ def status():
     return _status_msg()
 
 
+@app.post("/mac_speak")
+async def post_mac_speak(request: Request):
+    """Read every sentence aloud on the Mac too (dashboard checkbox or curl; the phone's toggle wins on reconnect)."""
+    body = await request.json()
+    await set_mac_speak(body.get("enabled", False))
+    return {"mac_speak": mac_speak["enabled"]}
+
+
+@app.post("/demo")
+async def post_demo(request: Request):
+    """Demo mode on/off from the dashboard or curl; the phone's gear-menu toggle wins on its next reconnect."""
+    body = await request.json()
+    await set_demo(body.get("enabled", False))
+    return {"demo_mode": demo["enabled"], "guide": guide.info()}
+
+
+@app.post("/reset")
+async def post_reset():
+    """New conversation: forget the exchange memory and any build in progress (the demo desk
+    between visitors; the phone does the same by itself on every app launch)."""
+    await reset_conversation("http")
+    return {"reset": True, "resets": session["resets"], "guide": guide.info()}
+
+
+@app.get("/guide")
+def get_guide():
+    """The guided build: which step the wearer is on."""
+    return guide.info()
+
+
+@app.post("/guide")
+async def post_guide(request: Request):
+    """Demo desk control: {"step": 1} starts or jumps to a step, {"step": 0} or {"reset": true} ends the build."""
+    body = await request.json()
+    if body.get("reset"):
+        guide.stop()
+    elif "step" in body:
+        guide.set_step(body["step"])
+    return guide.info()
+
+
 @app.get("/debug/tasks")
 def debug_tasks():
     """Health of the background loops (detector, speech, prompt warmer)."""
@@ -978,12 +1183,15 @@ input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#222;
 <input id=q placeholder="Ask as if speaking into the glasses: how many pins does the part on the left have?">
 <div style="display:flex;gap:8px"><button class=primary onclick="ask()" style="flex:1">Ask</button>
 <button class=secondary onclick="describe()" title="What am I looking at? Name the parts you can see.">What's here?</button>
-<button class=secondary onclick="hushNow()" title="Stop speaking">Hush</button></div>
+<button class=secondary onclick="hushNow()" title="Stop speaking">Hush</button>
+<button class=secondary onclick="resetNow()" title="Forget the conversation and any build in progress">New conversation</button></div>
 <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
   <b style="font-size:14px">Voice</b>
   <select id=voice onchange="setVoice()" style="background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:4px">
     <option value="apple">Apple (on phone)</option><option value="elevenlabs">ElevenLabs</option></select>
   <label style="font-size:13px;color:#ccc" title="Local YOLO detector: boxes drawn on the video. It never triggers Claude."><input type=checkbox id=det onchange="setDetector()"> detector boxes</label>
+  <label style="font-size:13px;color:#ccc" title="Demo mode: the breadboard build is in Claude's prompt and saying you want to build the circuit starts the guide. Off: nothing about the breadboard is injected."><input type=checkbox id=demo onchange="setDemo()"> demo mode</label>
+  <label style="font-size:13px;color:#ccc" title="Read every sentence aloud on this Mac's speaker as well as in the glasses."><input type=checkbox id=macsay onchange="setMacSay()"> read aloud on the Mac</label>
   <span id=rstat style="font:12px ui-monospace,monospace;color:#9f9"></span>
 </div>
 <div id=heard></div>
@@ -1034,7 +1242,9 @@ function connect(){
       if(document.activeElement.id!=='voice')document.getElementById('voice').value=(m.tts&&m.tts.provider)||'apple';
       if(m.report_page!==undefined)document.getElementById('replink').style.display=m.report_page?'inline':'none';
       if(m.detector&&m.detector.enabled!==undefined&&document.activeElement.id!=='det')document.getElementById('det').checked=!!m.detector.enabled;
-      document.getElementById('rstat').textContent=`${m.busy?'answering…':'ready'} · catalog ${m.catalog_parts} parts (${m.catalog_kb} KB) · ${m.frames_per_ask} frames per question`;return;}
+      if(m.demo_mode!==undefined&&document.activeElement.id!=='demo')document.getElementById('demo').checked=!!m.demo_mode;
+      if(m.mac_speak&&document.activeElement.id!=='macsay')document.getElementById('macsay').checked=!!m.mac_speak.enabled;
+      document.getElementById('rstat').textContent=`${m.busy?'answering…':'ready'} · catalog ${m.catalog_parts} parts (${m.catalog_kb} KB) · ${m.frames_per_ask} frames per question${m.guide&&m.guide.active?` · build step ${m.guide.step}/${m.guide.steps} ${m.guide.title}`:''}`;return;}
     try{const b=await createImageBitmap(e.data);if(bmp)bmp.close();bmp=b;draw();
       shown++;const now=performance.now();if(now-lastShown>1000){dispFps=shown*1000/(now-lastShown);shown=0;lastShown=now;}}catch(err){}
   };
@@ -1049,7 +1259,10 @@ async function ask(){const out=document.getElementById('out');const t=document.g
  const j=await post('/ask',{text:t});if(j.error)out.textContent=j.error;loadReport();}
 async function describe(){const out=document.getElementById('out');out.textContent='looking…';const j=await post('/inspect',{});if(j.error)out.textContent=j.error;loadReport();}
 async function hushNow(){await post('/ask',{text:'stop'});}
+async function resetNow(){await post('/reset',{});loadReport();}
 async function setDetector(){await post('/detector',{enabled:document.getElementById('det').checked});}
+async function setDemo(){await post('/demo',{enabled:document.getElementById('demo').checked});}
+async function setMacSay(){await post('/mac_speak',{enabled:document.getElementById('macsay').checked});}
 async function setVoice(){await post('/voice',{provider:document.getElementById('voice').value});}
 async function loadReport(){const rep=await (await fetch('/report')).json();
  document.getElementById('rep').innerHTML=rep.slice(0,40).map(e=>`<div class=e><small>${new Date(e.ts*1000).toLocaleTimeString()} · ${e.model}${e.first_token_ms?` · first word ${e.first_token_ms} ms`:''}${e.stopped?' · stopped':''}</small>${e.question?`<div class=q>“${e.question}”</div>`:''}<div>${e.result}</div><div class=pics>${(e.frames||(e.frame?[e.frame]:[])).map(f=>`<img src="/frames/${f}">`).join('')}</div></div>`).join('');}

@@ -359,3 +359,39 @@ Glasses camera -> (Meta AI app / DAT, BT+WiFi) -> iOS app GlassesInspector -> HT
   output for the answers). The decoder tolerance, the stall watchdog and the held-frame restart
   stay as safety nets. Never demo with the glasses mic.
 
+## 2026-09-06 (afternoon) Guided build: the visitor demo (feat/reactive-voice)
+
+- The demo visitors try is one procedure on one breadboard: three wires make a fan run while a
+  tactile button is held (motor black to the top blue rail near column 12, motor red to a12, a
+  red jumper a10 to the top red rail), then a test. Design doc with the circuit, the board map
+  and the setup checklist: docs/procedures/button-fan.md. The button does not fit across the
+  groove, so it sits in the top half with leg pairs in strips 10 and 12; the team verifies the
+  orientation with a continuity test (a10 to a12 beeps only while pressed) before each visitor.
+- Relay: guide.py holds the step state and the spoken lines. The wearer starts it by asking how
+  to get the fan working; each turn the current step rides in the user message and Claude's
+  reply begins with DONE or STAY, which app.py strips before speaking and uses to advance. The
+  static procedure sits in the cached system block, so the catalog cache keeps hitting.
+  Verified end to end in INSPECT_FAKE mode on a second instance (start, unrelated question
+  keeps the step, done advances, quit, restart, POST /guide jump, finish). Not yet run against
+  the real API or on the glasses: whether Sonnet can tell column 10 from 12 in 720p frames is
+  the open question; the prompt tells it to ask for a closer look rather than guess a column,
+  and to trust the wearer's "done" when the frames cannot settle it.
+- Conversation scope (afternoon): the model kept referring to the breadboard between visitors
+  because the relay's exchange memory (2 min) and an active build (15 min) only cleared on a
+  relay restart. Now the phone sends `{"type":"session","id"}` (one id per app launch) with its
+  preferences on every hello; a new id makes the relay forget memory, build and queued speech,
+  a repeat id on a reconnect keeps them (a socket flap mid-build must not wipe the build; the
+  earlier per-reconnect reset was removed for that reason). `POST /reset` and the dashboard's
+  "New conversation" button do the same by hand.
+- Demo mode (afternoon): a gear-menu toggle (Inspector section, `demoMode`, off by default) sent
+  as `{"type":"demo","enabled"}` with the other preferences. On, the relay puts guide.PROMPT in
+  the cached system block and the build phrases are live; off, nothing breadboard-related is
+  injected. Two prompt variants, each cached on its own; a flip ends any build, clears the
+  exchange memory and warms the other variant. Dashboard checkbox and `POST /demo` do the same.
+- Mac read-aloud (afternoon): gear menu > Voice > "Also read aloud on the Mac" (`macSpeak`, off by
+  default, sent as `{"type":"mac_speak","enabled"}`). The relay queues every sentence for one
+  `say` process at a time (`MAC_SAY` overrides the command) as it streams, and hush kills it;
+  this replaces the old `SPEAK=1` end-of-answer `say`, which is now just the start-up default.
+  Caveat: with the phone mic (the default) the Mac's speaker is audible to the recognizer; the
+  echo guard only covers the time the glasses are still speaking, so if the Mac's voice runs
+  longer than the glasses', its tail can be transcribed. Keep the Mac's volume moderate.

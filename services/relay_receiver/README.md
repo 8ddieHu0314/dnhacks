@@ -58,6 +58,7 @@ exact text Claude gets.
 | Voice: Apple on the phone or ElevenLabs on the Mac | Voice | Voice select | `POST /voice {"provider"}` |
 | Detector boxes on the dashboard (visual only, off by default) | Inspector > Detector boxes | detector boxes | `POST /detector {"enabled"}` |
 | Judges' report page | Report | link appears | `POST /report_page {"enabled"}`, `GET /report.html` |
+| Read every sentence aloud on the Mac's speaker too (for the people around the bench) | Voice > Also read aloud on the Mac | read aloud on the Mac | `POST /mac_speak {"enabled"}` |
 | Status | | HUD | `GET /health`, `GET /status`, `GET /debug/tasks`, `GET /detections`, `GET /report` |
 
 The phone re-sends its saved voice, detector and report-page settings on every reconnect, so a
@@ -65,7 +66,10 @@ change made on the dashboard is undone by the next phone reconnect unless it is 
 the phone's gear menu. Env knobs: `MODEL` (`claude-sonnet-5`), `THINKING`, `EFFORT`,
 `FRAMES_PER_ASK` (3), `FRAME_MAX_SIDE` (1280), `CROP_CONF` (0.25), `STALE_SECONDS` (8, an older newest
 frame gets "no recent picture" instead of an answer), `DETECT_DEFAULT` (0),
-`ADVERTISE=0` for a second test instance on another port, `SPEAK=1` to also `say` on the Mac.
+`ADVERTISE=0` for a second test instance on another port, `SPEAK=1` to start with the Mac
+read-aloud on, `MAC_SAY` the command it uses (`say`; e.g. `say -v Samantha`). The Mac speaks
+each sentence as it streams, one `say` at a time, and a hush kills it; with the phone mic in
+use, the Mac's voice can reach that mic, so keep the Mac's volume moderate.
 
 ## Voice: ElevenLabs on the Mac, Apple voice as fallback
 
@@ -131,6 +135,44 @@ frames.
 5. Gate: `services/relay_receiver/.venv/bin/python tools/components/eval_gate.py --onnx weights/<run>.onnx --data datasets/<name>_verified`
    passes at recall >= 0.8 and <= 0.05 false positives per negative frame at the trigger threshold.
 6. Swap: `DETECT_ONNX=weights/<run>.onnx ./run.sh`.
+
+## Guided build: the demo (guide.py)
+
+Gated by Demo mode: the phone's gear-menu toggle (Inspector section, off by default, re-sent on
+every reconnect), the dashboard's "demo mode" checkbox, `POST /demo {"enabled"}`, or
+`DEMO_DEFAULT=1` until the phone's preference arrives. Off, not a word about the breadboard is in
+Claude's prompt and the build phrases do nothing; flipping it either way ends a build in progress,
+clears the exchange memory and warms the cache for the other prompt variant.
+
+One procedure, `button-fan`: on the one breadboard on the bench, three wires make a fan motor
+run while a tactile button is held, then a test. The design doc with the circuit, the board
+map and the team's setup checklist is `docs/procedures/button-fan.md`; the spoken lines live
+in `guide.py` and the two must stay in step.
+
+Before a build the wearer is just looking at parts and asking about them, and that stays an
+ordinary conversation: the prompt tells the model never to suggest the build. The build starts
+only on explicit intent, "I want to build the circuit", "let's wire the fan", "how do I get the
+fan working"; `guide.route()` matches those words and sets step 1. Generic phrases ("what
+should I do", "help me", "next step") are deliberately not triggers. From then on every
+question carries the current step in the user message (`guide.turn_note()`: the instruction
+given, what to look for in the frames, the hints), and Claude answers with a verdict word first:
+`DONE` when the frames show the wire in place, or when they cannot settle it and the wearer says
+they did it, else `STAY`. `answer()` strips the word before anything is spoken and advances the
+step on `DONE`; on `STAY` Claude speaks the matching hint, or answers an unrelated question
+(what is this part) without moving the step. "Start over" restarts, "quit the build" ends it,
+fifteen minutes of silence lapses it, and while guiding the last ten minutes of exchanges ride
+along as text so the model does not repeat itself. The static part of the guide (circuit,
+conventions, all steps) sits in the cached system block after the teaching rules; only the
+current step is dynamic, so the catalog cache keeps hitting.
+
+`GET /guide` shows the step; `POST /guide {"step": 1}` starts or jumps, `{"reset": true}`
+ends it. Between visitors, `POST /reset` (the dashboard's "New conversation" button) forgets the
+exchange memory as well as the build; the phone does the same by itself on every app launch by
+sending a fresh `{"type":"session","id"}` with its preferences, and a reconnect with the same
+id keeps the conversation. `/health` carries `guide` and the dashboard
+status line shows "build step n/4". Each report entry made during a build records
+`guide: {step, verdict, finished}`. In `INSPECT_FAKE=1` mode "done" or "next" counts a step
+done and anything else stays, so the whole flow runs without a key.
 
 ## Testing without the glasses
 

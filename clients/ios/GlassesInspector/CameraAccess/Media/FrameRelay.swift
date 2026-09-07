@@ -659,6 +659,25 @@ final class FrameRelay {
     }
   }
   private(set) var detectorActive: Bool?
+  /// Glasses Inspector: Demo mode. On, the Mac puts the breadboard build (docs/procedures) in
+  /// Claude's context and saying you want to build the circuit starts the step-by-step guide;
+  /// off, nothing breadboard-related is injected. Off by default; the Mac follows this toggle.
+  var demoMode: Bool {
+    didSet {
+      UserDefaults.standard.set(demoMode, forKey: "demoMode")
+      sendCommand(["type": "demo", "enabled": demoMode])
+    }
+  }
+  private(set) var demoModeActive: Bool?
+  /// Glasses Inspector: also read every answer aloud on the Mac's own speaker (its `say`), for the
+  /// people around the bench who are not wearing the glasses. Off by default.
+  var macSpeak: Bool {
+    didSet {
+      UserDefaults.standard.set(macSpeak, forKey: "macSpeak")
+      sendCommand(["type": "mac_speak", "enabled": macSpeak])
+    }
+  }
+  private(set) var macSpeakActive: Bool?
   private(set) var activeVoice: String = "apple"
   private(set) var lastCommandError: String?
 
@@ -682,6 +701,8 @@ final class FrameRelay {
     speakEnabled = d.object(forKey: "relaySpeak") as? Bool ?? true
     detectorEnabled = d.object(forKey: "detectorEnabledV2") as? Bool ?? false
     reportPageEnabled = d.object(forKey: "reportPage") as? Bool ?? false
+    demoMode = d.object(forKey: "demoMode") as? Bool ?? false
+    macSpeak = d.object(forKey: "macSpeak") as? Bool ?? false
     voiceProvider = d.string(forKey: "voiceProvider") ?? "apple"
     browser.onUpdate = { [weak self] in self?.applyTarget() }
     browser.start()
@@ -821,10 +842,18 @@ final class FrameRelay {
   /// Re-assert the phone's preferences after a (re)connect; the Mac's hello triggers this.
   private var announcedPrefs = false
 
+  /// One conversation per app launch. The Mac forgets the previous exchanges and any build in
+  /// progress when it sees a new id; the same id on a reconnect (cable retry, socket flap)
+  /// keeps the conversation, so a mid-build reconnect does not wipe the build.
+  private let sessionID = UUID().uuidString
+
   private func announcePrefs() {
+    sendCommand(["type": "session", "id": sessionID])
     sendCommand(["type": "voice", "provider": voiceProvider])
     sendCommand(["type": "report_page", "enabled": reportPageEnabled])
     sendCommand(["type": "detector", "enabled": detectorEnabled])
+    sendCommand(["type": "demo", "enabled": demoMode])
+    sendCommand(["type": "mac_speak", "enabled": macSpeak])
   }
 
   private func sendCommand(_ msg: [String: Any]) {
@@ -876,6 +905,8 @@ final class FrameRelay {
       activeVoice = obj["voice"] as? String ?? activeVoice
       if let r = obj["report_page"] as? Bool { reportPageActive = r }
       if let de = obj["detector_enabled"] as? Bool { detectorActive = de }
+      if let dm = obj["demo_mode"] as? Bool { demoModeActive = dm }
+      if let ms = obj["mac_speak"] as? Bool { macSpeakActive = ms }
       if let b = obj["busy"] as? Bool { macBusy = b }
       if let m = obj["model"] as? String { macModel = m }
       if let n = obj["catalog_parts"] as? Int { catalogParts = n }

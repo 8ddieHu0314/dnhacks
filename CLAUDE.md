@@ -14,9 +14,9 @@ narration) lives on `main`.
 | Path | What | Talks to |
 |---|---|---|
 | `clients/ios/GlassesInspector` | iPhone app (fork of Meta's DAT `CameraAccess` sample). Pulls the glasses camera stream, relays JPEGs to the Mac, hears the wearer through the glasses mic and sends sentences as text, plays the Mac's speech into the glasses. | `services/relay_receiver` |
-| `services/relay_receiver` | FastAPI receiver on the Mac (`:8787`): `app.py` (sockets, dashboard, the question path, speech queue), `catalog.py` (the part catalog rendered as Claude's cached ground-truth prompt), `detect.py` (local YOLOv8 ONNX: dashboard boxes and a close-up crop at question time), `tts_elevenlabs.py` (voice rendered on the Mac). | the iOS app, browsers, `docs/components/components.json`, `weights/` |
+| `services/relay_receiver` | FastAPI receiver on the Mac (`:8787`): `app.py` (sockets, dashboard, the question path, speech queue), `catalog.py` (the part catalog rendered as Claude's cached ground-truth prompt), `detect.py` (local YOLOv8 ONNX: dashboard boxes and a close-up crop at question time), `guide.py` (the guided build: step state, static prompt section, per-turn note), `tts_elevenlabs.py` (voice rendered on the Mac). | the iOS app, browsers, `docs/components/components.json`, `weights/` |
 | `docs/components` | The part catalog: 47 researched records (`records/*.json`) merged into `components.json`, plus query/merge scripts and a small RAG eval. The relay loads `components.json` at startup and puts all of it in the prompt. | `services/relay_receiver` |
-| `tools/components` | Fine-tune workflow for the component detector: Grounding DINO proposals, Claude verification of every box, YOLOv8 training, an eval gate. Needs the gitignored `.venv-inf` (inference, GDINO) and the root `.venv`. Steps are in the relay README. | `weights/` |
+| `tools/components` | Fine-tune workflow for the component detector: Grounding DINO proposals, Claude verification of every box, YOLOv8 training, an eval gate. Needs a `.venv-inf` at the repo root for Grounding DINO (not created on this Mac and not in `.gitignore`; add it there if you make one) and the root `.venv` for training. Steps are in the relay README. | `weights/` |
 | `weights/` | The committed detectors: `components_v3.onnx` (default; single class, 960 px, letterbox, with a `.json` sidecar) and the older 14-class `components_yolov8.onnx`, each with a `.classes.txt`. Everything else there is gitignored. | `detect.py` |
 | `services/vision_api` | Earlier, tested FastAPI scaffold: sessions, versioned workflow packages, bounded latest-frame queue, pluggable `VisionEngine`. Not wired to the phone app. | nothing yet |
 | `docs/datacenter` | Curated vendor-doc links for data center hardware (future vector DB). Not wired to anything. | nothing yet |
@@ -37,6 +37,12 @@ Docs that matter as much as the code:
 - `docs/pipeline.html` is the source of the architecture diagram in the README (made with the
   `diagram-design` skill, default skin). Edit the HTML and re-export `docs/pipeline.svg` from
   it; never hand-edit the SVG.
+- `docs/procedures/button-fan.md` is the visitor demo: a guided breadboard build where three
+  wires (motor to the top blue rail, motor to a12, jumper a10 to the top red rail) make a fan
+  run while a button is held. The three wiring steps are what must work; identifying the parts
+  beforehand is the ordinary ask path, and the test at the end is a formality. Holes are named
+  by row and column anchored to the printed numbers, never left or right. The relay runs it
+  from `services/relay_receiver/guide.py`, whose spoken lines must match the doc.
 
 Hardware fact that shapes everything: the glasses are Ray-Ban Meta (camera + BT headset,
 **no display**), so Meta's Web Apps / display path does not apply despite the
@@ -58,7 +64,7 @@ PPE model is deliberately never loaded in the relay (it fires on hands and faces
 ```bash
 services/relay_receiver/run.sh            # creates .venv, installs requirements.txt, sources .env, starts :8787
 INSPECT_FAKE=1 services/relay_receiver/run.sh   # canned answers, no API key
-SPEAK=1 services/relay_receiver/run.sh          # also `say` answers on the Mac
+SPEAK=1 services/relay_receiver/run.sh          # start with the Mac read-aloud on (the gear menu toggles it; MAC_SAY sets the command)
 cd services/relay_receiver && INSPECT_FAKE=1 ADVERTISE=0 .venv/bin/uvicorn app:app --port 8790 --ws websockets   # second instance for tests, no Bonjour
 ```
 
@@ -71,14 +77,16 @@ Secrets and knobs go in `services/relay_receiver/.env` (gitignored): `ANTHROPIC_
 or `adaptive`) and `EFFORT` (`low` when adaptive), `FRAMES_PER_ASK` (3), `FRAME_MAX_SIDE` (1280),
 `CROP_CONF` (0.25, detector threshold for the close-up), `STALE_SECONDS` (8; an older newest frame gets
 "no recent picture" instead of an answer), `DETECT_DEFAULT` (0; dashboard boxes off),
-`DETECT_ONNX` (a sibling `.json` sidecar sets `resize_mode`), `DETECT_CONF`, `DETECT_IOU`,
-`DETECT_CLASSES`. Keep the `--ws websockets --ws-ping-timeout 90` flags in `run.sh`; the phone
+`DETECT_ONNX` (a sibling `.json` sidecar sets `resize_mode`), `DETECT=0` (no detector at all, so no
+close-up crop either), `DETECT_CONF` (0.45) and `DETECT_IOU` (0.5) for the dashboard boxes,
+`DETECT_CLASSES`, `DEMO_DEFAULT` (0; Demo mode until the phone's toggle arrives). Keep the
+`--ws websockets --ws-ping-timeout 90` flags in `run.sh`; the phone
 socket stalls without them. Ask before restarting it on the demo Mac; it holds the phone's socket.
 
 Useful from curl (the dashboard at http://localhost:8787 has buttons for the same):
 
 ```bash
-curl -s localhost:8787/health | python3 -m json.tool          # fps, buffer, model, thinking, detector, tts, voice_in
+curl -s localhost:8787/health | python3 -m json.tool          # fps, buffer, gaps, model, thinking, detector, tts, voice_in
 curl -s localhost:8787/status                                  # what the phone gets as its hello
 curl -X POST localhost:8787/ask -H 'content-type: application/json' -d '{"text":"how many pins does the part on the left have"}'
 curl -X POST localhost:8787/ask -H 'content-type: application/json' -d '{"text":"stop"}'          # hush
@@ -177,7 +185,13 @@ Changing either side means changing both. Everything rides one WebSocket from th
   `heard_at` is the epoch ms when they started speaking and anchors the frame window),
   `{"type":"hush"}` (stop talking, drop queued sentences), `{"type":"inspect","question"?}`
   (the What's here? button: an ask with a default question), `{"type":"detector","enabled"}`
-  (dashboard boxes), `{"type":"report_page","enabled"}`, `{"type":"voice","provider":"apple"|"elevenlabs"}`.
+  (dashboard boxes), `{"type":"report_page","enabled"}`, `{"type":"voice","provider":"apple"|"elevenlabs"}`,
+  `{"type":"session","id"}` (one id per app launch, sent with the preferences on every hello; a
+  new id makes the Mac forget the exchange memory and any build in progress, the same id on a
+  reconnect keeps them), `{"type":"demo","enabled"}` (Demo mode: the breadboard build in the
+  prompt and the build phrases live; off injects nothing breadboard-related; flipping it ends a
+  build and clears the memory), `{"type":"mac_speak","enabled"}` (also read every sentence aloud
+  on the Mac's own speaker).
 - Mac -> Phone speech: `{"type":"speak","text"}` per finished sentence, then `{"type":"speak_end"}`.
   With ElevenLabs active the `speak` carries `"id"` and `"audio":true` (caption only, no local
   synthesis) and is followed by `{"type":"audio","id","rate":24000,"pcm":<base64 s16 mono>}` chunks
@@ -185,7 +199,7 @@ Changing either side means changing both. Everything rides one WebSocket from th
   ElevenLabs failed before any audio played, so the phone reads it with Apple's voice.
   `{"type":"speak_stop"}` cuts playback.
 - Mac -> Phone status: `{"type":"status","voice","detector_enabled","detector","report_page",
-  "model","thinking","effort","catalog_parts","busy","prompt_version"}` on connect and after
+  "model","thinking","effort","catalog_parts","busy","prompt_version","demo_mode","mac_speak"}` on connect and after
   every change. The first `status` after a connect is the Mac's hello; the phone answers by
   re-sending its saved voice, report-page and detector preferences. So the phone's settings win
   over anything set on the dashboard whenever it reconnects, and the Mac holds no preferences
@@ -196,7 +210,10 @@ Changing either side means changing both. Everything rides one WebSocket from th
   is `You: <question>`), `{"type":"detections","ts","ms","boxes","almost"}` per detected frame
   when the detector is on (normalized x1,y1,x2,y2), `{"type":"report_page","enabled"}`.
 - Mac HTTP: `POST /ask {text, heard_at?}`, `POST /inspect {question?}`, `POST /detector {enabled}`,
-  `POST /voice {provider}`, `POST /report_page {enabled}`, `POST /catalog/reload`,
+  `POST /voice {provider}`, `POST /report_page {enabled}`, `GET /guide`, `POST /guide {step}|{reset}`,
+  `POST /reset` (new conversation, also a dashboard button), `POST /demo {enabled}`,
+  `POST /mac_speak {enabled}`,
+  `POST /catalog/reload`,
   `GET /catalog/prompt`, `GET /status`, `GET /health`, `GET /debug/tasks`, `GET /detections`,
   `GET /report`, `GET /report.html`, `GET /latest.jpg`, `GET /frames/{name}`, dashboard on `/`.
   `POST /frame` (raw JPEG body, optional `x-capture-ts` ms header) is the ingest fallback and the
@@ -223,7 +240,7 @@ in three files plus small hooks:
   (`FrameRelay.viewModelsCreated` counts them), so anything with a lifetime (socket, browser,
   speaker, voice input, stats task) hangs off the shared instance, never the view model.
   Settings persist in `UserDefaults` (`relay*` keys for transport, `relaySpeak`, `voiceProvider`,
-  `detectorEnabledV2`, `reportPage`, `voiceInputMode`, `voiceMic`, `wakeWord`); a one-time
+  `detectorEnabledV2`, `reportPage`, `demoMode`, `macSpeak`, `voiceInputMode`, `voiceMic`, `wakeWord`); a one-time
   migration keyed on `relayDefaultsVersion` moves older installs to High resolution, 15 fps from
   the glasses, a 5 fps relay cap and JPEG quality 0.8, because frames now feed questions rather
   than a live analysis. Each setter sends the matching command and `announcePrefs()` replays them
@@ -232,7 +249,8 @@ in three files plus small hooks:
 - `CameraAccess/Media/VoiceInput.swift`: the wearer's voice. The glasses mic is reached through
   the phone's audio session (`.playAndRecord` + `.allowBluetoothHFP`, the same route Meta's
   sample records sound-in-video through) or the phone's own mic (`.allowBluetoothA2DP`, keeps
-  high-quality output). An `SFSpeechRecognizer` (on-device when available) streams partials; an
+  high-quality output; the default since 2026-09-06, because the HFP link froze the video, see
+  Environment quirks). An `SFSpeechRecognizer` (on-device when available) streams partials; an
   utterance ends after 0.9 s without new words and a fresh request starts; `lastUtteranceStart`
   is when the sentence began. Modes: off, wake word (default "inspector", alone arms the next
   sentence for 8 s), always. Stop words are handled on the phone, everything else goes out as
@@ -257,14 +275,20 @@ in three files plus small hooks:
   the `streamResolution` / `streamFPS` `UserDefaults` keys in `beginStream`, so they apply on
   the next Preview (default High, 15 fps). A stall watchdog (`startStallWatchdog`) restarts the
   stream through the sample's own stop/start paths when the SDK still says "streaming" but no
-  frame has arrived for `stallSeconds` (6), never during a recording; a device-initiated
-  `.paused` (a tap on the glasses' touchpad) is a different state and is left alone.
+  fresh frame has arrived for `stallSeconds` (4), or the decoder has been waiting for a keyframe
+  for `keyframeWaitSeconds` (2.5), since without one it cannot recover. Never during a recording
+  or while a restart is already in flight; a device-initiated `.paused` (a tap on the glasses'
+  touchpad) is a different state and is left alone. The preview keeps its last picture through
+  the restart with `stallNote` explaining why, instead of going black.
 - `VideoFrameDecoder` prefers hardware VideoToolbox decode and a GPU `CIContext`; software HEVC
-  decode was the dominant CPU cost. After three consecutive decode failures it rebuilds the
-  session and waits for a keyframe; a held or failed frame now returns nil (Meta's sample
-  returned the last good image, which made a stalled decoder look like a live stream to both
-  the preview and the relay). `stats()` exposes fresh frames, failures and the keyframe wait;
-  the stall watchdog counts only fresh frames, and the gear menu's Diagnostics shows the line.
+  decode was the dominant CPU cost. A single bad frame is skipped and decoding continues from
+  the next one; only `kVTInvalidSessionErr` or 24 consecutive failures (about a second of
+  frames) throws the session and its reference frames away and waits for a keyframe (Meta's
+  sample did that after three failures, which guaranteed a freeze when no keyframe came). A held
+  or failed frame returns nil (the sample returned the last good image, which made a stalled
+  decoder look like a live stream to both the preview and the relay). `stats()` exposes fresh
+  frames, failures, the keyframe wait and the last raw VideoToolbox status; the stall watchdog
+  counts only fresh frames, and the gear menu's Diagnostics shows the line.
 - `CameraView` shows the relay and mic chips, the live "You: …" transcript, the caption overlay,
   the What's here? and Hush buttons, and the `RelaySettingsView` sheet (Inspector section with the
   detector toggle, Stream, Voice, Voice input, Report, Diagnostics).
@@ -280,7 +304,9 @@ in three files plus small hooks:
 One Claude call per question, no background analysis. The pieces, in order of a question:
 
 1. `_ingest()` keeps `state["latest"]` and a ring buffer `state["recent"]` of about 200
-   `(receive_ts, jpeg)` pairs (at 5 fps that is 40 s; at 15 fps about 13 s).
+   `(receive_ts, jpeg)` pairs (at 5 fps that is 40 s; at 15 fps about 13 s). It also logs any gap
+   over 2 s between frames and whether the glasses were speaking at the time (`_say()` records
+   `speaking_until`); the last ten gaps ride on `/health` as `gaps`, the freeze telemetry.
 2. `handle_ask()` is the single entry for the phone's `ask`, `inspect`, the dashboard and
    `POST /ask`. Three-word-or-shorter stop words become `hush()`; anything else first hushes
    whatever is playing, waits (bounded) for `state["busy"]` to clear, then calls `answer()`.
@@ -290,10 +316,12 @@ One Claude call per question, no background analysis. The pieces, in order of a 
    and returns a padded crop of the first box it finds: a part held at arm's length is about a
    hundred pixels wide in the full frame, and the crop is what makes small-part matches hold.
 4. `_claude_stream()` sends the frames, the crop, the previous exchange (text only, if under
-   `MEMORY_SECONDS` old, so "does it need a driver" resolves "it" and names are not repeated)
-   and the question. The system prompt is `TEACH_PROMPT` + a quick index (one line per part:
-   id, names, what it looks like) + every full record, from `catalog.py`, about 58k tokens with
-   `cache_control`; `_warm()` re-reads it every four minutes so the cache never lapses.
+   `MEMORY_SECONDS` old, so "does it need a driver" resolves "it" and names are not repeated;
+   the whole build so far while a guided build is active) and the question. The system prompt
+   is `TEACH_PROMPT` + `guide.PROMPT` (the demo procedure, static) + a quick index (one line
+   per part: id, names, what it looks like) + every full record, from `catalog.py`, about 58k
+   tokens with `cache_control`; `_warm()` re-reads it every four minutes so the cache never
+   lapses.
    `THINKING` is off by default: Sonnet 5 thinks by default, and a thinking block once consumed
    the entire output budget so no text came out; adaptive thinking at low effort measured no
    better on grounding and slightly slower.
@@ -302,6 +330,17 @@ One Claude call per question, no background analysis. The pieces, in order of a 
    loop and `_tts_worker` compare against it and stop mid-answer. The report entry records the
    question, answer, the frame files (`ask-<ts>-<i>.jpg` plus `-crop.jpg`), first-token and total
    milliseconds.
+6. The guided build (`guide.py`), only while Demo mode is on (`demo["enabled"]`: the phone's
+   gear-menu toggle, `POST /demo`, `DEMO_DEFAULT`; off keeps every breadboard word out of the
+   prompt and ignores the build phrases, and flipping it ends any build, clears the memory and
+   warms the other prompt variant): `handle_ask()` calls `guide.route()` on the wearer's words
+   (start only on explicit build intent such as "I want to build the circuit" or "how do I get
+   the fan working", never on generic phrases, so looking at parts stays an ordinary
+   conversation; restart on "start over", quit on "quit the build"). While active, `_claude_stream()` appends `guide.turn_note()` to
+   the user message (the current step, what to look for, the hints, the verdict protocol) and
+   `answer()` expects the reply to begin with `DONE` or `STAY`, strips it before speaking and
+   advances the step on `DONE`. Never put the step in the system block; it would break the
+   cache on every turn. `INSPECT_FAKE=1` plays the flow ("done"/"next" advance) without a key.
 
 `catalog.py`: `load()` reads `components.json`, `render_record()` clips each record to about
 3 KB (identity, function, looks-like, pins with pinout, electrical, key specs, wiring, safety,
@@ -316,7 +355,10 @@ for the dashboard only when `detector["enabled"]` (off by default, `POST /detect
 toggle); `_closeup()` uses the model on demand regardless. `state["almost"]` carries the best
 sub-threshold candidate for tuning.
 
-Speech: `_say()` estimates playback seconds; with ElevenLabs active, sentences enter
+Speech: `_say()` estimates playback seconds and, when the Mac read-aloud toggle is on
+(`mac_speak`, from the phone, the dashboard or `POST /mac_speak`), also queues the sentence for
+`_mac_say_worker()`, one `MAC_SAY` process at a time, which `hush()` kills; with ElevenLabs
+active, sentences enter
 `speech["queue"]` and one `_tts_worker` streams them in order; `tts_elevenlabs.py` renders
 `eleven_flash_v2_5` as raw 24 kHz PCM with gain applied and caches by text hash in `tts_cache/`
 (gitignored). The starter plan is 30,000 characters a month; `/health` reports usage.
